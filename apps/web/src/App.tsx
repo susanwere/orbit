@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Landing } from "./Landing.js";
 import { OrbitMap } from "./OrbitMap.js";
 import {
@@ -16,8 +16,25 @@ const DEMO_INTENT =
   "Build interview capture with explicit consent, microphone and system audio, recovery when devices change, transcription, and a structured interview debrief.";
 type View = "home" | "projects" | "intent" | "map" | "decisions" | "agents";
 
+interface Project {
+  id: string;
+  name: string;
+  note: string;
+  live?: boolean;
+}
+
 export function App() {
   const [view, setView] = useState<View>("home");
+  const [captureOpen, setCaptureOpen] = useState(false);
+  const [captureStep, setCaptureStep] = useState(0);
+  const [projects, setProjects] = useState<Project[]>([
+    { id: "careerglyph", name: "CareerGlyph", note: "Interview Capture & Debrief", live: true },
+    { id: "orbit-platform", name: "Orbit Platform", note: "Dogfooding Orbit itself — no initiative yet" },
+    { id: "mobile-companion", name: "Mobile Companion", note: "Concept — awaiting intent" },
+  ]);
+  const [activeProjectId, setActiveProjectId] = useState("careerglyph");
+  const [creatingProject, setCreatingProject] = useState(false);
+  const [newProjectName, setNewProjectName] = useState("");
   const [context, setContext] = useState<DemoContext | null>(null);
   const [principalId, setPrincipalId] = useState("usr_susan");
   const [title, setTitle] = useState("Interview Capture & Debrief");
@@ -53,6 +70,35 @@ export function App() {
   const decisionTitle = (id: string) => context?.decisions.find((d) => d.id === id)?.title ?? id;
   const agentName = (id?: string) => context?.agentDefinitions.find((a) => a.id === id)?.name ?? id ?? "";
   const policyCode = (id: string) => context?.policies.find((p) => p.id === id)?.code ?? id;
+
+  const activeProject = projects.find((p) => p.id === activeProjectId) ?? projects[0]!;
+
+  function openProject(project: Project) {
+    setActiveProjectId(project.id);
+    if (project.live) {
+      setView(detail ? "map" : "intent");
+    } else {
+      setTitle("");
+      setIntent("");
+      setPlan(null);
+      setCreatingProject(false);
+      setView("intent");
+    }
+  }
+
+  function createProject() {
+    const name = newProjectName.trim();
+    if (!name) return;
+    const project: Project = { id: `proj_${Math.random().toString(36).slice(2, 9)}`, name, note: "New project — describe its intent", live: true };
+    setProjects((prev) => [...prev, project]);
+    setActiveProjectId(project.id);
+    setNewProjectName("");
+    setCreatingProject(false);
+    setTitle("");
+    setIntent("");
+    setPlan(null);
+    setView("intent");
+  }
 
   async function propose() {
     setBusy(true); setError(""); setNotice("");
@@ -127,7 +173,7 @@ export function App() {
       {error && <div className="notice error-box">{error}</div>}
 
       {view === "home" && (
-        <Landing onEnter={() => setView("projects")} onDescribe={() => setView("intent")} />
+        <Landing onEnter={() => setView("projects")} />
       )}
 
       {view === "projects" && (
@@ -135,51 +181,93 @@ export function App() {
           <p className="eyebrow">Projects</p>
           <h1>Your projects</h1>
           <div className="project-list">
-            <button className="project-row" onClick={() => setView(detail ? "map" : "intent")}>
-              <span className="project-glyph live">◉</span>
-              <span className="project-main">
-                <b>CareerGlyph</b>
-                <span>{detail ? `${detail.initiative.title} · ${detail.initiative.status}` : "Interview Capture & Debrief · not started"}</span>
-              </span>
-              <span className="project-signals">
-                {openGates.length > 0 && <span className="signal amber">◆ {openGates.length} needs you</span>}
-                {executions.some((e) => e.session.state === "running") && <span className="signal cyan">executing</span>}
-                {detail && <span className="signal muted">{detail.workItems.length} work items</span>}
-              </span>
-              <span className="project-open">{detail ? "Open map →" : "Start →"}</span>
-            </button>
-
-            <div className="project-row quiet" aria-disabled="true">
-              <span className="project-glyph">○</span>
-              <span className="project-main"><b>Orbit Platform</b><span>Dogfooding Orbit itself — no initiative yet</span></span>
-              <span className="signal muted">idle</span>
-            </div>
-
-            <div className="project-row quiet" aria-disabled="true">
-              <span className="project-glyph">○</span>
-              <span className="project-main"><b>Mobile Companion</b><span>Concept — awaiting intent</span></span>
-              <span className="signal muted">concept</span>
-            </div>
+            {projects.map((project) => {
+              const isLive = Boolean(project.live && detail);
+              return (
+                <button className="project-row" key={project.id} onClick={() => openProject(project)}>
+                  <span className={project.live ? "project-glyph live" : "project-glyph"}>{project.live ? "◉" : "○"}</span>
+                  <span className="project-main">
+                    <b>{project.name}</b>
+                    <span>{project.id === "careerglyph" && detail ? `${detail.initiative.title} · ${detail.initiative.status}` : project.note}</span>
+                  </span>
+                  <span className="project-signals">
+                    {project.id === activeProjectId && openGates.length > 0 && <span className="signal amber">◆ {openGates.length} needs you</span>}
+                    {project.id === activeProjectId && executions.some((e) => e.session.state === "running") && <span className="signal cyan">executing</span>}
+                    {project.id === "careerglyph" && detail && <span className="signal muted">{detail.workItems.length} work items</span>}
+                  </span>
+                  <span className="project-open">{project.live ? (isLive ? "Open map →" : "Describe intent →") : "Describe intent →"}</span>
+                </button>
+              );
+            })}
           </div>
-          <button className="cta-quiet" onClick={() => setView("intent")}>+ New project from intent</button>
+          {creatingProject ? (
+            <section className="panel new-project">
+              <h2>New project</h2>
+              <label htmlFor="project-name">Project name</label>
+              <input id="project-name" value={newProjectName} onChange={(e) => setNewProjectName(e.target.value)} placeholder="e.g. Atlas" autoFocus />
+              <div className="row">
+                <button onClick={createProject} disabled={!newProjectName.trim()}>Create project</button>
+                <button className="secondary" onClick={() => setCreatingProject(false)}>Cancel</button>
+              </div>
+              <p className="meta">Next, you will describe this project's intent.</p>
+            </section>
+          ) : (
+            <button className="cta-quiet" onClick={() => setCreatingProject(true)}>+ New project</button>
+          )}
         </main>
       )}
 
       {view === "intent" && (
-        <main className="page">
-          <p className="eyebrow">Describe Intent</p>
+        <main className="page intent-page">
+          <p className="eyebrow">{activeProject.name} · New initiative</p>
           <h1>What do you want to build?</h1>
-          <p className="lede">Muse Voice → Muse Spark turns intent into a proposed Orbit Map. Nothing is created externally before human review.</p>
-          <section className="panel">
-            <label htmlFor="title">Initiative</label>
-            <input id="title" value={title} onChange={(e) => setTitle(e.target.value)} />
-            <label htmlFor="intent">Product intent</label>
-            <textarea id="intent" value={intent} onChange={(e) => setIntent(e.target.value)} />
-            <div className="row">
-              <button onClick={propose} disabled={busy || !intent.trim()}>{busy ? "Planning…" : "Review proposed Orbit Map"}</button>
-              <span className="meta">Recorder chip (demo): “Build interview capture with explicit consent…” is the seeded CareerGlyph scenario.</span>
+          <p className="lede">One line, from voice to approved plan.</p>
+
+          <section className="pulse-line" aria-label="Intent steps">
+            <div className="pulse-track" />
+            <div className="pulse-runner" />
+
+            <button className="pulse-pill current" onClick={() => { setCaptureStep(0); setCaptureOpen(true); }}>
+              <span className="pulse-disc voice">🎙</span>
+              <span className="pulse-text"><b>Describe intent</b><small>{intent ? truncateIntent(intent) : "Speak or type what this project should become"}</small></span>
+              <span className="pulse-state">{intent.trim() ? "ready" : "start here"}</span>
+            </button>
+
+            <button className="pulse-pill" onClick={() => { setCaptureStep(1); setCaptureOpen(true); }}>
+              <span className="pulse-disc goal">◎</span>
+              <span className="pulse-text"><b>Set the goal</b><small>{title || "Name the initiative"}</small></span>
+              <span className="pulse-state">{title.trim() ? "set" : "optional"}</span>
+            </button>
+
+            <div className="pulse-pill static">
+              <span className="pulse-disc decision">◐</span>
+              <span className="pulse-text"><b>Review decisions</b><small>{plan ? `${plan.detectedDecisionIds.length} detected for this intent` : "Orbit checks product decisions first"}</small></span>
+              <span className="pulse-state">{plan ? "done" : "auto"}</span>
             </div>
+
+            <div className="pulse-pill static">
+              <span className="pulse-disc guardrail">⬡</span>
+              <span className="pulse-text"><b>Apply guardrails</b><small>{plan ? plan.relevantPolicyCodes.join(" · ") : "Allowed · approval-gated · forbidden"}</small></span>
+              <span className="pulse-state">{plan ? "attached" : "auto"}</span>
+            </div>
+
+            <button className="pulse-pill review" disabled={!intent.trim() || busy} onClick={propose}>
+              <span className="pulse-disc plan">➤</span>
+              <span className="pulse-text"><b>Review proposed plan</b><small>{plan ? "Plan ready below" : "Generate the Orbit Map for approval"}</small></span>
+              <span className="pulse-state">{busy ? "planning…" : plan ? "ready" : "next"}</span>
+            </button>
           </section>
+
+          {captureOpen && (
+            <CaptureWindow
+              step={captureStep}
+              intent={intent}
+              title={title}
+              onClose={() => setCaptureOpen(false)}
+              onIntent={(value) => { setIntent(value); setCaptureOpen(false); setNotice("Intent captured. Review decisions and guardrails, then review the proposed plan."); }}
+              onTitle={(value) => { setTitle(value); setCaptureOpen(false); }}
+            />
+          )}
 
           {plan && (
             <section className="panel">
@@ -381,4 +469,227 @@ function AgentCatalog({ context, principalId, onChanged, setError, setNotice }: 
       </section>
     </main>
   );
+}
+
+function truncateIntent(s: string) {
+  return s.length > 72 ? `${s.slice(0, 71)}…` : s;
+}
+
+function CaptureWindow({
+  step,
+  intent,
+  title,
+  onClose,
+  onIntent,
+  onTitle,
+}: {
+  step: number;
+  intent: string;
+  title: string;
+  onClose: () => void;
+  onIntent: (value: string) => void;
+  onTitle: (value: string) => void;
+}) {
+  const [mode, setMode] = useState<"voice" | "type">(step === 0 ? "voice" : "type");
+  const [draft, setDraft] = useState(step === 0 ? intent : title);
+  const [status, setStatus] = useState("");
+  const [usedPreview, setUsedPreview] = useState(false);
+  const [supported] = useState(() => typeof window !== "undefined" && ("SpeechRecognition" in window || "webkitSpeechRecognition" in window));
+
+  const [recording, setRecording] = useState(false);
+  const [elapsed, setElapsed] = useState(0);
+  const [audioUrl, setAudioUrl] = useState("");
+  const [recordError, setRecordError] = useState("");
+  const mediaRef = useRef<MediaRecorder | null>(null);
+  const dictationRef = useRef<SpeechRecognitionLike | null>(null);
+  const chunksRef = useRef<Blob[]>([]);
+
+  async function startRecording() {
+    setRecordError("");
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const types = ["audio/webm;codecs=opus", "audio/webm", "audio/mp4", "audio/ogg;codecs=opus", ""];
+      const mimeType = types.find((t) => t && MediaRecorder.isTypeSupported(t)) ?? "";
+      const recorder = mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream);
+      chunksRef.current = [];
+      recorder.ondataavailable = (event) => {
+        if (event.data.size) chunksRef.current.push(event.data);
+      };
+      recorder.onstop = () => {
+        stream.getTracks().forEach((track) => track.stop());
+        setRecording(false);
+        const blob = new Blob(chunksRef.current, { type: recorder.mimeType || "audio/webm" });
+        if (blob.size > 0) {
+          setAudioUrl((previous) => {
+            if (previous) URL.revokeObjectURL(previous);
+            return URL.createObjectURL(blob);
+          });
+          setStatus("Recording saved below — play it back, then use the transcript.");
+        } else {
+          setStatus("Recording stopped, but no audio was captured. Try again, or use Type.");
+        }
+        // Real transcription path: if the browser has SpeechRecognition,
+        // the user can dictate/type at any time. MediaRecorder audio itself
+        // cannot be transcribed client-side, so the preview transcript is
+        // labeled honestly; the recording remains playable as evidence.
+        setUsedPreview(true);
+        setDraft((previous) =>
+          previous.trim()
+            ? previous
+            : "Build interview capture with explicit consent, microphone and system audio, recovery when devices change, transcription, and a structured interview debrief.",
+        );
+      };
+      recorder.onerror = () => setRecordError("The recorder stopped unexpectedly. Try again or type the intent instead.");
+      mediaRef.current = recorder;
+      recorder.start(250);
+      setElapsed(0);
+      setRecording(true);
+      setStatus("Recording… tap again to stop.");
+    } catch (error) {
+      const name = error instanceof DOMException ? error.name : "";
+      setRecording(false);
+      setRecordError(
+        name === "NotAllowedError"
+          ? "Recording is not available: microphone permission was denied. Allow microphone access for localhost in the browser address bar, then try again — or use Type."
+          : name === "NotFoundError"
+            ? "Recording is not available: no microphone was found. Connect a microphone or use Type."
+            : "Recording is not available in this browser window. Open Orbit in a browser tab with microphone access, or use Type.",
+      );
+    }
+  }
+
+  // Live dictation: real client-side speech-to-text where the browser
+  // provides it (Chrome/Edge desktop). This is the transcription engine
+  // for the demo; Muse Voice Transcribe replaces it server-side later.
+  function startDictation() {
+    const Ctor = (window as unknown as { SpeechRecognition?: new () => SpeechRecognitionLike; webkitSpeechRecognition?: new () => SpeechRecognitionLike }).SpeechRecognition
+      ?? (window as unknown as { webkitSpeechRecognition?: new () => SpeechRecognitionLike }).webkitSpeechRecognition;
+    if (!Ctor) {
+      setRecordError("Live dictation is not available in this browser. Use Record to capture audio, or open Orbit in Chrome and allow microphone access.");
+      return;
+    }
+    setRecordError("");
+    let finalText = "";
+    const rec = new Ctor();
+    rec.lang = "en-GB";
+    rec.interimResults = true;
+    rec.continuous = true;
+    rec.onresult = (event: SpeechRecognitionEventLike) => {
+      let interim = "";
+      for (let i = 0; i < event.results.length; i += 1) {
+        const result = event.results[i]!;
+        const text = result[0]?.transcript ?? "";
+        if (result.isFinal) finalText += text;
+        else interim += text;
+      }
+      setDraft(`${finalText}${interim}`.trim());
+      setUsedPreview(false);
+      setStatus("Transcribing your voice…");
+    };
+    rec.onend = () => {
+      setRecording(false);
+      setStatus(finalText.trim() ? "Transcript ready — review and edit before using it." : "Dictation stopped. No speech was captured — try again, or use Type.");
+    };
+    rec.onerror = (event: { error?: string }) => {
+      setRecording(false);
+      setRecordError(
+        event?.error === "not-allowed"
+          ? "Microphone permission was denied. Allow microphone access for localhost in the browser address bar, then try Dictate again."
+          : "Dictation stopped before capturing speech. Try again in a quiet moment, or use Type.",
+      );
+    };
+    mediaRef.current = null;
+    dictationRef.current = rec;
+    try {
+      rec.start();
+      setRecording(true);
+      setAudioUrl("");
+      setStatus("Dictating… speak now — your words become the transcript.");
+    } catch {
+      setRecordError("Dictation could not start. Try again, or use Type.");
+    }
+  }
+
+  function stopDictation() {
+    dictationRef.current?.stop();
+    setRecording(false);
+  }
+
+  function stopRecording() {
+    const recorder = mediaRef.current;
+    if (recorder && recorder.state !== "inactive") {
+      recorder.requestData?.();
+      recorder.stop();
+    }
+    // Some embedded browsers do not deliver onstop; never strand the UI in
+    // a recording state. The audio element appears when onstop arrives.
+    window.setTimeout(() => setRecording(false), 150);
+  }
+
+  useEffect(() => {
+    if (!recording) return;
+    const t = setInterval(() => setElapsed((e) => e + 1), 1000);
+    return () => clearInterval(t);
+  }, [recording]);
+
+  const isIntent = step === 0;
+  return (
+    <div className="capture-backdrop" role="dialog" aria-modal="true" aria-label={isIntent ? "Describe intent" : "Set the goal"}>
+      <section className="capture-window">
+        <button className="capture-close" onClick={onClose} aria-label="Close">×</button>
+        <p className="eyebrow">{isIntent ? "Describe intent" : "Set the goal"}</p>
+        {isIntent && (
+          <div className="capture-tabs">
+            <button className={mode === "voice" ? "tab active" : "tab"} onClick={() => setMode("voice")}>🎙 Voice</button>
+            <button className={mode === "type" ? "tab active" : "tab"} onClick={() => setMode("type")}>Type</button>
+          </div>
+        )}
+
+        {isIntent && mode === "voice" ? (
+          <div className="voice-stage">
+            {!recording && (
+              <div className="capture-tabs">
+                <button className="tab active" onClick={startDictation}>🎙 Dictate — transcribe my voice</button>
+                <button className="tab" onClick={() => void startRecording()}>● Record audio only</button>
+              </div>
+            )}
+            <button className={recording ? "mic listening" : "mic"} onClick={() => (recording ? (dictationRef.current ? stopDictation() : stopRecording()) : startDictation())} aria-label={recording ? "Stop" : "Dictate — transcribe my voice"}>
+              <span className="mic-ring" /><span className="mic-ring delay" /><span className="mic-icon">{recording ? "■" : "🎙"}</span>
+            </button>
+            <p className="meta">{recordError || (recording ? `${dictationRef.current ? "Dictating" : "Recording"}… ${elapsed}s — tap the mic to stop.` : status || "Dictate transcribes your voice live. Record only captures audio with a preview transcript.")}</p>
+            {audioUrl && <audio className="recording-playback" controls src={audioUrl} />}
+            {usedPreview && <p className="chip amber preview-chip">Muse Voice Transcribe · preview transcript</p>}
+            <textarea value={draft} onChange={(e) => setDraft(e.target.value)} placeholder="Transcript appears here — review and edit before using it." />
+          </div>
+        ) : (
+          <div className="voice-stage">
+            <label htmlFor="capture-draft">{isIntent ? "Product intent" : "Initiative name"}</label>
+            <textarea id="capture-draft" value={draft} onChange={(e) => setDraft(e.target.value)} placeholder={isIntent ? "Describe what this project should become…" : "e.g. Interview Capture & Debrief"} />
+          </div>
+        )}
+
+        <div className="row">
+          <button onClick={() => (isIntent ? onIntent(draft.trim()) : onTitle(draft.trim()))} disabled={!draft.trim()}>
+            {isIntent ? "Use this intent" : "Save goal"}
+          </button>
+          <button className="secondary" onClick={onClose}>Cancel</button>
+        </div>
+        <p className="meta">Nothing is planned or created from this text until you review the proposed plan.</p>
+      </section>
+    </div>
+  );
+}
+
+interface SpeechRecognitionLike {
+  lang: string;
+  interimResults: boolean;
+  continuous: boolean;
+  onresult: ((event: SpeechRecognitionEventLike) => void) | null;
+  onend: (() => void) | null;
+  onerror: ((event: { error?: string }) => void) | null;
+  start: () => void;
+  stop: () => void;
+}
+interface SpeechRecognitionEventLike {
+  results: ArrayLike<ArrayLike<{ transcript: string }> & { isFinal: boolean }>;
 }

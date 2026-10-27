@@ -42,7 +42,7 @@ const RING_R = [102, 164, 226];
 const RING_SPEED = [70, 110, 160]; // seconds per revolution — slow drift
 const RING_DIR: Array<1 | -1> = [1, -1, 1];
 
-export function Landing({ onEnter, onDescribe }: { onEnter: () => void; onDescribe: () => void }) {
+export function Landing({ onEnter }: { onEnter: () => void }) {
   const [active, setActive] = useState(0);
 
   // A pulse travels Orbit 1 (intent, decisions, guardrails, evidence), then 2, then 3: each makes exactly one lap
@@ -122,7 +122,6 @@ export function Landing({ onEnter, onDescribe }: { onEnter: () => void; onDescri
           </p>
           <div className="landing-ctas">
             <button className="cta-primary" onClick={onEnter}>View projects</button>
-            <button className="cta-quiet" onClick={onDescribe}>Describe intent</button>
           </div>
           <p className="landing-foot">Work, agents, decisions and evidence — moving around one outcome.</p>
         </div>

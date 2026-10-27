@@ -206,3 +206,44 @@ ul.steps ul { color: var(--muted); }
 .signal.cyan { color: var(--cyan); }
 .signal.muted { color: var(--muted); }
 .project-open { color: var(--cyan); font-weight: 700; white-space: nowrap; }
+
+/* Intent page — one vertical line, pills with a traveling pulse. */
+.intent-page .lede { margin-bottom: 8px; }
+.pulse-line { position: relative; max-width: 640px; margin-top: 28px; padding-left: 30px; display: flex; flex-direction: column; gap: 14px; }
+.pulse-track { position: absolute; left: 30px; top: 8px; bottom: 8px; width: 2px; background: linear-gradient(180deg, rgba(124,108,255,.55), rgba(57,213,232,.35), rgba(61,220,151,.4)); border-radius: 2px; }
+.pulse-runner { position: absolute; left: 27px; top: 0; width: 8px; height: 42px; border-radius: 999px; background: linear-gradient(180deg, transparent, #c9c2ff, transparent); filter: drop-shadow(0 0 8px rgba(167,155,255,.9)); animation: pulserun 7s ease-in-out infinite; }
+@keyframes pulserun { 0% { top: 0; opacity: 0; } 8% { opacity: 1; } 88% { opacity: 1; } 100% { top: calc(100% - 42px); opacity: 0; } }
+.pulse-pill { position: relative; display: flex; align-items: center; gap: 12px; text-align: left; background: var(--panel); border: 1px solid var(--line); border-radius: 999px; padding: 9px 16px 9px 9px; color: var(--text); margin: 0; max-width: 640px; }
+button.pulse-pill { cursor: pointer; }
+button.pulse-pill:hover { border-color: var(--indigo); }
+button.pulse-pill:disabled { opacity: .45; cursor: not-allowed; }
+.pulse-pill.static { cursor: default; }
+.pulse-pill.current { border-color: rgba(124,108,255,.7); box-shadow: 0 0 22px rgba(124,108,255,.18); }
+.pulse-disc { width: 38px; height: 38px; flex: none; border-radius: 50%; display: grid; place-items: center; background: radial-gradient(circle at 35% 30%, #171736, #0a0a1a 70%); border: 1px solid #34345e; font-size: 15px; margin-left: -28px; box-shadow: 0 0 0 6px var(--bg); }
+.pulse-disc.voice { border-color: rgba(124,108,255,.65); }
+.pulse-disc.decision { border-color: rgba(124,108,255,.45); }
+.pulse-disc.guardrail { border-color: rgba(255,176,46,.55); }
+.pulse-disc.plan { border-color: rgba(61,220,151,.5); }
+.pulse-text { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
+.pulse-text small { color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pulse-state { color: var(--muted); font-size: 12px; white-space: nowrap; }
+.pulse-pill.current .pulse-state { color: #c9c2ff; }
+.new-project { max-width: 560px; }
+@media (prefers-reduced-motion: reduce) { .pulse-runner, .mic-ring { animation: none !important; } }
+
+/* Capture window — voice first, typing one tap away. */
+.capture-backdrop { position: fixed; inset: 0; z-index: 40; background: rgba(4,4,10,.72); backdrop-filter: blur(8px); display: grid; place-items: center; padding: 20px; }
+.capture-window { position: relative; width: min(560px, 100%); background: #0c0c1c; border: 1px solid rgba(124,108,255,.45); border-radius: 24px; padding: 26px; box-shadow: 0 30px 80px rgba(0,0,0,.6), 0 0 44px rgba(124,108,255,.16); }
+.capture-close { position: absolute; right: 14px; top: 10px; background: none; border: 0; color: var(--muted); font-size: 26px; margin: 0; padding: 4px 8px; }
+.capture-tabs { display: flex; gap: 8px; margin: 10px 0 18px; }
+.voice-stage { display: flex; flex-direction: column; align-items: center; gap: 14px; }
+.voice-stage label { align-self: flex-start; }
+.mic { position: relative; width: 108px; height: 108px; border-radius: 50%; display: grid; place-items: center; background: radial-gradient(circle at 35% 30%, #2a2560, #100e2a 70%); border: 1px solid rgba(124,108,255,.7); margin: 8px 0 0; box-shadow: 0 0 34px rgba(124,108,255,.35); }
+.mic-icon { font-size: 38px; position: relative; z-index: 2; }
+.mic-ring { position: absolute; inset: 0; border-radius: 50%; border: 1px solid rgba(167,155,255,.5); opacity: 0; }
+.mic.listening .mic-ring { animation: micpulse 1.6s ease-out infinite; }
+.mic.listening .mic-ring.delay { animation-delay: .8s; }
+@keyframes micpulse { from { transform: scale(1); opacity: .8; } to { transform: scale(1.65); opacity: 0; } }
+.capture-window textarea { min-height: 96px; }
+.preview-chip { align-self: flex-start; }
+.recording-playback { width: 100%; height: 38px; }
