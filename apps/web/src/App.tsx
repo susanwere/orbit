@@ -574,15 +574,21 @@ function CaptureWindow({
     rec.lang = "en-GB";
     rec.interimResults = true;
     rec.continuous = true;
+    // event.results is cumulative for the whole session: indexing from
+    // resultIndex and replacing (not appending) the draft each time is
+    // what keeps phrases from duplicating.
     rec.onresult = (event: SpeechRecognitionEventLike) => {
+      let nextFinal = "";
       let interim = "";
       for (let i = 0; i < event.results.length; i += 1) {
         const result = event.results[i]!;
         const text = result[0]?.transcript ?? "";
-        if (result.isFinal) finalText += text;
+        if (result.isFinal) nextFinal += text;
         else interim += text;
       }
-      setDraft(`${finalText}${interim}`.trim());
+      finalText = nextFinal;
+      const text = `${finalText} ${interim}`.replace(/\s+/g, " ").trim();
+      setDraft(text);
       setUsedPreview(false);
       setStatus("Transcribing your voice…");
     };
