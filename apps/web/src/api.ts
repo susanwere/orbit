@@ -75,6 +75,25 @@ export const api = {
   executions: () => request<{ executions: ExecutionRecord[]; events: Array<{ id: string; type: string; occurredAt: string }> }>("/executions"),
   resolveGate: (gateId: string, decision: "approved" | "rejected") =>
     request<ExecutionRecord>(`/gates/${gateId}/resolve`, { method: "POST", body: JSON.stringify({ decision }) }),
+  context: () => request<{ context: ContextState; proposedDecisions: ProposedDecision[] }>("/context"),
+  postPrComment: () => request<ProposedDecision>("/demo/pr-comment", { method: "POST", body: JSON.stringify({ prNumber: 14, author: "usr_susan", body: "Let's fetch 20 jobs at a time and keep explicit Load More instead of infinite scroll." }) }),
+  approveDecision: (id: string) => request<{ decision: ProposedDecision; context: ContextState }>(`/decisions/${id}/approve`, { method: "POST" }),
+  rejectDecision: (id: string) => request<{ decision: ProposedDecision }>(`/decisions/${id}/reject`, { method: "POST" }),
   createAgentDefinition: (body: Record<string, unknown>, principalId = "usr_susan") =>
     request<AgentDefinition>("/agent-definitions", { method: "POST", body: JSON.stringify(body) }, principalId),
 };
+
+export interface ProposedDecision {
+  id: string;
+  title: string;
+  rationale: string;
+  status: string;
+  sourceRef: string;
+  sourceQuote: string;
+  proposedChange: { additions: string[]; exclusions: string[]; affectedWork: string[]; fromVersion: number; toVersion: number };
+}
+export interface ContextState {
+  version: number;
+  constraints: string[];
+  originalIntent: string;
+}

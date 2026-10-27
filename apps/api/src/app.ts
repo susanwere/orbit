@@ -4,6 +4,7 @@ import { DomainError } from "@orbit/domain";
 import { createDemoStore } from "./store.js";
 import { proposePlanStub, type ProposedPlan } from "./planner.js";
 import { ExecutionService } from "./execution.js";
+import { ContextLoop } from "./context-loop.js";
 
 export interface AppOptions {
   store?: ReturnType<typeof createDemoStore>;
@@ -17,6 +18,7 @@ interface PlanRecord {
 export async function buildApp(options: AppOptions = {}) {
   const store = options.store ?? createDemoStore();
   const execution = new ExecutionService(store);
+  const contextLoop = new ContextLoop();
   const plans = new Map<string, PlanRecord>();
 
   const app = Fastify({ logger: false });
@@ -100,15 +102,18 @@ export async function buildApp(options: AppOptions = {}) {
     const initiative = store.initiatives.get(request.params.id);
     if (!initiative) throw new DomainError("not_found", "Initiative not found");
 
+    const isHn = initiative.title.toLowerCase().includes("hn") || initiative.intent.toLowerCase().includes("hacker news");
+    let hnIndex = 0;
     const createdWorkItemIds: string[] = [];
     for (const proposed of record.plan.workItems) {
       store.counters.workItem += 1;
+      hnIndex += 1;
       const workItemId = `wi_${Math.random().toString(36).slice(2, 10)}`;
       store.workItems.set(workItemId, {
         id: workItemId,
         organizationId: store.organizationId,
         initiativeId: initiative.id,
-        key: `CG-${store.counters.workItem}`,
+        key: isHn ? `HN-${hnIndex}` : `CG-${store.counters.workItem}`,
         title: proposed.title,
         description: proposed.description,
         ownerPrincipalId: initiative.driPrincipalId,
@@ -227,6 +232,64 @@ export async function buildApp(options: AppOptions = {}) {
       return execution.resolveGate(principal, request.params.id, decision);
     },
   );
+
+  app.get("/context", async (request) => {
+    actor(request);
+    return {
+      context: contextLoop.context,
+      proposedDecisions: contextLoop.proposedDecisions,
+    };
+  });
+
+  app.post<{ Body: { prNumber?: number; author?: string; body?: string } }>("/demo/pr-comment", async (request, reply) => {
+    actor(request);
+    const decision = contextLoop.ingestPrComment({
+      prNumber: request.body?.prNumber ?? 14,
+      author: request.body?.author ?? "usr_susan",
+      body: request.body?.body ?? "Let's fetch 20 jobs at a time and keep explicit Load More instead of infinite scroll.",
+    });
+    return reply.status(201).send(decision);
+  });
+
+  app.post<{ Params: { id: string } }>("/decisions/:id/approve", async (request) => {
+    const principal = actor(request);
+    return contextLoop.approveDecision(principal.id, request.params.id);
+  });
+
+  app.post<{ Params: { id: string } }>("/decisions/:id/reject", async (request) => {
+    const principal = actor(request);
+    return { decision: contextLoop.rejectDecision(principal.id, request.params.id) };
+  });
+
+  app.post<{ Params: { id: string }; Body: { title?: string } }>("/decisions/:id/edit", async (request) => {
+    actor(request);
+    if (!request.body?.title?.trim()) throw new DomainError("validation", "title is required");
+    return { decision: contextLoop.editDecision(request.params.id, request.body.title.trim()) };
+  });
+
+  // Live projection stream: proposed decisions and context updates arrive
+  // the moment they happen, in every open Orbit client.
+  app.get("/events/stream", async (request, reply) => {
+    actor(request);
+    reply.hijack();
+    reply.raw.writeHead(200, {
+      "content-type": "text/event-stream",
+      "cache-control": "no-cache",
+      connection: "keep-alive",
+      "access-control-allow-origin": request.headers.origin ?? "*",
+      "access-control-allow-credentials": "true",
+    });
+    reply.raw.write(`event: ready\ndata: ${JSON.stringify({ type: "stream.ready" })}\n\n`);
+    const send = (event: unknown) => {
+      reply.raw.write(`event: orbit\ndata: ${JSON.stringify(event)}\n\n`);
+    };
+    const unsubscribe = contextLoop.subscribe(send);
+    const heartbeat = setInterval(() => reply.raw.write(": ping\n\n"), 15000);
+    request.raw.on("close", () => {
+      clearInterval(heartbeat);
+      unsubscribe();
+    });
+  });
 
   app.post<{ Body: Record<string, unknown> }>("/agent-definitions", async (request, reply) => {
     const principal = actor(request);

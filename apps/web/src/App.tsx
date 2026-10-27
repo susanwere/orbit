@@ -8,6 +8,8 @@ import {
   type ExecutionRecord,
   type HumanGate,
   type InitiativeDetail,
+  type ProposedDecision,
+  type ContextState,
   type ProposedPlan,
   type WorkItem,
 } from "./api.js";
@@ -28,17 +30,23 @@ export function App() {
   const [captureOpen, setCaptureOpen] = useState(false);
   const [captureStep, setCaptureStep] = useState(0);
   const [projects, setProjects] = useState<Project[]>([
+    { id: "hn-jobs", name: "HN Jobs Viewer", note: "A React app for browsing Hacker News job postings", live: true },
     { id: "careerglyph", name: "CareerGlyph", note: "Interview Capture & Debrief", live: true },
     { id: "orbit-platform", name: "Orbit Platform", note: "Dogfooding Orbit itself — no initiative yet" },
     { id: "mobile-companion", name: "Mobile Companion", note: "Concept — awaiting intent" },
   ]);
-  const [activeProjectId, setActiveProjectId] = useState("careerglyph");
+  const [activeProjectId, setActiveProjectId] = useState("hn-jobs");
   const [creatingProject, setCreatingProject] = useState(false);
   const [newProjectName, setNewProjectName] = useState("");
   const [context, setContext] = useState<DemoContext | null>(null);
   const [principalId, setPrincipalId] = useState("usr_susan");
-  const [title, setTitle] = useState("Interview Capture & Debrief");
-  const [intent, setIntent] = useState(DEMO_INTENT);
+  const [title, setTitle] = useState("Build HN Jobs Viewer");
+  const [hnStage, setHnStage] = useState(0);
+  const [contextState, setContextState] = useState<ContextState | null>(null);
+  const [proposedDecisions, setProposedDecisions] = useState<ProposedDecision[]>([]);
+  const [contextToast, setContextToast] = useState("");
+  const [decisionPulse, setDecisionPulse] = useState(false);
+  const [intent, setIntent] = useState("Build a React application that fetches Hacker News job postings and displays them in a responsive list.");
   const [plan, setPlan] = useState<ProposedPlan | null>(null);
   const [detail, setDetail] = useState<InitiativeDetail | null>(null);
   const [selectedWorkItemId, setSelectedWorkItemId] = useState<string>("");
@@ -64,6 +72,23 @@ export function App() {
   useEffect(() => {
     api.demoContext().then(setContext).catch((e) => setError(String(e)));
     refreshGatesAndExecutions().catch(() => undefined);
+    api.context().then((c) => { setContextState(c.context); setProposedDecisions(c.proposedDecisions); }).catch(() => undefined);
+
+    // Live: proposed decisions and context updates land the moment they happen.
+    const stream = new EventSource("http://localhost:4000/events/stream");
+    stream.addEventListener("orbit", (message) => {
+      try {
+        const event = JSON.parse((message as MessageEvent).data) as { type: string; payload?: Record<string, unknown> };
+        if (event.type.startsWith("decision.") || event.type === "context.updated") {
+          api.context().then((c) => { setContextState(c.context); setProposedDecisions(c.proposedDecisions); }).catch(() => undefined);
+        }
+        if (event.type === "context.updated") {
+          setDecisionPulse(true);
+          window.setTimeout(() => setDecisionPulse(false), 2600);
+        }
+      } catch { /* keep stream open */ }
+    });
+    return () => stream.close();
   }, []);
 
   const principal = context?.principals.find((p) => p.id === principalId);
@@ -75,7 +100,9 @@ export function App() {
 
   function openProject(project: Project) {
     setActiveProjectId(project.id);
-    if (project.live) {
+    if (project.id === "hn-jobs") {
+      setView("intent");
+    } else if (project.live) {
       setView(detail ? "map" : "intent");
     } else {
       setTitle("");
@@ -116,8 +143,10 @@ export function App() {
       const d = await api.getInitiative(plan.initiativeId);
       setDetail(d);
       setSelectedWorkItemId(d.workItems[0]?.id ?? "");
-      setView("map");
-      setNotice("Plan approved. Work graph created — nothing was written externally.");
+      if (activeProjectId !== "hn-jobs") setView("map");
+      setNotice(activeProjectId === "hn-jobs"
+        ? "Plan approved. Follow the journey below — Linear, design, implementation, PR, decisions, CI, release."
+        : "Plan approved. Work graph created — nothing was written externally.");
     } catch (e) { setError(String(e)); } finally { setBusy(false); }
   }
 
@@ -170,6 +199,7 @@ export function App() {
       </header>
 
       {notice && <div className="notice">{notice}</div>}
+      {contextToast && <div className="notice context-toast">{contextToast}</div>}
       {error && <div className="notice error-box">{error}</div>}
 
       {view === "home" && (
@@ -257,6 +287,41 @@ export function App() {
               <span className="pulse-state">{busy ? "planning…" : plan ? "ready" : "next"}</span>
             </button>
           </section>
+
+          {activeProject.id === "hn-jobs" && !plan && (
+            <section className="panel hn-seed">
+              <h2>Starting from zero</h2>
+              <p className="meta">Repository: blank React + TypeScript app · No work items, decisions, designs, PRs, CI evidence, or releases yet. That emptiness is the point — Orbit builds the context from your intent.</p>
+              <div className="hn-apis">
+                <code>GET https://hacker-news.firebaseio.com/v0/jobstories.json</code>
+                <code>GET https://hacker-news.firebaseio.com/v0/item/{"{id}"}.json</code>
+              </div>
+            </section>
+          )}
+
+          {activeProject.id === "hn-jobs" && plan && detail && (
+            <HnJourney
+              stage={hnStage}
+              setStage={setHnStage}
+              onOpenMap={() => setView("map")}
+              contextState={contextState}
+              proposedDecisions={proposedDecisions}
+              decisionPulse={decisionPulse}
+              onSimulatePr={async () => { await api.postPrComment(); }}
+              onApproveDecision={async (id) => {
+                const res = await api.approveDecision(id);
+                setContextState(res.context);
+                setProposedDecisions((prev) => prev.map((d) => (d.id === id ? res.decision : d)));
+                setContextToast(`Context updated — ${res.decision.id} from ${res.decision.sourceRef} is now active (Context v${res.context.version}).`);
+                setHnStage((n) => Math.max(n, 7));
+              }}
+              onRejectDecision={async (id) => {
+                const res = await api.rejectDecision(id);
+                setProposedDecisions((prev) => prev.map((d) => (d.id === id ? res.decision : d)));
+                setContextToast(`${res.decision.id} rejected — Current Context unchanged (v${contextState?.version ?? 1}).`);
+              }}
+            />
+          )}
 
           {captureOpen && (
             <CaptureWindow
@@ -698,4 +763,100 @@ interface SpeechRecognitionLike {
 }
 interface SpeechRecognitionEventLike {
   results: ArrayLike<ArrayLike<{ transcript: string }> & { isFinal: boolean }>;
+}
+
+const HN_STAGES = [
+  { node: "Work Item", actor: "Linear Agent", model: "Muse Spark", action: "Creating the approved work plan in Linear", lines: ["HN-1 … HN-9 queued from the approved plan", "✓ 9 work items created in Linear"], cta: "Open in Linear ↗", done: "9 work items created in Linear" },
+  { node: "Agent", actor: "Design Agent", model: "Muse Spark + Figma", action: "Preparing the initial Jobs Viewer design", lines: ["Designing: Job card · Jobs list · Loading state · Error state · Mobile layout", "✓ Design ready in Figma — HN Jobs Viewer v1"], cta: "Open design ↗", done: "Design ready in Figma" },
+  { node: "Human Gate", actor: "Susan", model: "Human approval", action: "Design ready for review", lines: ["Figma: HN Jobs Viewer — v1", "Decision D-101 will be recorded on approval"], cta: "Approve design", done: "Design approved — Decision D-101 recorded (Orbit 1)" },
+  { node: "Agent", actor: "Engineering Agent", model: "Muse Code / Muse Spark", action: "Implementing HN-1 → HN-9", lines: ["Context Snapshot + Execution Contract resolved (src/**, tests/**; no .env, secrets)", "API client · job IDs · job details · job cards · tests"], cta: "Implementation in progress", done: "Implementation complete" },
+  { node: "Pull Request", actor: "Engineering Agent", model: "GitHub PR #1", action: "Build initial HN Jobs Viewer", lines: ["Contains: API client, fetching, UI, states, tests"], cta: "Open PR #1 ↗", done: "PR #1 opened" },
+  { node: "Decision", actor: "Decision Agent", model: "Muse Spark (detects) · Orbit (governs)", action: "Potential decision detected in PR #1", lines: ["“Let’s only fetch 20 jobs initially — users can load more manually.”", "Save as product decision D-102?"], cta: "Accept Decision D-102", done: "D-102 accepted — fetch 20 jobs initially, explicit incremental loading" },
+  { node: "Context", actor: "Orbit", model: "Deterministic context refresh", action: "Decision flows inward", lines: ["Pull Request → Decision → Context → INTENT", "Context v1 → v2 · Current Intent updated (Original Intent preserved)"], cta: "Context updated", done: "Context v2 — future sessions inherit: batch = 20, incremental loading" },
+  { node: "New Work", actor: "Product Planner", model: "Muse Wonder", action: "Plan updated from Context v2", lines: ["HN-10 added: Add Load More Jobs (20 jobs per batch)", "Next Copilot session receives Context v2 automatically"], cta: "HN-10 created", done: "HN-10 “Load More Jobs” added to the plan" },
+  { node: "CI", actor: "CI", model: "GitHub Actions", action: "Verifying PR #1", lines: ["✓ TypeScript · ✓ Unit tests · ✓ Build", "Evidence: 3 verification checks passed"], cta: "Evidence recorded", done: "CI passed — Evidence updated in Orbit 1" },
+  { node: "Release", actor: "Release", model: "Deployment", action: "Release ready — v0.1 HN Jobs Viewer", lines: ["10 work items · 2 decisions recorded · 3 CI checks · 1 release"], cta: "Release v0.1", done: "✓ Released — Initial HN Jobs Viewer shipped" },
+];
+
+function HnJourney({
+  stage,
+  setStage,
+  onOpenMap,
+  contextState,
+  proposedDecisions,
+  decisionPulse,
+  onSimulatePr,
+  onApproveDecision,
+  onRejectDecision,
+}: {
+  stage: number;
+  setStage: (n: number | ((n: number) => number)) => void;
+  onOpenMap: () => void;
+  contextState: ContextState | null;
+  proposedDecisions: ProposedDecision[];
+  decisionPulse: boolean;
+  onSimulatePr: () => Promise<void>;
+  onApproveDecision: (id: string) => Promise<void>;
+  onRejectDecision: (id: string) => Promise<void>;
+}) {
+  const current = HN_STAGES[stage];
+  const finished = stage >= HN_STAGES.length;
+  const pending = proposedDecisions.filter((d) => d.status === "proposed");
+  const showDecisionCard = stage >= 5 && pending.length > 0;
+  return (
+    <section className="panel hn-journey">
+      <div className="row between">
+        <h2>From idea to release</h2>
+        <span className={decisionPulse ? "chip green context-chip pulse" : "chip green context-chip"}>
+          Current Context v{contextState?.version ?? 1}
+        </span>
+        <button className="secondary" onClick={onOpenMap}>Open Orbit Map</button>
+      </div>
+
+      {showDecisionCard && pending.map((d) => (
+        <article className="decision-proposal" key={d.id}>
+          <p className="proposal-kicker">◐ New decision detected · {d.sourceRef} · Awaiting approval</p>
+          <h3>{d.title}</h3>
+          <p className="meta">Detected from: “{d.sourceQuote}”</p>
+          <div className="context-diff">
+            <p><span className="diff-from">Current Context v{d.proposedChange.fromVersion}</span> → <span className="diff-to">Proposed Context v{d.proposedChange.toVersion}</span> <span className="meta">(not active yet)</span></p>
+            {d.proposedChange.additions.map((line) => <p className="diff-add" key={line}>+ {line}</p>)}
+            {d.proposedChange.exclusions.map((line) => <p className="diff-del" key={line}>− {line} prohibited</p>)}
+            <p className="meta">Affected future work: {d.proposedChange.affectedWork.join(" · ")}</p>
+          </div>
+          <div className="row">
+            <button onClick={() => void onApproveDecision(d.id)}>Approve context update</button>
+            <button className="secondary" onClick={() => void onRejectDecision(d.id)}>Reject</button>
+            <span className="meta">◆ Susan needed — a PR decision may change project context.</span>
+          </div>
+        </article>
+      ))}
+
+      <ol className="hn-steps">
+        {HN_STAGES.map((s2, i) => (
+          <li key={s2.node + i} className={i < stage ? "done" : i === stage ? "active" : "todo"}>
+            <span className="hn-dot">{i < stage ? "✓" : i + 1}</span>
+            <span className="hn-step-main">
+              <b>{s2.actor}</b> <span className="chip">{s2.node}</span> <span className="meta">{s2.model}</span>
+              <small>{i < stage ? s2.done : s2.action}</small>
+              {(i === stage || i < stage) && s2.lines.map((line) => <small className="meta" key={line}>{line}</small>)}
+            </span>
+            {i === stage && i === 5 ? (
+              <button onClick={() => void onSimulatePr()}>Simulate PR #14 comment</button>
+            ) : i === stage && i === 6 ? (
+              <span className="meta">{pending.length ? "Review the proposed decision above" : "Decision approved — context is current"}</span>
+            ) : i === stage ? (
+              <button onClick={() => setStage(stage + 1)}>{s2.cta}</button>
+            ) : null}
+          </li>
+        ))}
+      </ol>
+      {finished ? (
+        <p className="meta">Outcome: <b>Initial HN Jobs Viewer shipped</b> · 10 work items · 2 decisions (D-101 design, D-102 batch size) · Context v{contextState?.version ?? 2} · CI evidence · v0.1 released. Why? — “Why does HN Jobs Viewer load 20 jobs at a time?” → Intent → HN-10 → PR #14 → D-102 → Context v{contextState?.version ?? 2} → Implementation → CI → Release.</p>
+      ) : (
+        <p className="meta">Now: <b>{current?.actor}</b> — {current?.action}. Internal Snapshot / Contract / Policy detail lives in the Orbit Map inspector, not here.</p>
+      )}
+      {stage > 0 && <button className="secondary" onClick={() => setStage(0)}>Reset demo</button>}
+    </section>
+  );
 }

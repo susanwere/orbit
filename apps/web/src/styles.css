@@ -247,3 +247,24 @@ button.pulse-pill:disabled { opacity: .45; cursor: not-allowed; }
 .capture-window textarea { min-height: 96px; }
 .preview-chip { align-self: flex-start; }
 .recording-playback { width: 100%; height: 38px; }
+
+.hn-apis { display: flex; flex-direction: column; gap: 8px; margin-top: 12px; }
+.hn-apis code { background: #090914; border: 1px solid var(--line); border-radius: 8px; padding: 9px 11px; color: var(--cyan); overflow-x: auto; }
+.hn-journey .between { justify-content: space-between; }
+.hn-steps { list-style: none; padding: 0; margin: 16px 0; display: flex; flex-direction: column; gap: 10px; }
+.hn-steps li { display: flex; gap: 12px; align-items: flex-start; border: 1px solid var(--line); border-radius: 14px; padding: 12px; opacity: .55; }
+.hn-steps li.active { opacity: 1; border-color: rgba(57,213,232,.55); box-shadow: 0 0 20px rgba(57,213,232,.12); }
+.hn-steps li.done { opacity: .9; border-color: rgba(61,220,151,.35); }
+.hn-dot { width: 26px; height: 26px; flex: none; border-radius: 50%; display: grid; place-items: center; border: 1px solid var(--line); color: var(--muted); font-size: 12px; font-weight: 800; }
+.hn-steps li.active .hn-dot { border-color: var(--cyan); color: var(--cyan); }
+.hn-steps li.done .hn-dot { border-color: rgba(61,220,151,.6); color: var(--green); }
+.hn-step-main { display: flex; flex-direction: column; gap: 3px; flex: 1; }
+.hn-steps button { margin: 0; white-space: nowrap; }
+
+.decision-proposal { border: 1px solid rgba(255,176,46,.55); background: linear-gradient(180deg, rgba(255,176,46,.1), rgba(255,176,46,.03)); border-radius: 16px; padding: 16px 18px; margin: 14px 0; }
+.proposal-kicker { color: var(--amber); font-weight: 800; margin: 0 0 6px; }
+.context-diff { background: #090914; border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; margin: 10px 0; }
+.diff-from { color: var(--muted); } .diff-to { color: var(--cyan); font-weight: 700; }
+.diff-add { color: var(--green); margin: 4px 0; } .diff-del { color: #ff8a8a; margin: 4px 0; }
+.context-chip.pulse { animation: gatepulse 1.2s ease-in-out 2; border-color: var(--green); }
+.context-toast { border-left-color: var(--indigo); }

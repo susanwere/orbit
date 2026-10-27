@@ -135,3 +135,75 @@ describe("empty JSON body tolerance", () => {
     await app.close();
   });
 });
+
+describe("HN Jobs Viewer plan (brief v3)", () => {
+  it("plans HN-1..HN-9 for a Hacker News intent", async () => {
+    const app = await buildApp();
+    const created = await app.inject({
+      method: "POST",
+      url: "/initiatives",
+      payload: {
+        title: "Build HN Jobs Viewer",
+        intent: "Build a React application that fetches Hacker News job postings and displays them in a responsive list.",
+      },
+    });
+    const planned = await app.inject({ method: "POST", url: `/initiatives/${created.json().id}/plan` });
+    expect(planned.statusCode).toBe(200);
+    const plan = planned.json();
+    expect(plan.planner.model).toBe("muse-wonder");
+    expect(plan.workItems).toHaveLength(9);
+    expect(plan.workItems[4].workflows.map((w: { lane: string }) => w.lane)).toContain("DESIGN");
+
+    const approved = await app.inject({ method: "POST", url: `/initiatives/${created.json().id}/approve-plan` });
+    expect(approved.statusCode).toBe(200);
+    const fetched = await app.inject({ method: "GET", url: `/initiatives/${created.json().id}` });
+    expect(fetched.json().workItems.map((w: { key: string }) => w.key)).toEqual([
+      "HN-1", "HN-2", "HN-3", "HN-4", "HN-5", "HN-6", "HN-7", "HN-8", "HN-9",
+    ]);
+    await app.close();
+  });
+});
+
+describe("proposed decision feedback loop", () => {
+  it("proposes a decision from a PR comment and only mutates context on approval", async () => {
+    const app = await buildApp();
+
+    const before = await app.inject({ method: "GET", url: "/context" });
+    expect(before.json().context.version).toBe(1);
+
+    const proposed = await app.inject({
+      method: "POST",
+      url: "/demo/pr-comment",
+      payload: { prNumber: 14, author: "usr_susan", body: "Let's fetch 20 jobs at a time and keep explicit Load More instead of infinite scroll." },
+    });
+    expect(proposed.statusCode).toBe(201);
+    const decision = proposed.json();
+    expect(decision.status).toBe("proposed");
+    expect(decision.proposedChange).toMatchObject({ fromVersion: 1, toVersion: 2 });
+
+    const mid = await app.inject({ method: "GET", url: "/context" });
+    expect(mid.json().context.version).toBe(1); // proposed is not current
+
+    const approved = await app.inject({ method: "POST", url: `/decisions/${decision.id}/approve` });
+    expect(approved.statusCode).toBe(200);
+    expect(approved.json().decision.status).toBe("active");
+    expect(approved.json().context.version).toBe(2);
+    expect(approved.json().context.constraints).toContain("Initial batch size: 20 jobs");
+    // Original intent is never rewritten.
+    expect(approved.json().context.originalIntent).toContain("Build a React application");
+
+    const again = await app.inject({ method: "POST", url: `/decisions/${decision.id}/approve` });
+    expect(again.statusCode).toBe(400);
+    await app.close();
+  });
+
+  it("rejects a proposed decision without touching context", async () => {
+    const app = await buildApp();
+    const proposed = await app.inject({ method: "POST", url: "/demo/pr-comment", payload: { prNumber: 15 } });
+    const rejected = await app.inject({ method: "POST", url: `/decisions/${proposed.json().id}/reject` });
+    expect(rejected.json().decision.status).toBe("rejected");
+    const state = await app.inject({ method: "GET", url: "/context" });
+    expect(state.json().context.version).toBe(1);
+    await app.close();
+  });
+});
