@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { Landing } from "./Landing.js";
 import { OrbitMap } from "./OrbitMap.js";
 import {
   api,
@@ -13,7 +14,7 @@ import {
 
 const DEMO_INTENT =
   "Build interview capture with explicit consent, microphone and system audio, recovery when devices change, transcription, and a structured interview debrief.";
-type View = "home" | "intent" | "map" | "decisions" | "agents";
+type View = "home" | "projects" | "intent" | "map" | "decisions" | "agents";
 
 export function App() {
   const [view, setView] = useState<View>("home");
@@ -108,6 +109,7 @@ export function App() {
         <div className="brand"><span className="orbit-dot" /> ORBIT</div>
         <nav>
           <button className={view === "home" ? "nav active" : "nav"} onClick={() => setView("home")}>Home</button>
+          <button className={view === "projects" ? "nav active" : "nav"} onClick={() => setView("projects")}>Projects</button>
           <button className={view === "intent" ? "nav active" : "nav"} onClick={() => setView("intent")}>Describe Intent</button>
           <button className={view === "map" ? "nav active" : "nav"} onClick={() => setView("map")}>Orbit Map</button>
           <button className={view === "decisions" ? "nav active" : "nav"} onClick={() => setView("decisions")}>Context & Decisions</button>
@@ -125,31 +127,41 @@ export function App() {
       {error && <div className="notice error-box">{error}</div>}
 
       {view === "home" && (
+        <Landing onEnter={() => setView("projects")} onDescribe={() => setView("intent")} />
+      )}
+
+      {view === "projects" && (
         <main className="page">
-          <p className="eyebrow">Home / Attention</p>
-          <h1>You don't need to watch everything.</h1>
-          <p className="lede">Orbit surfaces the moments where human judgment changes the outcome.</p>
-          <div className="grid">
-            <article className="card glow">
-              <h3>Active Initiative</h3>
-              <p className="big">{detail?.initiative.title ?? "CareerGlyph — Interview Capture & Debrief"}</p>
-              <p className="meta">{detail ? `${detail.workItems.length} work items · ${detail.workItems.reduce((n, w) => n + w.workflows.length, 0)} workflows · status ${detail.initiative.status}` : "Describe the intent to generate a governed work graph."}</p>
-              <button onClick={() => setView(detail ? "map" : "intent")}>{detail ? "Open Orbit Map" : "Describe Intent"}</button>
-            </article>
-            <article className="card">
-              <h3>Needs You</h3>
-              <p className="big amber">{openGates.length} open gate{openGates.length === 1 ? "" : "s"}</p>
-              {openGates.map((g) => <p className="meta" key={g.id}>{policyCode(g.policyId)} — {g.title}</p>)}
-              {!openGates.length && <p className="meta">No human decisions are blocking execution right now.</p>}
-            </article>
-            <article className="card">
-              <h3>Active Agents</h3>
-              <p className="big">{executions.filter((e) => ["running", "waiting"].includes(e.session.state)).length} running / waiting</p>
-              <p className="meta">{context?.agentDefinitions.filter((a) => a.status === "approved").length ?? 0} approved agent definitions · sessions are ephemeral and scoped</p>
-              <button className="secondary" onClick={() => setView("agents")}>Open Agent Catalog</button>
-            </article>
+          <p className="eyebrow">Projects</p>
+          <h1>Your projects</h1>
+          <div className="project-list">
+            <button className="project-row" onClick={() => setView(detail ? "map" : "intent")}>
+              <span className="project-glyph live">◉</span>
+              <span className="project-main">
+                <b>CareerGlyph</b>
+                <span>{detail ? `${detail.initiative.title} · ${detail.initiative.status}` : "Interview Capture & Debrief · not started"}</span>
+              </span>
+              <span className="project-signals">
+                {openGates.length > 0 && <span className="signal amber">◆ {openGates.length} needs you</span>}
+                {executions.some((e) => e.session.state === "running") && <span className="signal cyan">executing</span>}
+                {detail && <span className="signal muted">{detail.workItems.length} work items</span>}
+              </span>
+              <span className="project-open">{detail ? "Open map →" : "Start →"}</span>
+            </button>
+
+            <div className="project-row quiet" aria-disabled="true">
+              <span className="project-glyph">○</span>
+              <span className="project-main"><b>Orbit Platform</b><span>Dogfooding Orbit itself — no initiative yet</span></span>
+              <span className="signal muted">idle</span>
+            </div>
+
+            <div className="project-row quiet" aria-disabled="true">
+              <span className="project-glyph">○</span>
+              <span className="project-main"><b>Mobile Companion</b><span>Concept — awaiting intent</span></span>
+              <span className="signal muted">concept</span>
+            </div>
           </div>
-          <GatePanel gates={openGates} policyCode={policyCode} busy={busy} onResolve={resolveGate} />
+          <button className="cta-quiet" onClick={() => setView("intent")}>+ New project from intent</button>
         </main>
       )}
 
