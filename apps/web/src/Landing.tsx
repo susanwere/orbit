@@ -22,7 +22,7 @@ const ORBITERS: Orbiter[] = [
   { label: "Evidence", glyph: "✓", ring: 0, angle: 0, tone: "green", note: "Proof the work honors the intent" },
   // Orbit 2 — execution: who/what does the work
   { label: "Work Item", glyph: "▦", ring: 1, angle: 0, tone: "cyan", note: "Accountable work" },
-  { label: "Agent", glyph: "▭", ring: 1, angle: 0, tone: "cyan", note: "Scoped execution" },
+  { label: "Agent", glyph: "⚙", ring: 1, angle: 0, tone: "cyan", note: "Scoped execution" },
   { label: "Human Gate", glyph: "◆", ring: 1, angle: 0, tone: "amber", note: "Judgment, when it matters" },
   { label: "Human", glyph: "●", ring: 1, angle: 0, tone: "green", note: "Owns the outcome" },
   // Orbit 3 — proof & systems: what the work touches and produces

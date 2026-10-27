@@ -227,7 +227,7 @@ export function OrbitMap({ workItem, executions, agentName, openGatePolicyCode, 
         <span><i className="lg lg-wait" /> waiting for human</span>
         <span><i className="lg lg-fail" /> blocked / failed</span>
         <span><i className="lg lg-prop" /> proposed</span>
-        <span className="meta">▭ agent · ● human · ◆ gate · nodes are objects</span>
+        <span className="meta">⚙ agent · ● human · ◆ gate · nodes are objects</span>
       </div>
     </div>
   );
