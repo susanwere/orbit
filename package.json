@@ -1,0 +1,24 @@
+{
+  "name": "orbit",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Orbit — AI-native product engineering context and execution control plane (Meta AI Hackathon)",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "npm run build --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "dev:api": "npm run dev -w @orbit/api",
+    "dev:web": "npm run dev -w @orbit/web",
+    "db:up": "docker compose up -d postgres",
+    "db:down": "docker compose down",
+    "db:migrate": "npm run migrate -w @orbit/db",
+    "db:seed": "npm run seed -w @orbit/db"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}
