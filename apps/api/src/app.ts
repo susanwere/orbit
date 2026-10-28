@@ -62,7 +62,7 @@ export async function buildApp(options: AppOptions = {}) {
 
   if (options.decisionReview) {
     if (!options.auth) throw new Error("Review routes require verified authentication.");
-    await app.register(registerDecisionReviewRoutes, options.decisionReview, options.auth);
+    await app.register((instance) => registerDecisionReviewRoutes(instance, options.decisionReview!, options.auth!));
   }
 
   if (options.eventStream) {
