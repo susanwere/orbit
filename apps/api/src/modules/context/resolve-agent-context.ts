@@ -25,6 +25,7 @@ const matches = (mission: string, values: readonly string[]) => {
   return values.some((v) => tokens.some((token) => v.toLowerCase().includes(token)));
 };
 const inScope = (path: string, scopes: readonly string[]) =>
+  (scopes.includes("project") && !path.startsWith("/attributes/")) ||
   scopes.includes(path) ||
   scopes.some((scope) => scope.endsWith("/**") && path.startsWith(scope.slice(0, -2)));
 
