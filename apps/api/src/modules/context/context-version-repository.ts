@@ -83,6 +83,13 @@ export function buildNextContextVersion(
     );
   }
 
+  if (currentHead && currentHead.projectId !== input.projectId) {
+    throw new DomainError(
+      "project_mismatch",
+      "Project context head belongs to a different project.",
+    );
+  }
+
   if (currentHead && currentHead.organizationId !== input.organizationId) {
     throw new DomainError(
       "organization_mismatch",
