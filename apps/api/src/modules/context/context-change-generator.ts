@@ -99,3 +99,50 @@ export function generateContextChangeProposal(
     updatedAt: input.createdAt,
   };
 }
+
+
+export interface BuildContextChangeRevisionInput {
+  readonly id: string;
+  readonly organizationId: string;
+  readonly projectId: string;
+  readonly decisionProposalId: string;
+  readonly baseContextVersion: ContextVersion;
+  readonly operations: readonly ContextChangeOperation[];
+  readonly revision: number;
+  readonly createdAt: string;
+  readonly allowedPaths?: readonly string[];
+}
+
+export function buildContextChangeRevision(
+  input: BuildContextChangeRevisionInput,
+): ContextChangeProposal {
+  if (input.baseContextVersion.projectId !== input.projectId) {
+    throw new DomainError("project_mismatch", "Base ContextVersion belongs to another project.");
+  }
+  if (input.baseContextVersion.organizationId !== input.organizationId) {
+    throw new DomainError("organization_mismatch", "Base ContextVersion belongs to another organization.");
+  }
+  if (input.revision < 1 || !Number.isInteger(input.revision)) {
+    throw new DomainError("validation", "Context Change Proposal revision must be a positive integer.");
+  }
+
+  const preview = applyContextChangeOperations(
+    input.baseContextVersion.content,
+    input.operations,
+    input.allowedPaths ?? DEFAULT_PROPOSAL_ALLOWED_PATHS,
+  );
+
+  return {
+    id: input.id,
+    organizationId: input.organizationId,
+    projectId: input.projectId,
+    decisionProposalId: input.decisionProposalId,
+    baseContextVersionId: input.baseContextVersion.id,
+    revision: input.revision,
+    operations: input.operations,
+    resultingContextPreview: preview,
+    status: "READY_FOR_REVIEW",
+    createdAt: input.createdAt,
+    updatedAt: input.createdAt,
+  };
+}

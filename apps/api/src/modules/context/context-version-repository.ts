@@ -152,6 +152,30 @@ export class ContextVersionRepository {
     return result.rows[0] ? mapVersion(result.rows[0]) : null;
   }
 
+  async getById(
+    projectId: string,
+    contextVersionId: string,
+  ): Promise<ContextVersion | null> {
+    const result = await this.database.query<ContextVersionRow>(
+      `SELECT
+         id,
+         organization_id,
+         project_id,
+         version_number,
+         parent_context_version_id,
+         content,
+         content_hash,
+         created_from_decision_id,
+         created_at
+       FROM context_versions
+       WHERE project_id = $1
+         AND id = $2`,
+      [projectId, contextVersionId],
+    );
+
+    return result.rows[0] ? mapVersion(result.rows[0]) : null;
+  }
+
   async getHistory(projectId: string): Promise<readonly ContextVersion[]> {
     const result = await this.database.query<ContextVersionRow>(
       `SELECT
