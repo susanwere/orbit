@@ -72,7 +72,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add docs/images/orbit-universe.png
+          git add -f docs/images/orbit-universe.png
           if ! git diff --cached --quiet; then
             git commit -m "docs: add rendered Orbit Universe screenshot"
             git push origin HEAD:refs/heads/${{ github.head_ref }}
