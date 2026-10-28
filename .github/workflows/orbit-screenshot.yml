@@ -72,6 +72,8 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch origin "refs/heads/${{ github.head_ref }}"
+          git checkout -B "${{ github.head_ref }}" FETCH_HEAD
           git add -f docs/images/orbit-universe.png
           if ! git diff --cached --quiet; then
             git commit -m "docs: add rendered Orbit Universe screenshot"
