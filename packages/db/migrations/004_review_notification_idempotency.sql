@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX idx_notifications_unique_attention ON notifications(project_id,recipient_principal_id,type,subject_type,subject_id);
