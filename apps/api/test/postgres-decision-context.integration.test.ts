@@ -5,6 +5,12 @@ import { hashProjectContext } from "../src/modules/context/canonical-context.js"
 import { generateContextChangeProposal } from "../src/modules/context/context-change-generator.js";
 import { PostgresDecisionPromotion } from "../src/modules/decisions/postgres-decision-promotion.js";
 import { PostgresWebhookInboxStore } from "../src/modules/integrations/github/webhook-inbox.js";
+import { DecisionReviewRepository } from "../src/modules/decisions/decision-review-repository.js";
+import { ProjectAuthorizationService } from "../src/modules/projects/project-authorization.js";
+import { AgentContextSnapshotService } from "../src/modules/context/agent-context-snapshot-service.js";
+import { ContextVersionRepository } from "../src/modules/context/context-version-repository.js";
+import { PostgresExecutionImpactService } from "../src/modules/execution/postgres-execution-impact.js";
+import type { AgentDefinition } from "@orbit/domain";
 import type { ContextVersion, ProjectContext } from "@orbit/domain";
 import type { CommittedDomainEvent, DomainEventPublisher } from "../src/modules/events/domain-event-publisher.js";
 
@@ -209,6 +215,133 @@ describe.skipIf(!connection)("PostgreSQL decision/context integration", () => {
     );
     expect(head.rows[0]?.current_context_version_id).toBe(fixture.version.id);
     expect(publisher.events).toHaveLength(0);
+  });
+
+  it("rejects proposals without changing the authoritative context", async () => {
+    const fixture = await createFixture();
+    const ids = await createProposal(fixture);
+    const repository = new DecisionReviewRepository(db);
+    await repository.reject(fixture.projectId, ids.proposalId, ids.changeId, at);
+    const head = await db.query<{ current_context_version_id: string }>(
+      "SELECT current_context_version_id FROM project_context_heads WHERE project_id = $1",
+      [fixture.projectId],
+    );
+    expect(head.rows[0]?.current_context_version_id).toBe(fixture.version.id);
+    const decisions = await db.query<{ status: string }>(
+      "SELECT status FROM decision_proposals WHERE id = $1", [ids.proposalId],
+    );
+    expect(decisions.rows[0]?.status).toBe("REJECTED");
+    const authoritative = await db.query<{ id: string }>(
+      "SELECT id FROM decisions WHERE project_id = $1", [fixture.projectId],
+    );
+    expect(authoritative.rowCount).toBe(0);
+  });
+
+  it("enforces authorization across projects and rejects viewer approvals", async () => {
+    const fixture = await createFixture();
+    const other = await createFixture();
+    const authorization = new ProjectAuthorizationService(db);
+    await expect(authorization.authorize(other.principalId, fixture.projectId, "review"))
+      .rejects.toMatchObject({ code: "forbidden" });
+    await db.query("UPDATE principals SET role = 'viewer' WHERE id = $1", [fixture.principalId]);
+    await expect(authorization.authorize(fixture.principalId, fixture.projectId, "review"))
+      .rejects.toMatchObject({ code: "forbidden" });
+  });
+
+  it("future snapshots inherit approved v4; running snapshots remain frozen across updates", async () => {
+    const fixture = await createFixture();
+    const ids = await createProposal(fixture);
+    const publisher = new RecordingPublisher();
+    const result = await promoter(db, publisher).promote(approvalInput(fixture, ids));
+    const agent: AgentDefinition = {
+      id: `agent_${randomUUID()}`, organizationId: fixture.organizationId,
+      name: "Engineering", purpose: "Build jobs",
+      provider: "meta", model: "muse",
+      capabilities: ["repo.read"], approvedTools: [],
+      maxContextClassification: "INTERNAL",
+      allowedContextScopes: ["project"],
+      allowedRepositories: ["susanwere/orbit"], allowedPaths: ["apps/jobs/**"],
+      forbiddenActions: [], approvalRequiredActions: [],
+      networkPolicy: "none", networkAllowlist: [],
+      status: "approved", version: 1,
+      createdByPrincipalId: fixture.principalId, createdAt: at,
+    };
+    const snapshots = new AgentContextSnapshotService(
+      db, new ProjectAuthorizationService(db),
+    );
+    const snapshot = await snapshots.create({
+      projectId: fixture.projectId,
+      requestedByPrincipalId: fixture.principalId,
+      agent,
+      mission: "Implement jobs Load More",
+    });
+    expect(snapshot.sourceContextVersionId).toBe(result.contextVersionId);
+    expect(snapshot.includedDecisionIds).toContain(result.decisionId);
+    await expect(db.query(
+      "UPDATE context_snapshots SET mission = 'tampered' WHERE id = $1",
+      [snapshot.id],
+    )).rejects.toThrow();
+
+    const contractId = `contract_${randomUUID()}`;
+    const sessionId = `session_${randomUUID()}`;
+    await db.query(
+      `INSERT INTO execution_contracts(
+        id, organization_id, project_id, context_snapshot_id,
+        agent_definition_id, agent_definition_version, network_policy, allowed_paths
+      ) VALUES ($1,$2,$3,$4,$5,1,'none','["apps/jobs/**"]'::jsonb)`,
+      [contractId, fixture.organizationId, fixture.projectId, snapshot.id, agent.id],
+    );
+    await db.query(
+      `INSERT INTO agent_sessions(
+        id, organization_id, project_id, agent_definition_id,
+        agent_definition_version, work_item_id,
+        requested_by_principal_id, human_owner_principal_id,
+        mission, context_snapshot_id, execution_contract_id, state
+      ) VALUES ($1,$2,$3,$4,1,'jobs-list',$5,$5,$6,$7,$8,'RUNNING')`,
+      [
+        sessionId, fixture.organizationId, fixture.projectId, agent.id,
+        fixture.principalId, "Implement jobs Load More", snapshot.id, contractId,
+      ],
+    );
+    const contexts = new ContextVersionRepository(db);
+    const version4 = await contexts.getById(fixture.projectId, result.contextVersionId);
+    expect(version4).not.toBeNull();
+    const version5 = await contexts.append({
+      id: `context_${randomUUID()}`,
+      organizationId: fixture.organizationId, projectId: fixture.projectId,
+      content: { ...version4!.content, attributes: { theme: "dark" } },
+      expectedCurrentVersionId: result.contextVersionId, createdAt: at,
+    });
+    const impact = new PostgresExecutionImpactService(db);
+    expect(await impact.evaluate({
+      organizationId: fixture.organizationId, projectId: fixture.projectId,
+      previousContextVersionId: result.contextVersionId,
+      currentContextVersionId: version5.id,
+    })).toEqual({ reviewed: 0, continued: 1 });
+    const version6 = await contexts.append({
+      id: `context_${randomUUID()}`,
+      organizationId: fixture.organizationId, projectId: fixture.projectId,
+      content: {
+        ...version5.content,
+        constraints: [...version5.content.constraints, {
+          id: `constraint_${randomUUID()}`, key: "jobs.pagination",
+          statement: "Use cursor pagination for jobs Load More",
+          sourceDecisionId: result.decisionId, createdAt: at,
+        }],
+      },
+      expectedCurrentVersionId: version5.id, createdAt: at,
+    });
+    expect(await impact.evaluate({
+      organizationId: fixture.organizationId, projectId: fixture.projectId,
+      previousContextVersionId: version5.id,
+      currentContextVersionId: version6.id,
+    })).toEqual({ reviewed: 1, continued: 0 });
+    const persisted = await db.query<{ state: string; context_snapshot_id: string }>(
+      "SELECT state, context_snapshot_id FROM agent_sessions WHERE id = $1", [sessionId],
+    );
+    expect(persisted.rows[0]).toMatchObject({
+      state: "WAITING", context_snapshot_id: snapshot.id,
+    });
   });
 
   it("deduplicates webhook deliveries using the real database constraint", async () => {
