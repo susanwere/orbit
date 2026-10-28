@@ -1,4 +1,6 @@
 import { PgDatabase } from "@orbit/db";
+import { AgentSessionService } from "./modules/agents/agent-session-service.js";
+import { AgentContextSnapshotService } from "./modules/context/agent-context-snapshot-service.js";
 import { ProjectAuthorizationService } from "./modules/projects/project-authorization.js";
 import { MetaModelApiClient } from "./modules/decisions/meta-model-client.js";
 import { MuseDecisionDetector } from "./modules/decisions/muse-decision-detector.js";
@@ -67,6 +69,9 @@ const decisionReview = new DecisionReviewService(
 
 const app = await buildApp({
   auth,
+  agentSessions:auth?{auth,service:new AgentSessionService(database,
+    new ProjectAuthorizationService(database),
+    new AgentContextSnapshotService(database,new ProjectAuthorizationService(database)))}:undefined,
   projectReads: auth ? {auth,db:database,authorization:new ProjectAuthorizationService(database)} : undefined,
   notifications: auth ? { auth, db:database,
     authorization:new ProjectAuthorizationService(database) } : undefined,
