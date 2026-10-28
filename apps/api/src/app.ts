@@ -1,4 +1,5 @@
 import cors from "@fastify/cors";
+import { registerProjectReadRoutes, type ProjectReadRoutesOptions } from "./modules/projects/project-read-routes.js";
 import { registerNotificationRoutes, type NotificationRouteOptions } from "./modules/notifications/notification-routes.js";
 import type { AuthVerifier } from "./modules/auth/verified-principal.js";
 import { DomainError } from "@orbit/domain";
@@ -13,6 +14,7 @@ import { registerWhyProvenanceRoutes, type WhyProvenanceRouteOptions } from "./m
 import { registerProjectEventRoutes, type EventRouteOptions } from "./modules/events/project-event-route.js";
 
 export interface AppOptions {
+  readonly projectReads?: ProjectReadRoutesOptions;
   readonly githubWebhook?: GitHubWebhookRouteOptions;
   readonly decisionReview?: DecisionReviewService;
   readonly auth?: AuthVerifier;
@@ -57,6 +59,8 @@ export async function buildApp(options: AppOptions = {}) {
     status: "ok",
     service: "orbit-api",
   }));
+
+  if (options.projectReads) await app.register(registerProjectReadRoutes, options.projectReads);
 
   if (options.githubWebhook) {
     await app.register(registerGitHubWebhookRoutes, options.githubWebhook);
