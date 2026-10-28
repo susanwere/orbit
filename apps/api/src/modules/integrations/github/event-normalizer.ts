@@ -49,14 +49,6 @@ function repositoryName(payload: JsonRecord): string | undefined {
   return stringAt(recordAt(payload, "repository") ?? {}, "full_name");
 }
 
-function pullRequestNumber(payload: JsonRecord): number | undefined {
-  const pullRequest = recordAt(payload, "pull_request");
-  if (pullRequest) return numberAt(pullRequest, "number");
-
-  const issue = recordAt(payload, "issue");
-  return issue ? numberAt(issue, "number") : undefined;
-}
-
 function actorFrom(payload: JsonRecord): OrbitEventActor {
   const sender = recordAt(payload, "sender");
   const login = sender ? stringAt(sender, "login") : undefined;
