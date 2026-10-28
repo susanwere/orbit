@@ -50,7 +50,7 @@ export class AgentContextSnapshotService {
     return this.database.transaction(async (tx) => this.createWithinTransaction(tx, input));
   }
 
-  private async createWithinTransaction(tx: SqlExecutor, input: {
+  async createWithinTransaction(tx: SqlExecutor, input: {
     projectId: string;
     requestedByPrincipalId: string;
     agent: AgentDefinition;
