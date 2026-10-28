@@ -1,10 +1,11 @@
+import type { OrbitNodeKind } from "./contracts/orbit.js";
 import { useRef, useMemo } from "react";
 import { Canvas, useFrame } from "@react-three/fiber";
 import { Line, OrbitControls } from "@react-three/drei";
 import * as THREE from "three";
 
-type NodeData = { label: string; ring: 0 | 1 | 2; angle: number; color: string };
-type Props = { nodes: NodeData[]; selected: string; onSelect: (label: string) => void };
+type NodeData = { id: OrbitNodeKind; label: string; ring: 0 | 1 | 2; angle: number; color: string };
+type Props = { nodes: NodeData[]; selected: OrbitNodeKind; onSelect: (id: OrbitNodeKind) => void };
 const RADII = [1.45, 2.65, 3.75] as const;
 
 function OrbitalPath({ radius, dimmed }: { radius: number; dimmed: boolean }) {
@@ -56,7 +57,7 @@ function Scene({ nodes, selected, onSelect, animate }: Props & { animate: boolea
     <directionalLight position={[5, 6, 7]} intensity={2.2} color="#d1c9ff"/>
     <Core/>
     {RADII.map((r) => <OrbitalPath key={r} radius={r} dimmed={false}/>)}
-    {nodes.map((node) => <OrbitingNode key={node.label} node={node} selected={selected === node.label} onSelect={() => onSelect(node.label)} animate={animate}/>)}
+    {nodes.map((node) => <OrbitingNode key={node.id} node={node} selected={selected === node.id} onSelect={() => onSelect(node.id)} animate={animate}/>)}
     <OrbitControls enablePan={false} enableZoom minDistance={8.5} maxDistance={14} minPolarAngle={Math.PI / 3} maxPolarAngle={Math.PI * 2 / 3} enableDamping dampingFactor={.06}/>
   </>;
 }
