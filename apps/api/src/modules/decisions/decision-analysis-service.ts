@@ -112,6 +112,26 @@ export class DecisionAnalysisService {
         [change.id,change.organizationId,change.projectId,change.decisionProposalId,
           change.baseContextVersionId,change.revision,JSON.stringify(change.operations),
           JSON.stringify(change.resultingContextPreview),change.status,change.createdAt,change.updatedAt]);
+      const recipients=await tx.query<{id:string}>(`SELECT id FROM principals
+        WHERE organization_id=$1 AND type='human' AND role IN ('admin','member')`,
+        [row.organization_id]);
+      for(const recipient of recipients.rows){
+        await tx.query(`INSERT INTO notifications(
+          id,organization_id,project_id,recipient_principal_id,type,subject_type,
+          subject_id,title,body)
+          VALUES($1,$2,$3,$4,'APPROVAL_REQUIRED','decision_proposal',$5,$6,$7)
+          ON CONFLICT(project_id,recipient_principal_id,type,subject_type,subject_id) DO NOTHING`,
+          [`notification_${this.newId()}`,row.organization_id,row.project_id,
+            recipient.id,proposalId,candidate.title,candidate.rationale]);
+      }
+      await tx.query(`INSERT INTO events(
+        id,organization_id,project_id,type,occurred_at,correlation_id,causation_id,
+        actor_type,actor_id,entity_type,entity_id,payload)
+        VALUES($1,$2,$3,'decision.review_required',now(),$4,$5,
+          'system',$6,'decision_proposal',$7,$8::jsonb) ON CONFLICT(id) DO NOTHING`,
+        [`review_${fingerprint(row.id)}`,row.organization_id,row.project_id,
+          row.correlation_id,row.id,this.systemPrincipalId,proposalId,
+          JSON.stringify({decisionProposalId:proposalId,title:candidate.title})]);
     });
     return "proposed";
   }
