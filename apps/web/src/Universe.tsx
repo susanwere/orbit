@@ -1,3 +1,4 @@
+import { OrbitScene } from "./OrbitScene.js";
 import { useMemo, useState } from "react";
 
 type Ring = 0 | 1 | 2;
@@ -53,13 +54,10 @@ export function Universe({ onExit }: { onExit: () => void }) {
           </div>
           <div className="universe-canvas">
             <div className="canvas-aura" />
-            <svg className="universe-svg" viewBox="0 0 760 760" role="img" aria-label="Three concentric orbital layers connecting project intent to twelve engineering concepts">
-              <defs><radialGradient id="intentAura"><stop offset="0%" stopColor="#a58aff" stopOpacity=".42"/><stop offset="45%" stopColor="#7650d0" stopOpacity=".13"/><stop offset="100%" stopColor="#7650d0" stopOpacity="0"/></radialGradient><radialGradient id="intentCore" cx="35%" cy="25%"><stop offset="0%" stopColor="#7764be"/><stop offset="55%" stopColor="#322a55"/><stop offset="100%" stopColor="#151525"/></radialGradient></defs>
-              <circle cx="380" cy="380" r="173" fill="url(#intentAura)" />
-              {rings.map((ring, i) => <g key={ring.name} opacity={filter === "all" || filter === i ? 1 : .16}><circle cx="380" cy="380" r={ring.r} className="universe-ring"/><circle cx="380" cy="380" r={ring.r} className="universe-ring-glint" strokeDasharray="3 28" /></g>)}
-              {visible.map((node) => { const a = node.angle * Math.PI / 180; const r = rings[node.ring]!.r; const x = 380 + r * Math.cos(a); const y = 380 + r * Math.sin(a); const isActive = active.label === node.label; const c = toneColors[node.tone]; return <g key={node.label} role="button" tabIndex={0} aria-label={"Inspect " + node.label} aria-pressed={isActive} onClick={() => choose(node.label)} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); choose(node.label); } }} className="semantic-node" style={{ cursor: "pointer" }}><circle cx={x} cy={y} r={isActive ? 32 : 24} fill={c} opacity={isActive ? .11 : .04}/><circle cx={x} cy={y} r={isActive ? 18 : 14} fill="#151723" stroke={c} strokeOpacity={isActive ? 1 : .52} strokeWidth={isActive ? 2 : 1}/><circle cx={x} cy={y} r="4" fill={c}/><text x={x} y={y + (node.ring === 0 && node.label === "Context" ? 38 : 36)} textAnchor="middle" className={isActive ? "node-caption active" : "node-caption"}>{node.label}</text></g>; })}
-              <circle cx="380" cy="380" r="72" fill="url(#intentCore)" stroke="#b09cfc" strokeOpacity=".68" strokeWidth="1.5" className="intent-sphere"/><circle cx="380" cy="380" r="82" fill="none" stroke="#9b82e8" strokeOpacity=".12"/><text x="380" y="386" textAnchor="middle" className="intent-label">INTENT</text>
-            </svg>
+            <OrbitScene nodes={visible.map(({label,ring,angle,tone}) => ({label,ring,angle,color:toneColors[tone]}))} selected={selected} onSelect={choose} />
+            <div className="scene-accessible-list" aria-label="Select an engineering concept">
+              {visible.map((node) => <button key={node.label} type="button" onClick={() => choose(node.label)} aria-pressed={selected === node.label}>{node.label}</button>)}
+            </div>
             <div className="canvas-legend"><span><i className="legend-dot violet" /> Governance</span><span><i className="legend-dot cyan" /> Execution</span><span><i className="legend-dot mint" /> Outcomes</span></div>
           </div>
           <div className="universe-footer"><span>12 connected concepts · 3 semantic orbits</span><span>Select a node to inspect its role <span aria-hidden="true">↗</span></span></div>
