@@ -91,6 +91,7 @@ export function generateContextChangeProposal(
     projectId: input.projectId,
     decisionProposalId: input.decisionProposalId,
     baseContextVersionId: input.baseContextVersion.id,
+    revision: input.revision ?? 1,
     operations,
     resultingContextPreview: preview,
     status: "READY_FOR_REVIEW",

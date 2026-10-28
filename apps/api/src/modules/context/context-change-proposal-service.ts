@@ -37,6 +37,6 @@ export class ContextChangeProposalService {
       revision: 1,
     };
     const proposal = generateContextChangeProposal(proposalInput);
-    return this.repository.create(proposal, proposalInput.revision);
+    return this.repository.create(proposal);
   }
 }

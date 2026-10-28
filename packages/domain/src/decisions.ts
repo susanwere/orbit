@@ -67,6 +67,7 @@ export interface ContextChangeProposal {
   readonly projectId: Id;
   readonly decisionProposalId: Id;
   readonly baseContextVersionId: Id;
+  readonly revision: number;
   readonly operations: readonly ContextChangeOperation[];
   readonly resultingContextPreview: ProjectContextPreview;
   readonly status: ContextChangeProposalStatus;

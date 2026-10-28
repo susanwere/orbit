@@ -68,6 +68,7 @@ describe("Context Change Proposal generation", () => {
     });
 
     expect(proposal.baseContextVersionId).toBe("context_v3");
+    expect(proposal.revision).toBe(1);
     expect(proposal.status).toBe("READY_FOR_REVIEW");
     expect(proposal.operations).toEqual([
       {
@@ -144,6 +145,26 @@ describe("Context Change Proposal generation", () => {
 
     expect(preview.attributes.releaseChannel).toBe("production");
     expect(original.attributes.releaseChannel).toBe("preview");
+  });
+
+  it("rejects prototype-pollution paths even when broadly allowed", () => {
+    expect(() =>
+      applyContextChangeOperations(
+        baseContext(),
+        [
+          {
+            op: "add",
+            path: "/attributes/__proto__/polluted",
+            value: true,
+          },
+        ],
+        ["/attributes/**"],
+      ),
+    ).toThrowError(
+      expect.objectContaining({
+        code: "invalid_context_path",
+      }),
+    );
   });
 
   it("rejects a base ContextVersion from another project", () => {

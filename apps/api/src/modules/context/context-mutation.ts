@@ -7,6 +7,7 @@ import {
 } from "@orbit/domain";
 
 const IMMUTABLE_ROOTS = new Set(["projectId", "originalIntentId"]);
+const UNSAFE_POINTER_SEGMENTS = new Set(["__proto__", "prototype", "constructor"]);
 
 function decodePointerSegment(segment: string): string {
   return segment.replace(/~1/g, "/").replace(/~0/g, "~");
@@ -27,6 +28,13 @@ function parsePointer(path: string): string[] {
 
   if (segments.length === 0 || segments[0] === "") {
     throw new DomainError("invalid_context_path", "Context root cannot be mutated.");
+  }
+
+  if (segments.some((segment) => UNSAFE_POINTER_SEGMENTS.has(segment))) {
+    throw new DomainError(
+      "invalid_context_path",
+      `Unsafe context mutation path: ${path}`,
+    );
   }
 
   if (IMMUTABLE_ROOTS.has(segments[0]!)) {

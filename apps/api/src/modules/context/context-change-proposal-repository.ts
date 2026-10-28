@@ -26,6 +26,7 @@ function mapRow(row: ContextChangeProposalRow): ContextChangeProposal {
     projectId: row.project_id,
     decisionProposalId: row.decision_proposal_id,
     baseContextVersionId: row.base_context_version_id,
+    revision: row.revision,
     operations: row.operations,
     resultingContextPreview: row.resulting_context_preview,
     status: row.status,
@@ -40,7 +41,6 @@ export class ContextChangeProposalRepository {
 
   async create(
     proposal: ContextChangeProposal,
-    revision = 1,
   ): Promise<ContextChangeProposal> {
     const result = await this.database.query<ContextChangeProposalRow>(
       `INSERT INTO context_change_proposals (
@@ -78,7 +78,7 @@ export class ContextChangeProposalRepository {
         proposal.projectId,
         proposal.decisionProposalId,
         proposal.baseContextVersionId,
-        revision,
+        proposal.revision,
         JSON.stringify(proposal.operations),
         JSON.stringify(proposal.resultingContextPreview),
         proposal.status,
