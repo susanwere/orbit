@@ -1,10 +1,10 @@
 import type { FastifyInstance } from "fastify";
-import { verifyEventToken } from "../events/verify-event-token.js";
+import type { AuthVerifier } from "../auth/verified-principal.js";
 import type { WhyProvenanceQuery } from "./why-provenance-query.js";
 
 export interface WhyProvenanceRouteOptions {
   query: WhyProvenanceQuery;
-  tokenSecret: string;
+  auth: AuthVerifier;
 }
 export async function registerWhyProvenanceRoutes(
   app: FastifyInstance,
@@ -13,12 +13,7 @@ export async function registerWhyProvenanceRoutes(
   app.get<{ Params: { projectId: string; decisionId: string } }>(
     "/projects/:projectId/decisions/:decisionId/why",
     async (request) => {
-      const principalId = verifyEventToken(
-        request.headers.authorization,
-        options.tokenSecret,
-        Math.floor(Date.now() / 1000),
-        "orbit-provenance",
-      );
+      const principalId = options.auth.verify(request.headers.authorization).id;
       return options.query.get(principalId, request.params.projectId, request.params.decisionId);
     },
   );
