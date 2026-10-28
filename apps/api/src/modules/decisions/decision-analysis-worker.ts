@@ -3,7 +3,8 @@ import type { DecisionAnalysisService } from "./decision-analysis-service.js";
 
 interface Job extends Record<string, unknown> { event_id: string; attempts: number }
 export class DecisionAnalysisWorker {
-  constructor(private readonly db: SqlDatabase, private readonly analysis: DecisionAnalysisService) {}
+  constructor(private readonly db: SqlDatabase, private readonly analysis: DecisionAnalysisService,
+    private readonly projectScope?:string) {}
 
   async processBatch(limit = 10): Promise<number> {
     let count = 0;
@@ -13,7 +14,9 @@ export class DecisionAnalysisWorker {
         const result = await tx.query<Job>(`SELECT event_id, attempts FROM decision_analysis_jobs
           WHERE (status IN ('pending','failed') AND attempts < 5 AND next_attempt_at <= now())
           OR (status='processing' AND attempts < 5 AND claimed_at < now() - interval '2 minutes')
-          ORDER BY next_attempt_at, event_id LIMIT 1 FOR UPDATE SKIP LOCKED`);
+          AND ($1::text IS NULL OR project_id=$1)
+          ORDER BY next_attempt_at, event_id LIMIT 1 FOR UPDATE SKIP LOCKED`,
+          [this.projectScope??null]);
         const item = result.rows[0];
         if (!item) return null;
         await tx.query(`UPDATE decision_analysis_jobs SET status='processing', attempts=attempts+1,
