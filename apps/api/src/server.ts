@@ -1,4 +1,8 @@
 import { PgDatabase } from "@orbit/db";
+import { MetaModelApiClient } from "./modules/decisions/meta-model-client.js";
+import { MuseDecisionDetector } from "./modules/decisions/muse-decision-detector.js";
+import { DecisionAnalysisService } from "./modules/decisions/decision-analysis-service.js";
+import { DecisionAnalysisWorker } from "./modules/decisions/decision-analysis-worker.js";
 import { HmacJwtAuthVerifier } from "./modules/auth/verified-principal.js";
 import { buildApp } from "./app.js";
 import { ContextVersionRepository } from "./modules/context/context-version-repository.js";
@@ -25,6 +29,19 @@ const githubWebhookSecret = process.env.GITHUB_WEBHOOK_SECRET;
 const organizationId = process.env.ORBIT_ORGANIZATION_ID;
 const projectId = process.env.ORBIT_PROJECT_ID;
 const webhookWorker = new GithubWebhookWorker(database);
+const analysisWorker = process.env.MODEL_API_KEY && process.env.ORBIT_SYSTEM_PRINCIPAL_ID
+  ? new DecisionAnalysisWorker(
+      database,
+      new DecisionAnalysisService(
+        database,
+        new MuseDecisionDetector(new MetaModelApiClient({
+          apiKey: process.env.MODEL_API_KEY,
+          baseUrl: process.env.MODEL_API_BASE_URL,
+        })),
+        process.env.ORBIT_SYSTEM_PRINCIPAL_ID,
+      ),
+    )
+  : undefined;
 
 const auth = process.env.ORBIT_AUTH_SECRET && process.env.ORBIT_AUTH_ISSUER
   ? new HmacJwtAuthVerifier({
@@ -80,6 +97,7 @@ const app = await buildApp({
 
 const workerTimer = setInterval(() => {
   void webhookWorker.processBatch().catch((error) => app.log.error(error));
+  void analysisWorker?.processBatch().catch((error) => app.log.error(error));
 }, 5000);
 void webhookWorker.processBatch().catch((error) => app.log.error(error));
 app.addHook("onClose", async () => {
