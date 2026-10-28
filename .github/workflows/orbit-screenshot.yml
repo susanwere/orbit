@@ -1,0 +1,48 @@
+name: Capture Orbit Universe screenshot
+on:
+  push:
+    branches: [feat/orbit-universe-interactive-prototype]
+    paths: [".github/workflows/orbit-screenshot.yml"]
+permissions:
+  contents: write
+jobs:
+  screenshot:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - run: npm ci
+      - run: npm install --no-save --package-lock=false playwright
+      - run: npx playwright install --with-deps chromium
+      - name: Start frontend
+        run: |
+          npm run dev:web > /tmp/orbit-vite.log 2>&1 &
+          for i in $(seq 1 60); do if curl -fsS http://127.0.0.1:5173 >/dev/null; then exit 0; fi; sleep 2; done
+          cat /tmp/orbit-vite.log
+          exit 1
+      - name: Capture actual rendered 3D app
+        run: |
+          mkdir -p docs/images
+          node --input-type=module <<'NODE'
+          import { chromium } from 'playwright';
+          const browser = await chromium.launch({headless:true,args:['--use-gl=angle','--use-angle=swiftshader','--enable-webgl','--enable-unsafe-swiftshader']});
+          const page = await browser.newPage({viewport:{width:1600,height:1000},deviceScaleFactor:1});
+          await page.goto('http://127.0.0.1:5173/',{waitUntil:'networkidle'});
+          await page.getByRole('button',{name:'View projects'}).click();
+          await page.getByRole('heading',{name:'Everything revolves around intent.'}).waitFor();
+          await page.waitForTimeout(3200);
+          await page.screenshot({path:'docs/images/orbit-universe.png',fullPage:true});
+          await browser.close();
+          NODE
+      - name: Commit screenshot
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/images/orbit-universe.png
+          if ! git diff --cached --quiet; then
+            git commit -m "docs: add rendered Orbit Universe screenshot"
+            git push
+          fi
