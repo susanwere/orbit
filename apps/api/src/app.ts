@@ -1,4 +1,5 @@
 import cors from "@fastify/cors";
+import { registerNotificationRoutes, type NotificationRouteOptions } from "./modules/notifications/notification-routes.js";
 import type { AuthVerifier } from "./modules/auth/verified-principal.js";
 import { DomainError } from "@orbit/domain";
 import Fastify from "fastify";
@@ -15,6 +16,7 @@ export interface AppOptions {
   readonly githubWebhook?: GitHubWebhookRouteOptions;
   readonly decisionReview?: DecisionReviewService;
   readonly auth?: AuthVerifier;
+  readonly notifications?: NotificationRouteOptions;
   readonly eventStream?: EventRouteOptions;
   readonly whyProvenance?: WhyProvenanceRouteOptions;
 }
@@ -63,6 +65,10 @@ export async function buildApp(options: AppOptions = {}) {
   if (options.decisionReview) {
     if (!options.auth) throw new Error("Review routes require verified authentication.");
     await app.register((instance) => registerDecisionReviewRoutes(instance, options.decisionReview!, options.auth!));
+  }
+
+  if (options.notifications) {
+    await app.register(registerNotificationRoutes, options.notifications);
   }
 
   if (options.eventStream) {
