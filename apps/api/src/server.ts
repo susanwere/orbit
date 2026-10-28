@@ -64,12 +64,13 @@ const decisionReview = new DecisionReviewService(
     database,
     new NoopDomainEventPublisher(),
     undefined,
-    (error) => console.error("Post-commit event handling failed:", error),
+    () => console.error("Post-commit event handling failed."),
   ),
 );
 
 const app = await buildApp({
   auth,
+  operations:auth?{auth,db:database,authorization:new ProjectAuthorizationService(database)}:undefined,
   humanGates: auth ? {auth,service:new HumanGateService(database,
     new ProjectAuthorizationService(database))}:undefined,
   agentSessions:auth?{auth,service:new AgentSessionService(database,
