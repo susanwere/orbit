@@ -31,6 +31,12 @@ describe.skipIf(!connection)("HN Jobs deterministic demo replay", () => {
         sourceDecisionProposalId: "demo_decision_proposal",
         createdAt: "2026-10-28T12:00:00.000Z",
       },
+    }, {
+      op: "add",
+      path: "/attributes/engineeringConstraints",
+      value: {
+        pagination: { mode:"load_more",batchSize:20,infiniteScroll:false },
+      },
     }]);
     const authoritative = await db.query<{
       status: string;

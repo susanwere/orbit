@@ -5,6 +5,7 @@ import {
   type ContextVersion,
 } from "@orbit/domain";
 import type { DecisionCandidate } from "../decisions/decision-detector.js";
+import { paginationFromEvidence } from "./typed-project-context.js";
 import {
   applyContextChangeOperations,
   asJsonValue,
@@ -77,7 +78,18 @@ export function generateContextChangeProposal(
     );
   }
 
-  const operations = [decisionConstraintOperation(input)];
+  const operations: ContextChangeOperation[] = [decisionConstraintOperation(input)];
+  const pagination = paginationFromEvidence(input.candidate.evidenceQuote);
+  if (pagination) {
+    const current = input.baseContextVersion.content.attributes.engineeringConstraints;
+    const engineering = current && typeof current === "object" && !Array.isArray(current)
+      ? current as Record<string, import("@orbit/domain").JsonValue> : {};
+    operations.push({
+      op: current === undefined ? "add" : "replace",
+      path: "/attributes/engineeringConstraints",
+      value: asJsonValue({ ...engineering, pagination }),
+    });
+  }
   const allowedPaths = input.allowedPaths ?? DEFAULT_PROPOSAL_ALLOWED_PATHS;
   const preview = applyContextChangeOperations(
     input.baseContextVersion.content,

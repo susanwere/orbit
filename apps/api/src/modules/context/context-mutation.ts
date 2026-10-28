@@ -1,3 +1,4 @@
+import { validateProjectContextAttributes } from "./typed-project-context.js";
 import {
   DomainError,
   type ContextChangeOperation,
@@ -189,6 +190,7 @@ export function applyContextChangeOperations(
     );
   }
 
+  validateProjectContextAttributes(preview as unknown as ProjectContext);
   return preview as unknown as ProjectContextPreview;
 }
 
