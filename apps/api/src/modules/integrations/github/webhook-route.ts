@@ -5,6 +5,7 @@ import { verifyGitHubWebhookSignature } from "./webhook-signature.js";
 export interface GitHubWebhookRouteOptions {
   readonly secret: string;
   readonly organizationId: string;
+  readonly projectId: string;
   readonly inbox: WebhookInboxStore;
   readonly onAccepted?: (webhookInboxId: string) => void | Promise<void>;
 }
@@ -83,6 +84,7 @@ export async function registerGitHubWebhookRoutes(
 
     const persisted = await options.inbox.persist({
       organizationId: options.organizationId,
+      projectId: options.projectId,
       provider: "github",
       deliveryId,
       eventName,

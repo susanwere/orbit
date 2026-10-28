@@ -11,6 +11,7 @@ import { PostgresExecutionImpactService } from "./modules/execution/postgres-exe
 import { ImpactAwareEventPublisher } from "./modules/execution/impact-aware-event-publisher.js";
 import { ProjectEventStream } from "./modules/events/project-event-stream.js";
 import { PostgresWebhookInboxStore } from "./modules/integrations/github/webhook-inbox.js";
+import { GithubWebhookWorker } from "./modules/integrations/github/webhook-worker.js";
 import { ProjectAuthorizationService } from "./modules/projects/project-authorization.js";
 import { WhyProvenanceQuery } from "./modules/provenance/why-provenance-query.js";
 
@@ -22,6 +23,8 @@ const databaseUrl =
 const database = new PgDatabase(databaseUrl);
 const githubWebhookSecret = process.env.GITHUB_WEBHOOK_SECRET;
 const organizationId = process.env.ORBIT_ORGANIZATION_ID;
+const projectId = process.env.ORBIT_PROJECT_ID;
+const webhookWorker = new GithubWebhookWorker(database);
 
 const auth = process.env.ORBIT_AUTH_SECRET && process.env.ORBIT_AUTH_ISSUER
   ? new HmacJwtAuthVerifier({
@@ -64,16 +67,23 @@ const app = await buildApp({
     : undefined,
   decisionReview: auth ? decisionReview : undefined,
   githubWebhook:
-    githubWebhookSecret && organizationId
+    githubWebhookSecret && organizationId && projectId
       ? {
           secret: githubWebhookSecret,
           organizationId,
+          projectId,
           inbox: new PostgresWebhookInboxStore(database),
+          onAccepted: async () => { await webhookWorker.processBatch(); },
         }
       : undefined,
 });
 
+const workerTimer = setInterval(() => {
+  void webhookWorker.processBatch().catch((error) => app.log.error(error));
+}, 5000);
+void webhookWorker.processBatch().catch((error) => app.log.error(error));
 app.addHook("onClose", async () => {
+  clearInterval(workerTimer);
   await database.close();
 });
 

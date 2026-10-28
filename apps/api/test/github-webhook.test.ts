@@ -51,6 +51,7 @@ describe("GitHub webhook ingress", () => {
       githubWebhook: {
         secret,
         organizationId: "org_1",
+        projectId: "project_1",
         inbox,
       },
     });
@@ -80,6 +81,7 @@ describe("GitHub webhook ingress", () => {
       githubWebhook: {
         secret,
         organizationId: "org_1",
+        projectId: "project_1",
         inbox,
         onAccepted,
       },
