@@ -10,6 +10,7 @@ export function verifyEventToken(
   authorization: string | undefined,
   secret: string,
   nowSeconds = Math.floor(Date.now() / 1000),
+  audience = "orbit-events",
 ): string {
   if (!authorization?.startsWith("Bearer ") || secret.length < 32) {
     throw new DomainError("unauthenticated", "A valid bearer token is required.");
@@ -39,7 +40,7 @@ export function verifyEventToken(
     typeof sub !== "string" || !sub.trim() || sub.length > 256 ||
     typeof exp !== "number" || !Number.isInteger(exp) ||
     exp <= nowSeconds || exp > nowSeconds + 3600 ||
-    aud !== "orbit-events"
+    aud !== audience
   ) {
     throw new DomainError("unauthenticated", "Expired or invalid bearer token claims.");
   }
