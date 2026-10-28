@@ -143,7 +143,7 @@ const DECISION_PROPOSAL_TRANSITIONS: Record<
   DecisionProposalStatus,
   readonly DecisionProposalStatus[]
 > = {
-  DETECTED: ["READY_FOR_REVIEW", "REJECTED"],
+  DETECTED: ["READY_FOR_REVIEW"],
   READY_FOR_REVIEW: ["APPROVED", "REJECTED"],
   APPROVED: [],
   REJECTED: [],
@@ -158,7 +158,7 @@ const CONTEXT_CHANGE_PROPOSAL_TRANSITIONS: Record<
   APPLYING: ["APPLIED", "FAILED"],
   APPLIED: [],
   REJECTED: [],
-  FAILED: ["GENERATING"],
+  FAILED: [],
 };
 
 const DECISION_TRANSITIONS: Record<DecisionStatus, readonly DecisionStatus[]> = {
