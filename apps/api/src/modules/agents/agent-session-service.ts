@@ -4,7 +4,7 @@ import type { SqlDatabase } from "@orbit/db";
 import type { ProjectAuthorizationService } from "../projects/project-authorization.js";
 import { AgentContextSnapshotService } from "../context/agent-context-snapshot-service.js";
 
-interface DefinitionRow extends Record<string,unknown> { definition:AgentDefinition }
+interface DefinitionRow extends Record<string,unknown> { definition:AgentDefinition; status:string; version:number }
 interface OwnerRow extends Record<string,unknown> { id:string }
 export class AgentSessionService {
   constructor(
@@ -29,12 +29,13 @@ export class AgentSessionService {
         WHERE id=$1 AND organization_id=$2 AND type='human' AND role IN ('admin','member')`,
         [input.humanOwner,actor.organizationId]);
       if(!owner.rows[0])throw new DomainError("forbidden","Human owner is not authorized.");
-      const definitions=await tx.query<DefinitionRow>(`SELECT definition
+      const definitions=await tx.query<DefinitionRow>(`SELECT definition,status,version
         FROM orbit_agent_definition_versions
         WHERE organization_id=$1 AND id=$2 ORDER BY version DESC LIMIT 1`,
         [actor.organizationId,input.agentDefinitionId]);
-      const agent=definitions.rows[0]?.definition;
-      if(!agent||agent.status!=="approved"||agent.organizationId!==actor.organizationId||
+      const latest=definitions.rows[0];
+      const agent=latest?.definition;
+      if(!agent||latest.status!=="approved"||latest.version!==agent.version||agent.status!=="approved"||agent.organizationId!==actor.organizationId||
          agent.id!==input.agentDefinitionId||!Number.isSafeInteger(agent.version))
         throw new DomainError("forbidden","Only approved current agent definitions may run.");
       const snapshot=await this.snapshots.createWithinTransaction(tx,{
