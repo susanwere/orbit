@@ -2,7 +2,7 @@ import { DomainError } from "./errors.js";
 import type { Id, JsonValue } from "./types.js";
 import type {
   ContextChangeOperation,
-  ProjectContext,
+  ProjectContextPreview,
 } from "./intent-context.js";
 
 export type SourceArtifactType =
@@ -68,7 +68,7 @@ export interface ContextChangeProposal {
   readonly decisionProposalId: Id;
   readonly baseContextVersionId: Id;
   readonly operations: readonly ContextChangeOperation[];
-  readonly resultingContextPreview: ProjectContext;
+  readonly resultingContextPreview: ProjectContextPreview;
   readonly status: ContextChangeProposalStatus;
   readonly failureReason?: string;
   readonly createdAt: string;
