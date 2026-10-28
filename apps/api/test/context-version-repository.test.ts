@@ -125,7 +125,7 @@ class HistoryDatabase implements SqlDatabase {
     _params?: readonly unknown[],
   ): Promise<SqlQueryResult<Row>> {
     return {
-      rows: this.rows as readonly Row[],
+      rows: this.rows as unknown as readonly Row[],
       rowCount: this.rows.length,
     };
   }
