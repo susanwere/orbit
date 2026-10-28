@@ -11,6 +11,7 @@ import { ImpactAwareEventPublisher } from "./modules/execution/impact-aware-even
 import { ProjectEventStream } from "./modules/events/project-event-stream.js";
 import { PostgresWebhookInboxStore } from "./modules/integrations/github/webhook-inbox.js";
 import { ProjectAuthorizationService } from "./modules/projects/project-authorization.js";
+import { WhyProvenanceQuery } from "./modules/provenance/why-provenance-query.js";
 
 const port = Number(process.env.PORT ?? 4000);
 const host = process.env.HOST ?? "0.0.0.0";
@@ -38,6 +39,12 @@ const decisionReview = new DecisionReviewService(
 );
 
 const app = await buildApp({
+  whyProvenance: process.env.ORBIT_EVENT_TOKEN_SECRET
+    ? {
+        query: new WhyProvenanceQuery(database, new ProjectAuthorizationService(database)),
+        tokenSecret: process.env.ORBIT_EVENT_TOKEN_SECRET,
+      }
+    : undefined,
   eventStream: process.env.ORBIT_EVENT_TOKEN_SECRET
     ? {
         authorization: new ProjectAuthorizationService(database),
