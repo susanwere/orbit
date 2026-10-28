@@ -10,6 +10,7 @@ import {
   generateContextChangeProposal,
 } from "../context/context-change-generator.js";
 import { ContextChangeProposalRepository } from "../context/context-change-proposal-repository.js";
+import { rebaseContextChangeProposal } from "../context/context-change-rebase.js";
 import { ProjectAuthorizationService } from "../projects/project-authorization.js";
 import type { DecisionPromotionPort, PromoteDecisionResult } from "./decision-promotion-port.js";
 import { DecisionReviewRepository, type DecisionReviewBundle } from "./decision-review-repository.js";
@@ -126,6 +127,42 @@ export class DecisionReviewService {
 
     const persisted = await this.contextChanges.create(change);
     return { decisionProposal: decision, contextChangeProposal: persisted };
+  }
+
+  /**
+   * Creates a new review revision against the latest committed context.
+   * Never promotes or auto-approves the rebased proposal.
+   */
+  async rebase(
+    principalId: string,
+    projectId: string,
+    proposalId: string,
+    expectedContextVersionId: string,
+  ): Promise<DecisionReviewBundle> {
+    await this.authorization.authorize(principalId, projectId, "review");
+    const bundle = await this.requireBundle(projectId, proposalId);
+    const previous = bundle.contextChangeProposal;
+    if (previous.baseContextVersionId !== expectedContextVersionId) {
+      throw new DomainError(
+        "stale_context_version",
+        "Expected context version does not match the proposal base.",
+      );
+    }
+    const [previousBase, current] = await Promise.all([
+      this.contextVersions.getById(projectId, previous.baseContextVersionId),
+      this.contextVersions.getCurrent(projectId),
+    ]);
+    if (!previousBase || !current) {
+      throw new DomainError("not_found", "Context version not found.");
+    }
+    const next = rebaseContextChangeProposal({
+      previous,
+      previousBase,
+      current,
+      id: `ccp_${this.idFactory()}`,
+      createdAt: this.clock(),
+    });
+    return this.reviewRepository.rebase(bundle.decisionProposal, previous, next);
   }
 
   async approve(
