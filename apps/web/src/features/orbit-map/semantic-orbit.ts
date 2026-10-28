@@ -1,4 +1,4 @@
-import type { OrbitNodeKind, OrbitNodeModel, OrbitNodeStatus } from "../contracts/orbit.js";
+import type { OrbitNodeKind, OrbitNodeModel, OrbitNodeStatus } from "../../contracts/orbit.js";
 
 type Ring = 0 | 1 | 2;
 export interface SemanticOrbitNode {
