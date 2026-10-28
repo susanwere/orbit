@@ -13,7 +13,7 @@ import type {
   SqlDatabase,
   SqlExecutor,
   SqlQueryResult,
-} from "../src/lib/sql.js";
+} from "@orbit/db";
 
 const createdAt = new Date(0).toISOString();
 

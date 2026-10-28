@@ -5,7 +5,7 @@ import {
   type ProjectContextHead,
 } from "@orbit/domain";
 import { hashProjectContext } from "./canonical-context.js";
-import type { SqlDatabase, SqlExecutor } from "../../lib/sql.js";
+import type { SqlDatabase, SqlExecutor } from "@orbit/db";
 
 interface ContextVersionRow extends Record<string, unknown> {
   id: string;
