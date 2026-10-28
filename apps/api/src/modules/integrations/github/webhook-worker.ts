@@ -9,7 +9,7 @@ interface InboxRow extends Record<string, unknown> {
 const MAX_ATTEMPTS = 5;
 const toIso = (x: Date | string) => x instanceof Date ? x.toISOString() : x;
 export class GithubWebhookWorker {
-  constructor(private readonly db: SqlDatabase) {}
+  constructor(private readonly db: SqlDatabase, private readonly projectScope?: string) {}
 
   /** Each claimed row and its resulting domain event commit atomically. */
   async processBatch(limit = 20): Promise<number> {
@@ -18,12 +18,13 @@ export class GithubWebhookWorker {
       const didWork = await this.db.transaction(async (tx) => {
         const claimed = await tx.query<InboxRow>(`
           SELECT * FROM webhook_inbox
-          WHERE (status IN ('received','failed') AND attempts < $1
+          WHERE ((status IN ('received','failed') AND attempts < $1
                  AND next_attempt_at <= now())
              OR (status = 'processing' AND claimed_at < now() - interval '2 minutes'
-                 AND attempts < $1)
+                 AND attempts < $1))
+          AND ($2::text IS NULL OR project_id=$2)
           ORDER BY received_at, id LIMIT 1 FOR UPDATE SKIP LOCKED
-        `, [MAX_ATTEMPTS]);
+        `, [MAX_ATTEMPTS,this.projectScope??null]);
         const row = claimed.rows[0];
         if (!row) return false;
         await tx.query(`UPDATE webhook_inbox SET status='processing',
