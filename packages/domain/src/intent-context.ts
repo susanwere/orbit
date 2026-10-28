@@ -17,6 +17,22 @@ export interface ContextConstraint {
   readonly createdAt: string;
 }
 
+/**
+ * A constraint visible in a proposal preview before the authoritative Decision
+ * exists. Approval materializes it into ContextConstraint with sourceDecisionId.
+ */
+export interface ProposedContextConstraint {
+  readonly id: Id;
+  readonly key: string;
+  readonly statement: string;
+  readonly sourceDecisionProposalId: Id;
+  readonly createdAt: string;
+}
+
+export type ContextConstraintPreview =
+  | ContextConstraint
+  | ProposedContextConstraint;
+
 export interface ProjectContext {
   readonly projectId: Id;
   readonly originalIntentId: Id;
@@ -26,6 +42,14 @@ export interface ProjectContext {
    */
   readonly currentIntent: string;
   readonly constraints: readonly ContextConstraint[];
+  readonly attributes: Readonly<Record<string, JsonValue>>;
+}
+
+export interface ProjectContextPreview {
+  readonly projectId: Id;
+  readonly originalIntentId: Id;
+  readonly currentIntent: string;
+  readonly constraints: readonly ContextConstraintPreview[];
   readonly attributes: Readonly<Record<string, JsonValue>>;
 }
 
