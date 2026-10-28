@@ -12,7 +12,7 @@ describe("scoped agent session creation",()=>{
       statements.push(sql);
       if(sql.includes("FROM orbit_work_items"))return {rows:[{id:"work"}]};
       if(sql.includes("FROM principals"))return {rows:[{id:"owner"}]};
-      if(sql.includes("FROM orbit_agent_definition_versions"))return {rows:[{definition:agent}]};
+      if(sql.includes("FROM orbit_agent_definition_versions"))return {rows:[{definition:agent,status:"approved",version:1}]};
       if(sql.includes("INSERT INTO agent_sessions"))return {rows:[{id:"session_3",state:"AUTHORIZED"}]};
       return {rows:[]};
     }};
@@ -32,7 +32,7 @@ describe("scoped agent session creation",()=>{
       if(sql.includes("FROM orbit_work_items"))return {rows:[{id:"work"}]};
       if(sql.includes("FROM principals"))return {rows:[{id:"owner"}]};
       if(sql.includes("FROM orbit_agent_definition_versions"))
-        return {rows:[{definition:{...agent,status:"suspended"}}]};
+        return {rows:[{definition:{...agent,status:"suspended"},status:"suspended",version:1}]};
       return {rows:[]};
     }};
     const svc=new AgentSessionService({transaction:async(fn:(x:typeof tx)=>Promise<unknown>)=>fn(tx)} as never,
