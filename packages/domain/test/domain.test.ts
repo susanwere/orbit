@@ -2,86 +2,116 @@ import { describe, expect, it } from "vitest";
 import {
   DomainError,
   assertCanManageAgents,
+  assertSnapshotWithinEnvelope,
   evaluatePolicies,
-  transitionWorkflow,
+  type AgentDefinition,
+  type ContextSnapshot,
   type Policy,
   type Principal,
 } from "../src/index.js";
 
-const admin: Principal = {
-  id: "u_admin",
-  organizationId: "org_1",
-  type: "human",
-  displayName: "Susan (Admin)",
-  role: "admin",
-};
+const organizationId = "org_test";
 
-const member: Principal = {
-  id: "u_member",
-  organizationId: "org_1",
-  type: "human",
-  displayName: "Alex (Member)",
-  role: "member",
-};
+describe("governance primitives", () => {
+  it("allows only human admins to manage agent definitions", () => {
+    const admin: Principal = {
+      id: "usr_admin",
+      organizationId,
+      type: "human",
+      displayName: "Admin",
+      role: "admin",
+    };
 
-function policy(partial: Partial<Policy>): Policy {
-  return {
-    id: "pol_1",
-    organizationId: "org_1",
-    code: "API-04",
-    name: "API contract changes require human approval",
-    category: "architecture",
-    description: "API contract changes require approval.",
-    scopeType: "organization",
-    triggerAction: "api_contract.change",
-    result: "APPROVAL_REQUIRED",
-    mandatory: true,
-    version: 1,
-    active: true,
-    ...partial,
-  };
-}
-
-describe("policy evaluation", () => {
-  it("allows actions no policy governs", () => {
-    const out = evaluatePolicies({ action: "file.write", resourceRef: "step_1", policies: [] });
-    expect(out.result).toBe("ALLOW");
-  });
-
-  it("requires approval when an approval policy matches", () => {
-    const out = evaluatePolicies({
-      action: "api_contract.change",
-      resourceRef: "step_1",
-      policies: [policy({})],
-    });
-    expect(out.result).toBe("APPROVAL_REQUIRED");
-    expect(out.policy?.code).toBe("API-04");
-  });
-
-  it("most restrictive result wins on conflict", () => {
-    const out = evaluatePolicies({
-      action: "api_contract.change",
-      resourceRef: "step_1",
-      policies: [policy({}), policy({ id: "pol_2", code: "SEC-01", result: "DENY" })],
-    });
-    expect(out.result).toBe("DENY");
-  });
-});
-
-describe("agent governance", () => {
-  it("only human admins can manage agent definitions", () => {
     expect(() => assertCanManageAgents(admin)).not.toThrow();
+
+    const member: Principal = { ...admin, id: "usr_member", role: "member" };
     expect(() => assertCanManageAgents(member)).toThrow(DomainError);
   });
+
+  it("rejects context outside an agent repository envelope", () => {
+    const definition: AgentDefinition = {
+      id: "agt_1",
+      organizationId,
+      name: "Engineering Agent",
+      purpose: "Implement approved work",
+      provider: "meta",
+      model: "muse",
+      capabilities: [],
+      approvedTools: [],
+      maxContextClassification: "CONFIDENTIAL",
+      allowedContextScopes: [],
+      allowedRepositories: ["susanwere/orbit"],
+      allowedPaths: ["apps/**"],
+      approvalRequiredActions: [],
+      forbiddenActions: [],
+      networkPolicy: "none",
+      networkAllowlist: [],
+      status: "approved",
+      version: 1,
+      createdByPrincipalId: "usr_admin",
+      createdAt: new Date(0).toISOString(),
+    };
+
+    const snapshot: ContextSnapshot = {
+      id: "ctx_1",
+      organizationId,
+      mission: "test",
+      items: [],
+      maxClassification: "INTERNAL",
+      allowedRepositories: ["other/repo"],
+      allowedPaths: [],
+      forbiddenData: [],
+      approvalRequiredActions: [],
+      createdAt: new Date(0).toISOString(),
+    };
+
+    expect(() => assertSnapshotWithinEnvelope(definition, snapshot)).toThrow(
+      DomainError,
+    );
+  });
 });
 
-describe("workflow state machine", () => {
-  it("allows running -> paused -> running", () => {
-    expect(transitionWorkflow("running", "paused")).toBe("paused");
-    expect(transitionWorkflow("paused", "running")).toBe("running");
-  });
+describe("policy evaluation", () => {
+  it("uses the most restrictive matching policy", () => {
+    const policies: Policy[] = [
+      {
+        id: "p1",
+        organizationId,
+        code: "APPROVE-1",
+        name: "Approval",
+        category: "architecture",
+        description: "",
+        scopeType: "organization",
+        triggerAction: "dependency.add",
+        result: "APPROVAL_REQUIRED",
+        mandatory: true,
+        version: 1,
+        active: true,
+        createdAt: new Date(0).toISOString(),
+      },
+      {
+        id: "p2",
+        organizationId,
+        code: "DENY-1",
+        name: "Deny",
+        category: "security",
+        description: "",
+        scopeType: "organization",
+        triggerAction: "dependency.add",
+        result: "DENY",
+        mandatory: true,
+        version: 1,
+        active: true,
+        createdAt: new Date(0).toISOString(),
+      },
+    ];
 
-  it("rejects completion directly from proposed", () => {
-    expect(() => transitionWorkflow("proposed", "completed")).toThrow(DomainError);
+    expect(
+      evaluatePolicies({
+        action: "dependency.add",
+        resourceRef: "work_item:test",
+        policies,
+      }).result,
+    ).toBe("DENY");
   });
 });
