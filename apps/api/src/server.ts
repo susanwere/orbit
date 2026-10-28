@@ -69,6 +69,7 @@ const decisionReview = new DecisionReviewService(
 
 const app = await buildApp({
   auth,
+  projectReads: auth ? {auth,db:database,authorization:new ProjectAuthorizationService(database)} : undefined,
   notifications: auth ? { auth, db:database,
     authorization:new ProjectAuthorizationService(database) } : undefined,
   whyProvenance: auth
