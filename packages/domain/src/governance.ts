@@ -2,9 +2,9 @@ import { DomainError } from "./errors.js";
 import {
   exceedsClassification,
   type AgentDefinition,
-  type ContextSnapshot,
   type Principal,
 } from "./types.js";
+import type { ContextSnapshot } from "./execution-context.js";
 
 /** Non-overridable agent safety rules, enforced outside any model reasoning. */
 export const NON_OVERRIDABLE_AGENT_RULES = [
@@ -45,12 +45,27 @@ export function assertSnapshotWithinEnvelope(
   definition: AgentDefinition,
   snapshot: ContextSnapshot,
 ): void {
+  if (snapshot.organizationId !== definition.organizationId) {
+    throw new DomainError(
+      "scope_exceeded",
+      "Context snapshot belongs to another organization.",
+    );
+  }
+
+  if (snapshot.authorizationBasis.agentDefinitionId !== definition.id) {
+    throw new DomainError(
+      "scope_exceeded",
+      "Context snapshot was authorized for another agent definition.",
+    );
+  }
+
   if (exceedsClassification(snapshot.maxClassification, definition.maxContextClassification)) {
     throw new DomainError(
       "classification_exceeded",
       `Context snapshot reaches ${snapshot.maxClassification}, above agent clearance ${definition.maxContextClassification}.`,
     );
   }
+
   for (const repo of snapshot.allowedRepositories) {
     if (!definition.allowedRepositories.includes(repo)) {
       throw new DomainError(
@@ -59,9 +74,18 @@ export function assertSnapshotWithinEnvelope(
       );
     }
   }
+
+  for (const path of snapshot.allowedPaths) {
+    if (!definition.allowedPaths.includes(path)) {
+      throw new DomainError(
+        "scope_exceeded",
+        `Path ${path} is outside the agent definition scope.`,
+      );
+    }
+  }
 }
 
-/** Only humans resolve human gates — agents can never approve their own work. */
+/** Only humans resolve human gates. Agents can never approve their own work. */
 export function assertGateResolverIsHuman(resolver: Principal): void {
   if (resolver.type !== "human") {
     throw new DomainError("forbidden", "Only a human can resolve a human gate.");

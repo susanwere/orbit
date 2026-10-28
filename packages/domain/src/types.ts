@@ -1,14 +1,20 @@
 export type Id = string;
 
+export type JsonPrimitive = string | number | boolean | null;
+export type JsonValue =
+  | JsonPrimitive
+  | { readonly [key: string]: JsonValue }
+  | readonly JsonValue[];
+
 export type PrincipalType = "human" | "agent" | "system" | "integration";
 export type OrganizationRole = "admin" | "member" | "viewer";
 
 export interface Principal {
-  id: Id;
-  organizationId: Id;
-  type: PrincipalType;
-  displayName: string;
-  role?: OrganizationRole;
+  readonly id: Id;
+  readonly organizationId: Id;
+  readonly type: PrincipalType;
+  readonly displayName: string;
+  readonly role?: OrganizationRole;
 }
 
 export type DataClassification =
@@ -38,76 +44,55 @@ export type AgentDefinitionStatus =
   | "retired";
 
 export interface AgentDefinition {
-  id: Id;
-  organizationId: Id;
-  name: string;
-  purpose: string;
-  provider: string;
-  model: string;
-  capabilities: string[];
-  approvedTools: string[];
-  maxContextClassification: DataClassification;
-  allowedContextScopes: string[];
-  allowedRepositories: string[];
-  allowedPaths: string[];
-  approvalRequiredActions: string[];
-  forbiddenActions: string[];
-  networkPolicy: "none" | "allowlist";
-  networkAllowlist: string[];
-  status: AgentDefinitionStatus;
-  version: number;
-  createdByPrincipalId: Id;
-  createdAt: string;
-}
-
-export interface ContextSnapshotItem {
-  contextItemId: Id;
-  title: string;
-  classification: DataClassification;
-  excerpt: string;
-}
-
-export interface ContextSnapshot {
-  id: Id;
-  organizationId: Id;
-  sourceContextVersionId?: Id;
-  mission: string;
-  items: ContextSnapshotItem[];
-  maxClassification: DataClassification;
-  allowedRepositories: string[];
-  allowedPaths: string[];
-  forbiddenData: string[];
-  approvalRequiredActions: string[];
-  createdAt: string;
+  readonly id: Id;
+  readonly organizationId: Id;
+  readonly name: string;
+  readonly purpose: string;
+  readonly provider: string;
+  readonly model: string;
+  readonly capabilities: readonly string[];
+  readonly approvedTools: readonly string[];
+  readonly maxContextClassification: DataClassification;
+  readonly allowedContextScopes: readonly string[];
+  readonly allowedRepositories: readonly string[];
+  readonly allowedPaths: readonly string[];
+  readonly approvalRequiredActions: readonly string[];
+  readonly forbiddenActions: readonly string[];
+  readonly networkPolicy: "none" | "allowlist";
+  readonly networkAllowlist: readonly string[];
+  readonly status: AgentDefinitionStatus;
+  readonly version: number;
+  readonly createdByPrincipalId: Id;
+  readonly createdAt: string;
 }
 
 export type PolicyResult = "ALLOW" | "APPROVAL_REQUIRED" | "DENY";
 
 export interface Policy {
-  id: Id;
-  organizationId: Id;
-  code: string;
-  name: string;
-  category: "product" | "architecture" | "security" | "privacy" | "quality";
-  description: string;
-  scopeType: string;
-  scopeId?: Id;
-  triggerAction: string;
-  result: Exclude<PolicyResult, "ALLOW">;
-  mandatory: boolean;
-  version: number;
-  active: boolean;
-  createdAt: string;
+  readonly id: Id;
+  readonly organizationId: Id;
+  readonly code: string;
+  readonly name: string;
+  readonly category: "product" | "architecture" | "security" | "privacy" | "quality";
+  readonly description: string;
+  readonly scopeType: string;
+  readonly scopeId?: Id;
+  readonly triggerAction: string;
+  readonly result: Exclude<PolicyResult, "ALLOW">;
+  readonly mandatory: boolean;
+  readonly version: number;
+  readonly active: boolean;
+  readonly createdAt: string;
 }
 
 export interface PolicyEvaluation {
-  id: Id;
-  organizationId: Id;
-  policyId: Id;
-  policyVersion: number;
-  action: string;
-  resourceRef: string;
-  result: PolicyResult;
-  reason: string;
-  evaluatedAt: string;
+  readonly id: Id;
+  readonly organizationId: Id;
+  readonly policyId: Id;
+  readonly policyVersion: number;
+  readonly action: string;
+  readonly resourceRef: string;
+  readonly result: PolicyResult;
+  readonly reason: string;
+  readonly evaluatedAt: string;
 }
