@@ -1,0 +1,81 @@
+name: Capture Orbit Universe screenshot
+on:
+  pull_request:
+    paths:
+      - "apps/web/**"
+      - "package-lock.json"
+      - ".github/workflows/orbit-screenshot.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  screenshot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - name: Install project and browser tooling
+        run: |
+          npm ci
+          npm install --no-save --package-lock=false playwright
+          npx playwright install --with-deps chromium
+      - name: Start Orbit frontend
+        run: |
+          npm run dev:web > /tmp/orbit-vite.log 2>&1 &
+          for i in $(seq 1 60); do
+            if curl -fsS http://127.0.0.1:5173/ >/dev/null; then exit 0; fi
+            sleep 2
+          done
+          cat /tmp/orbit-vite.log
+          exit 1
+      - name: Capture rendered 3D app and assert WebGL
+        run: |
+          mkdir -p docs/images
+          node --input-type=module <<'NODE'
+          import { chromium } from 'playwright';
+          const browser = await chromium.launch({ headless: true, args: ['--use-gl=angle','--use-angle=swiftshader','--enable-webgl','--enable-unsafe-swiftshader'] });
+          try {
+            const page = await browser.newPage({ viewport: { width: 1600, height: 1000 }, deviceScaleFactor: 1, reducedMotion: 'reduce' });
+            page.on('pageerror', err => console.error('BROWSER PAGE ERROR:', err.message));
+            await page.goto('http://127.0.0.1:5173/', { waitUntil: 'domcontentloaded' });
+            await page.getByRole('button', { name: 'View projects' }).click();
+            await page.getByRole('heading', { name: 'Everything revolves around intent.' }).waitFor();
+            await page.locator('.orbit-three-scene canvas').waitFor();
+            const webgl = await page.locator('.orbit-three-scene canvas').evaluate(canvas => Boolean(canvas.getContext('webgl2') || canvas.getContext('webgl')));
+            if (!webgl) throw new Error('WebGL is not available; screenshot would not represent the actual 3D scene');
+            await page.waitForTimeout(2200);
+            await page.screenshot({ path: 'docs/images/orbit-universe.png', fullPage: true, animations: 'disabled' });
+            console.log('Captured Orbit Universe screenshot with WebGL enabled');
+          } finally {
+            await browser.close();
+          }
+          NODE
+      - name: Upload screenshot for PR reviewers
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: orbit-universe-screenshot
+          path: |
+            docs/images/orbit-universe.png
+            /tmp/orbit-vite.log
+          if-no-files-found: warn
+      - name: Commit screenshot to PR branch
+        if: success() && github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch origin "refs/heads/${{ github.head_ref }}"
+          git checkout -B "${{ github.head_ref }}" FETCH_HEAD
+          git add -f docs/images/orbit-universe.png
+          if ! git diff --cached --quiet; then
+            git commit -m "docs: add rendered Orbit Universe screenshot"
+            git push origin HEAD:refs/heads/${{ github.head_ref }}
+          fi
