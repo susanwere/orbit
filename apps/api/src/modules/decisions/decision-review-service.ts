@@ -47,6 +47,14 @@ export class DecisionReviewService {
     proposalId: string,
     input: EditDecisionReviewInput,
   ): Promise<DecisionReviewBundle> {
+    if (
+      input.title === undefined &&
+      input.rationale === undefined &&
+      input.operations === undefined
+    ) {
+      throw new DomainError("validation", "At least one review field must be edited.");
+    }
+
     const actor = await this.authorization.authorize(principalId, projectId, "review");
     const current = await this.requireBundle(projectId, proposalId);
     await this.assertCurrentVersion(
