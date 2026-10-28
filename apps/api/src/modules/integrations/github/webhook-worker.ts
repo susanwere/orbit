@@ -50,6 +50,9 @@ export class GithubWebhookWorker {
                 ...event.payload, sourceArtifact: event.sourceArtifact,
               }),
             ]);
+            await tx.query(`INSERT INTO decision_analysis_jobs (event_id,organization_id,project_id)
+              VALUES ($1,$2,$3) ON CONFLICT(event_id) DO NOTHING`,
+              [event.id,event.organizationId,event.projectId]);
           }
           await tx.query(`UPDATE webhook_inbox
             SET status=$2,processed_at=now(),failure_reason=NULL WHERE id=$1`,
