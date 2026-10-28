@@ -37,7 +37,7 @@ const ids = {
   decision: "D-107",
   approval: "demo_approval",
   current: "demo_context_v4",
-  snapshot: "demo_snapshot",
+  snapshot: "snapshot_demo",
   contract: "demo_execution_contract",
   session: "demo_agent_session",
 } as const;
@@ -212,7 +212,7 @@ export async function replayHnJobsDemo(db: SqlDatabase) {
   };
   const snapshot = await new AgentContextSnapshotService(
     db, new ProjectAuthorizationService(db),
-    () => ids.snapshot, () => at,
+    () => "demo", () => at,
   ).create({
     projectId: ids.project,
     requestedByPrincipalId: ids.human,
