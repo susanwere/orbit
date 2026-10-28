@@ -47,7 +47,9 @@ export async function registerGitHubWebhookRoutes(
       try {
         done(null, JSON.parse(rawBody.toString("utf8")));
       } catch (error) {
-        done(error as Error, undefined);
+        const parseError = error as Error & { statusCode?: number };
+        parseError.statusCode = 400;
+        done(parseError, undefined);
       }
     },
   );
