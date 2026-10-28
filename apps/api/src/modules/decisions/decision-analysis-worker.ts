@@ -12,8 +12,8 @@ export class DecisionAnalysisWorker {
       // Claim in a short transaction so network inference never holds a database lock.
       const job = await this.db.transaction(async tx => {
         const result = await tx.query<Job>(`SELECT event_id, attempts FROM decision_analysis_jobs
-          WHERE (status IN ('pending','failed') AND attempts < 5 AND next_attempt_at <= now())
-          OR (status='processing' AND attempts < 5 AND claimed_at < now() - interval '2 minutes')
+          WHERE ((status IN ('pending','failed') AND attempts < 5 AND next_attempt_at <= now())
+          OR (status='processing' AND attempts < 5 AND claimed_at < now() - interval '2 minutes'))
           AND ($1::text IS NULL OR project_id=$1)
           ORDER BY next_attempt_at, event_id LIMIT 1 FOR UPDATE SKIP LOCKED`,
           [this.projectScope??null]);
