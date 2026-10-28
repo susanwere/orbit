@@ -1,5 +1,5 @@
 import { DomainError } from "@orbit/domain";
-import { verifyEventToken } from "./verify-event-token.js";
+import type { AuthVerifier } from "../auth/verified-principal.js";
 import type { FastifyInstance } from "fastify";
 import type { ProjectAuthorizationService } from "../projects/project-authorization.js";
 import type { ProjectEventStream } from "./project-event-stream.js";
@@ -8,7 +8,7 @@ export interface EventRouteOptions {
   authorization: ProjectAuthorizationService;
   stream: ProjectEventStream;
   pollIntervalMs?: number;
-  tokenSecret: string;
+  auth: AuthVerifier;
 }
 
 export async function registerProjectEventRoutes(
@@ -18,7 +18,7 @@ export async function registerProjectEventRoutes(
   app.get<{ Params: { projectId: string } }>(
     "/projects/:projectId/events/stream",
     async (request, reply) => {
-      const principal = verifyEventToken(request.headers.authorization, options.tokenSecret);
+      const principal = options.auth.verify(request.headers.authorization).id;
       await options.authorization.authorize(principal, request.params.projectId, "read");
       const header = request.headers["last-event-id"];
       if (header !== undefined && (typeof header !== "string" || header.length > 256)) {

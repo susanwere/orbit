@@ -1,15 +1,7 @@
 import { DomainError, type ContextChangeOperation, type JsonValue } from "@orbit/domain";
 import type { FastifyInstance } from "fastify";
 import type { DecisionReviewService } from "./decision-review-service.js";
-
-function principalId(headers: Record<string, unknown>): string {
-  const value = headers["x-principal-id"];
-  const id = Array.isArray(value) ? value[0] : value;
-  if (typeof id !== "string" || !id.trim()) {
-    throw new DomainError("unauthenticated", "x-principal-id is required.");
-  }
-  return id;
-}
+import type { AuthVerifier } from "../auth/verified-principal.js";
 
 function isJsonValue(value: unknown): value is JsonValue {
   if (
@@ -72,12 +64,13 @@ function expectedVersion(body: unknown): string {
 export async function registerDecisionReviewRoutes(
   app: FastifyInstance,
   service: DecisionReviewService,
+  auth: AuthVerifier,
 ): Promise<void> {
   app.get<{ Params: { projectId: string; proposalId: string } }>(
     "/projects/:projectId/decision-proposals/:proposalId",
     async (request) =>
       service.get(
-        principalId(request.headers),
+        auth.verify(request.headers.authorization).id,
         request.params.projectId,
         request.params.proposalId,
       ),
@@ -96,7 +89,7 @@ export async function registerDecisionReviewRoutes(
     async (request) => {
       const version = expectedVersion(request.body);
       return service.edit(
-        principalId(request.headers),
+        auth.verify(request.headers.authorization).id,
         request.params.projectId,
         request.params.proposalId,
         {
@@ -116,7 +109,7 @@ export async function registerDecisionReviewRoutes(
     "/projects/:projectId/decision-proposals/:proposalId/rebase",
     async (request) =>
       service.rebase(
-        principalId(request.headers),
+        auth.verify(request.headers.authorization).id,
         request.params.projectId,
         request.params.proposalId,
         expectedVersion(request.body),
@@ -130,7 +123,7 @@ export async function registerDecisionReviewRoutes(
     "/projects/:projectId/decision-proposals/:proposalId/approve",
     async (request) =>
       service.approve(
-        principalId(request.headers),
+        auth.verify(request.headers.authorization).id,
         request.params.projectId,
         request.params.proposalId,
         expectedVersion(request.body),
@@ -144,7 +137,7 @@ export async function registerDecisionReviewRoutes(
     "/projects/:projectId/decision-proposals/:proposalId/reject",
     async (request, reply) => {
       await service.reject(
-        principalId(request.headers),
+        auth.verify(request.headers.authorization).id,
         request.params.projectId,
         request.params.proposalId,
         expectedVersion(request.body),
