@@ -20,6 +20,8 @@ jobs:
           cache: npm
       - name: Install dependencies
         run: npm ci
+      - name: Build workspace dependencies
+        run: npm run build -w @orbit/domain && npm run build -w @orbit/db
       - name: Typecheck
         run: npm run typecheck
       - name: Tests
