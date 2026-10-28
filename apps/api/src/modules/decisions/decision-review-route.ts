@@ -113,6 +113,20 @@ export async function registerDecisionReviewRoutes(
     Params: { projectId: string; proposalId: string };
     Body: { expectedContextVersionId?: string };
   }>(
+    "/projects/:projectId/decision-proposals/:proposalId/rebase",
+    async (request) =>
+      service.rebase(
+        principalId(request.headers),
+        request.params.projectId,
+        request.params.proposalId,
+        expectedVersion(request.body),
+      ),
+  );
+
+  app.post<{
+    Params: { projectId: string; proposalId: string };
+    Body: { expectedContextVersionId?: string };
+  }>(
     "/projects/:projectId/decision-proposals/:proposalId/approve",
     async (request) =>
       service.approve(
