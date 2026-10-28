@@ -61,7 +61,8 @@ CREATE TABLE source_artifacts (
   url TEXT,
   metadata JSONB NOT NULL DEFAULT '{}'::jsonb,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  UNIQUE (project_id, provider, type, external_id)
+  UNIQUE (project_id, provider, type, external_id),
+  UNIQUE (project_id, id)
 );
 CREATE INDEX idx_source_artifacts_project ON source_artifacts (project_id, created_at DESC);
 
@@ -97,7 +98,8 @@ CREATE TABLE context_versions (
   created_from_decision_id TEXT,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   UNIQUE (project_id, version_number),
-  UNIQUE (project_id, content_hash)
+  UNIQUE (project_id, content_hash),
+  UNIQUE (project_id, id)
 );
 CREATE INDEX idx_context_versions_project_history
   ON context_versions (project_id, version_number DESC);
@@ -105,24 +107,26 @@ CREATE INDEX idx_context_versions_project_history
 CREATE TABLE project_context_heads (
   project_id TEXT PRIMARY KEY REFERENCES projects(id) ON DELETE CASCADE,
   organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
-  current_context_version_id TEXT NOT NULL REFERENCES context_versions(id),
+  current_context_version_id TEXT NOT NULL,
   version_number INTEGER NOT NULL CHECK (version_number > 0),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  UNIQUE (project_id, current_context_version_id)
+  UNIQUE (project_id, current_context_version_id),
+  FOREIGN KEY (project_id, current_context_version_id)
+    REFERENCES context_versions(project_id, id)
 );
 
 CREATE TABLE decision_proposals (
   id TEXT PRIMARY KEY,
   organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
   project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
-  source_artifact_id TEXT NOT NULL REFERENCES source_artifacts(id),
+  source_artifact_id TEXT NOT NULL,
   source_quote TEXT,
   title TEXT NOT NULL CHECK (length(btrim(title)) > 0),
   rationale TEXT NOT NULL DEFAULT '',
   alternatives JSONB NOT NULL DEFAULT '[]'::jsonb,
   scope JSONB NOT NULL DEFAULT '[]'::jsonb,
   confidence DOUBLE PRECISION CHECK (confidence IS NULL OR (confidence >= 0 AND confidence <= 1)),
-  base_context_version_id TEXT NOT NULL REFERENCES context_versions(id),
+  base_context_version_id TEXT NOT NULL,
   status TEXT NOT NULL CHECK (
     status IN ('DETECTED', 'READY_FOR_REVIEW', 'APPROVED', 'REJECTED')
   ),
@@ -130,7 +134,12 @@ CREATE TABLE decision_proposals (
   fingerprint TEXT NOT NULL,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  UNIQUE (project_id, source_artifact_id, fingerprint)
+  UNIQUE (project_id, source_artifact_id, fingerprint),
+  UNIQUE (project_id, id),
+  FOREIGN KEY (project_id, source_artifact_id)
+    REFERENCES source_artifacts(project_id, id),
+  FOREIGN KEY (project_id, base_context_version_id)
+    REFERENCES context_versions(project_id, id)
 );
 CREATE INDEX idx_decision_proposals_review
   ON decision_proposals (project_id, status, created_at DESC);
@@ -139,8 +148,8 @@ CREATE TABLE context_change_proposals (
   id TEXT PRIMARY KEY,
   organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
   project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
-  decision_proposal_id TEXT NOT NULL REFERENCES decision_proposals(id) ON DELETE CASCADE,
-  base_context_version_id TEXT NOT NULL REFERENCES context_versions(id),
+  decision_proposal_id TEXT NOT NULL,
+  base_context_version_id TEXT NOT NULL,
   revision INTEGER NOT NULL DEFAULT 1 CHECK (revision > 0),
   operations JSONB NOT NULL DEFAULT '[]'::jsonb,
   resulting_context_preview JSONB NOT NULL,
@@ -157,7 +166,12 @@ CREATE TABLE context_change_proposals (
   failure_reason TEXT,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  UNIQUE (decision_proposal_id, revision)
+  UNIQUE (decision_proposal_id, revision),
+  UNIQUE (project_id, id),
+  FOREIGN KEY (project_id, decision_proposal_id)
+    REFERENCES decision_proposals(project_id, id) ON DELETE CASCADE,
+  FOREIGN KEY (project_id, base_context_version_id)
+    REFERENCES context_versions(project_id, id)
 );
 CREATE INDEX idx_context_change_proposals_review
   ON context_change_proposals (project_id, status, created_at DESC);
@@ -179,11 +193,18 @@ CREATE TABLE approvals (
   subject_id TEXT NOT NULL,
   decision TEXT NOT NULL CHECK (decision IN ('APPROVED', 'REJECTED')),
   decided_by_principal_id TEXT NOT NULL REFERENCES principals(id),
-  expected_context_version_id TEXT REFERENCES context_versions(id),
-  decision_proposal_id TEXT REFERENCES decision_proposals(id),
-  context_change_proposal_id TEXT REFERENCES context_change_proposals(id),
+  expected_context_version_id TEXT,
+  decision_proposal_id TEXT,
+  context_change_proposal_id TEXT,
   note TEXT,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE (project_id, id),
+  FOREIGN KEY (project_id, expected_context_version_id)
+    REFERENCES context_versions(project_id, id),
+  FOREIGN KEY (project_id, decision_proposal_id)
+    REFERENCES decision_proposals(project_id, id),
+  FOREIGN KEY (project_id, context_change_proposal_id)
+    REFERENCES context_change_proposals(project_id, id)
 );
 CREATE INDEX idx_approvals_project_subject
   ON approvals (project_id, subject_type, subject_id, created_at DESC);
@@ -192,16 +213,16 @@ CREATE TABLE decisions (
   id TEXT PRIMARY KEY,
   organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
   project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
-  source_decision_proposal_id TEXT NOT NULL UNIQUE REFERENCES decision_proposals(id),
-  source_artifact_id TEXT NOT NULL REFERENCES source_artifacts(id),
-  approval_id TEXT NOT NULL UNIQUE REFERENCES approvals(id),
+  source_decision_proposal_id TEXT NOT NULL,
+  source_artifact_id TEXT NOT NULL,
+  approval_id TEXT NOT NULL,
   title TEXT NOT NULL CHECK (length(btrim(title)) > 0),
   rationale TEXT NOT NULL DEFAULT '',
   alternatives JSONB NOT NULL DEFAULT '[]'::jsonb,
   scope JSONB NOT NULL DEFAULT '[]'::jsonb,
   status TEXT NOT NULL CHECK (status IN ('ACTIVE', 'SUPERSEDED')),
-  supersedes_decision_id TEXT REFERENCES decisions(id),
-  superseded_by_decision_id TEXT REFERENCES decisions(id),
+  supersedes_decision_id TEXT,
+  superseded_by_decision_id TEXT,
   approved_by_principal_id TEXT NOT NULL REFERENCES principals(id),
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   superseded_at TIMESTAMPTZ,
@@ -209,13 +230,27 @@ CREATE TABLE decisions (
     (status = 'ACTIVE' AND superseded_at IS NULL)
     OR
     (status = 'SUPERSEDED' AND superseded_at IS NOT NULL)
-  )
+  ),
+  UNIQUE (source_decision_proposal_id),
+  UNIQUE (approval_id),
+  UNIQUE (project_id, id),
+  FOREIGN KEY (project_id, source_decision_proposal_id)
+    REFERENCES decision_proposals(project_id, id),
+  FOREIGN KEY (project_id, source_artifact_id)
+    REFERENCES source_artifacts(project_id, id),
+  FOREIGN KEY (project_id, approval_id)
+    REFERENCES approvals(project_id, id),
+  FOREIGN KEY (project_id, supersedes_decision_id)
+    REFERENCES decisions(project_id, id),
+  FOREIGN KEY (project_id, superseded_by_decision_id)
+    REFERENCES decisions(project_id, id)
 );
 CREATE INDEX idx_decisions_project_status ON decisions (project_id, status, created_at DESC);
 
 ALTER TABLE context_versions
   ADD CONSTRAINT fk_context_versions_created_from_decision
-  FOREIGN KEY (created_from_decision_id) REFERENCES decisions(id);
+  FOREIGN KEY (project_id, created_from_decision_id)
+  REFERENCES decisions(project_id, id);
 
 CREATE TABLE notifications (
   id TEXT PRIMARY KEY,
@@ -264,7 +299,7 @@ CREATE TABLE context_snapshots (
   id TEXT PRIMARY KEY,
   organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
   project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
-  source_context_version_id TEXT NOT NULL REFERENCES context_versions(id),
+  source_context_version_id TEXT NOT NULL,
   mission TEXT NOT NULL,
   items JSONB NOT NULL DEFAULT '[]'::jsonb,
   included_decision_ids JSONB NOT NULL DEFAULT '[]'::jsonb,
@@ -279,7 +314,10 @@ CREATE TABLE context_snapshots (
   allowed_paths JSONB NOT NULL DEFAULT '[]'::jsonb,
   forbidden_data JSONB NOT NULL DEFAULT '[]'::jsonb,
   approval_required_actions JSONB NOT NULL DEFAULT '[]'::jsonb,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE (project_id, id),
+  FOREIGN KEY (project_id, source_context_version_id)
+    REFERENCES context_versions(project_id, id)
 );
 CREATE INDEX idx_context_snapshots_project_version
   ON context_snapshots (project_id, source_context_version_id, created_at DESC);
@@ -288,7 +326,7 @@ CREATE TABLE execution_contracts (
   id TEXT PRIMARY KEY,
   organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
   project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
-  context_snapshot_id TEXT NOT NULL REFERENCES context_snapshots(id),
+  context_snapshot_id TEXT NOT NULL,
   agent_definition_id TEXT NOT NULL,
   agent_definition_version INTEGER NOT NULL CHECK (agent_definition_version > 0),
   allowed_actions JSONB NOT NULL DEFAULT '[]'::jsonb,
@@ -299,7 +337,10 @@ CREATE TABLE execution_contracts (
   network_policy TEXT NOT NULL CHECK (network_policy IN ('none', 'allowlist')),
   network_allowlist JSONB NOT NULL DEFAULT '[]'::jsonb,
   completion_criteria JSONB NOT NULL DEFAULT '[]'::jsonb,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE (project_id, id),
+  FOREIGN KEY (project_id, context_snapshot_id)
+    REFERENCES context_snapshots(project_id, id)
 );
 
 CREATE TABLE agent_sessions (
@@ -312,8 +353,8 @@ CREATE TABLE agent_sessions (
   requested_by_principal_id TEXT NOT NULL REFERENCES principals(id),
   human_owner_principal_id TEXT NOT NULL REFERENCES principals(id),
   mission TEXT NOT NULL,
-  context_snapshot_id TEXT NOT NULL REFERENCES context_snapshots(id),
-  execution_contract_id TEXT NOT NULL REFERENCES execution_contracts(id),
+  context_snapshot_id TEXT NOT NULL,
+  execution_contract_id TEXT NOT NULL,
   state TEXT NOT NULL CHECK (
     state IN (
       'CREATED',
@@ -327,7 +368,11 @@ CREATE TABLE agent_sessions (
   ),
   started_at TIMESTAMPTZ,
   ended_at TIMESTAMPTZ,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  FOREIGN KEY (project_id, context_snapshot_id)
+    REFERENCES context_snapshots(project_id, id),
+  FOREIGN KEY (project_id, execution_contract_id)
+    REFERENCES execution_contracts(project_id, id)
 );
 CREATE INDEX idx_agent_sessions_project_state
   ON agent_sessions (project_id, state, created_at DESC);
