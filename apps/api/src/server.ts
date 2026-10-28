@@ -1,4 +1,5 @@
 import { PgDatabase } from "@orbit/db";
+import { ProjectAuthorizationService } from "./modules/projects/project-authorization.js";
 import { MetaModelApiClient } from "./modules/decisions/meta-model-client.js";
 import { MuseDecisionDetector } from "./modules/decisions/muse-decision-detector.js";
 import { DecisionAnalysisService } from "./modules/decisions/decision-analysis-service.js";
@@ -16,7 +17,6 @@ import { ImpactAwareEventPublisher } from "./modules/execution/impact-aware-even
 import { ProjectEventStream } from "./modules/events/project-event-stream.js";
 import { PostgresWebhookInboxStore } from "./modules/integrations/github/webhook-inbox.js";
 import { GithubWebhookWorker } from "./modules/integrations/github/webhook-worker.js";
-import { ProjectAuthorizationService } from "./modules/projects/project-authorization.js";
 import { WhyProvenanceQuery } from "./modules/provenance/why-provenance-query.js";
 
 const port = Number(process.env.PORT ?? 4000);
@@ -69,6 +69,8 @@ const decisionReview = new DecisionReviewService(
 
 const app = await buildApp({
   auth,
+  notifications: auth ? { auth, db:database,
+    authorization:new ProjectAuthorizationService(database) } : undefined,
   whyProvenance: auth
     ? {
         query: new WhyProvenanceQuery(database, new ProjectAuthorizationService(database)),
