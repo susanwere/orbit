@@ -158,12 +158,25 @@ export class PostgresExecutionImpactService {
           ],
         );
         await tx.query<Record<string, never>>(
+          `INSERT INTO human_gates(
+            id,organization_id,project_id,agent_session_id,assigned_human_principal_id,
+            trigger_context_version_id,reason,affected_paths)
+          VALUES($1,$2,$3,$4,$5,$6,$7,$8::jsonb)
+          ON CONFLICT(project_id,agent_session_id,trigger_context_version_id) DO NOTHING`,
+          [`gate_${this.newId()}`,input.organizationId,input.projectId,session.id,
+            session.human_owner_principal_id,input.currentContextVersionId,
+            'Material context change requires human review',
+            JSON.stringify(decision.affectedPaths)],
+        );
+        await tx.query<Record<string, never>>(
           `INSERT INTO notifications (
              id, organization_id, project_id, recipient_principal_id, type,
              subject_type, subject_id, title, body, created_at
            ) VALUES ($1,$2,$3,$4,'EXECUTION_REVIEW_REQUIRED',
              'agent_session',$5,'Context changed during execution',
-             'Review material changes before resuming work.',$6)`,
+             'Review material changes before resuming work.',$6)
+           ON CONFLICT(project_id,recipient_principal_id,type,subject_type,subject_id)
+           DO NOTHING`,
           [`notification_${this.newId()}`, input.organizationId, input.projectId,
             session.human_owner_principal_id, session.id, now],
         );
