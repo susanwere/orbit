@@ -68,6 +68,12 @@ describe.skipIf(!url)("live database Muse proposal orchestration", () => {
     expect(await analysis.analyze(eventId)).toBe("proposed");
     const repeat=await db.query<{id:string}>("SELECT id FROM decision_proposals WHERE project_id=$1",[projectId]);
     expect(repeat.rows).toHaveLength(1);
+    const notifications=await db.query<{id:string;recipient_principal_id:string}>(
+      "SELECT id,recipient_principal_id FROM notifications WHERE project_id=$1",[projectId]);
+    expect(notifications.rows).toHaveLength(1);
+    const reviewEvents=await db.query<{id:string}>(
+      "SELECT id FROM events WHERE project_id=$1 AND type='decision.review_required'",[projectId]);
+    expect(reviewEvents.rows).toHaveLength(1);
     const head=await db.query<{current_context_version_id:string}>(
       "SELECT current_context_version_id FROM project_context_heads WHERE project_id=$1",[projectId]);
     expect(head.rows[0]?.current_context_version_id).toBe(versionId);
