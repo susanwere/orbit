@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import type { ProjectContext } from "@orbit/domain";
 
-function canonicalize(value: unknown): string {
+export function serializeCanonicalJson(value: unknown): string {
   if (value === null) return "null";
 
   if (typeof value === "string" || typeof value === "boolean") {
@@ -16,7 +16,7 @@ function canonicalize(value: unknown): string {
   }
 
   if (Array.isArray(value)) {
-    return `[${value.map(canonicalize).join(",")}]`;
+    return `[${value.map(serializeCanonicalJson).join(",")}]`;
   }
 
   if (typeof value === "object") {
@@ -27,7 +27,7 @@ function canonicalize(value: unknown): string {
       if (item === undefined) {
         throw new TypeError(`Canonical JSON does not support undefined at key "${key}".`);
       }
-      return `${JSON.stringify(key)}:${canonicalize(item)}`;
+      return `${JSON.stringify(key)}:${serializeCanonicalJson(item)}`;
     });
     return `{${entries.join(",")}}`;
   }
@@ -36,7 +36,7 @@ function canonicalize(value: unknown): string {
 }
 
 export function serializeProjectContext(context: ProjectContext): string {
-  return canonicalize(context);
+  return serializeCanonicalJson(context);
 }
 
 export function hashProjectContext(context: ProjectContext): string {

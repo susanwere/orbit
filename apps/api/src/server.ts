@@ -4,7 +4,8 @@ import { ContextVersionRepository } from "./modules/context/context-version-repo
 import { ContextChangeProposalRepository } from "./modules/context/context-change-proposal-repository.js";
 import { DecisionReviewRepository } from "./modules/decisions/decision-review-repository.js";
 import { DecisionReviewService } from "./modules/decisions/decision-review-service.js";
-import { UnavailableDecisionPromotion } from "./modules/decisions/unavailable-decision-promotion.js";
+import { PostgresDecisionPromotion } from "./modules/decisions/postgres-decision-promotion.js";
+import { NoopDomainEventPublisher } from "./modules/events/domain-event-publisher.js";
 import { PostgresWebhookInboxStore } from "./modules/integrations/github/webhook-inbox.js";
 import { ProjectAuthorizationService } from "./modules/projects/project-authorization.js";
 
@@ -22,7 +23,7 @@ const decisionReview = new DecisionReviewService(
   new DecisionReviewRepository(database),
   new ContextVersionRepository(database),
   new ContextChangeProposalRepository(database),
-  new UnavailableDecisionPromotion(),
+  new PostgresDecisionPromotion(database, new NoopDomainEventPublisher()),
 );
 
 const app = await buildApp({
