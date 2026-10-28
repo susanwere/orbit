@@ -52,6 +52,7 @@ export class MetaModelApiClient implements StructuredJsonClient {
           type: "json_schema",
           json_schema: {
             name: request.schemaName,
+            strict: true,
             schema: request.schema,
           },
         },
