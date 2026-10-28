@@ -28,10 +28,13 @@ const decisionReview = new DecisionReviewService(
 );
 
 const app = await buildApp({
-  eventStream: {
-    authorization: new ProjectAuthorizationService(database),
-    stream: new ProjectEventStream(database),
-  },
+  eventStream: process.env.ORBIT_EVENT_TOKEN_SECRET
+    ? {
+        authorization: new ProjectAuthorizationService(database),
+        stream: new ProjectEventStream(database),
+        tokenSecret: process.env.ORBIT_EVENT_TOKEN_SECRET,
+      }
+    : undefined,
   decisionReview,
   githubWebhook:
     githubWebhookSecret && organizationId
