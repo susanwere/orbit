@@ -6,6 +6,8 @@ import { DecisionReviewRepository } from "./modules/decisions/decision-review-re
 import { DecisionReviewService } from "./modules/decisions/decision-review-service.js";
 import { PostgresDecisionPromotion } from "./modules/decisions/postgres-decision-promotion.js";
 import { NoopDomainEventPublisher } from "./modules/events/domain-event-publisher.js";
+import { PostgresExecutionImpactService } from "./modules/execution/postgres-execution-impact.js";
+import { ImpactAwareEventPublisher } from "./modules/execution/impact-aware-event-publisher.js";
 import { ProjectEventStream } from "./modules/events/project-event-stream.js";
 import { PostgresWebhookInboxStore } from "./modules/integrations/github/webhook-inbox.js";
 import { ProjectAuthorizationService } from "./modules/projects/project-authorization.js";
@@ -24,7 +26,15 @@ const decisionReview = new DecisionReviewService(
   new DecisionReviewRepository(database),
   new ContextVersionRepository(database),
   new ContextChangeProposalRepository(database),
-  new PostgresDecisionPromotion(database, new NoopDomainEventPublisher()),
+  new PostgresDecisionPromotion(
+    database,
+    new ImpactAwareEventPublisher(
+      new PostgresExecutionImpactService(database),
+      new NoopDomainEventPublisher(),
+    ),
+    undefined,
+    (error) => console.error("Post-commit event handling failed:", error),
+  ),
 );
 
 const app = await buildApp({
