@@ -1,7 +1,15 @@
 import cors from "@fastify/cors";
 import Fastify from "fastify";
+import {
+  registerGitHubWebhookRoutes,
+  type GitHubWebhookRouteOptions,
+} from "./modules/integrations/github/webhook-route.js";
 
-export async function buildApp() {
+export interface AppOptions {
+  readonly githubWebhook?: GitHubWebhookRouteOptions;
+}
+
+export async function buildApp(options: AppOptions = {}) {
   const app = Fastify({ logger: false });
 
   await app.register(cors, { origin: true });
@@ -10,6 +18,10 @@ export async function buildApp() {
     status: "ok",
     service: "orbit-api",
   }));
+
+  if (options.githubWebhook) {
+    await app.register(registerGitHubWebhookRoutes, options.githubWebhook);
+  }
 
   return app;
 }
