@@ -1,4 +1,5 @@
 import { PgDatabase } from "@orbit/db";
+import { HmacJwtAuthVerifier } from "./modules/auth/verified-principal.js";
 import { buildApp } from "./app.js";
 import { ContextVersionRepository } from "./modules/context/context-version-repository.js";
 import { ContextChangeProposalRepository } from "./modules/context/context-change-proposal-repository.js";
@@ -22,6 +23,14 @@ const database = new PgDatabase(databaseUrl);
 const githubWebhookSecret = process.env.GITHUB_WEBHOOK_SECRET;
 const organizationId = process.env.ORBIT_ORGANIZATION_ID;
 
+const auth = process.env.ORBIT_AUTH_SECRET && process.env.ORBIT_AUTH_ISSUER
+  ? new HmacJwtAuthVerifier({
+      secret: process.env.ORBIT_AUTH_SECRET,
+      issuer: process.env.ORBIT_AUTH_ISSUER,
+      audience: "orbit-api",
+    })
+  : undefined;
+
 const decisionReview = new DecisionReviewService(
   new ProjectAuthorizationService(database),
   new DecisionReviewRepository(database),
@@ -39,20 +48,21 @@ const decisionReview = new DecisionReviewService(
 );
 
 const app = await buildApp({
-  whyProvenance: process.env.ORBIT_EVENT_TOKEN_SECRET
+  auth,
+  whyProvenance: auth
     ? {
         query: new WhyProvenanceQuery(database, new ProjectAuthorizationService(database)),
-        tokenSecret: process.env.ORBIT_EVENT_TOKEN_SECRET,
+        auth,
       }
     : undefined,
-  eventStream: process.env.ORBIT_EVENT_TOKEN_SECRET
+  eventStream: auth
     ? {
         authorization: new ProjectAuthorizationService(database),
         stream: new ProjectEventStream(database),
         tokenSecret: process.env.ORBIT_EVENT_TOKEN_SECRET,
       }
     : undefined,
-  decisionReview,
+  decisionReview: auth ? decisionReview : undefined,
   githubWebhook:
     githubWebhookSecret && organizationId
       ? {
