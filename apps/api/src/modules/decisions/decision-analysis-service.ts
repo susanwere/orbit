@@ -1,6 +1,6 @@
 import { createHash, randomUUID } from "node:crypto";
 import type { SqlDatabase } from "@orbit/db";
-import type { Decision, OrbitEvent, ProjectContext, ContextVersion } from "@orbit/domain";
+import type { OrbitEvent, ProjectContext, ContextVersion } from "@orbit/domain";
 import type { DecisionDetector } from "./decision-detector.js";
 import { generateContextChangeProposal } from "../context/context-change-generator.js";
 
@@ -48,8 +48,8 @@ export class DecisionAnalysisService {
       contentHash:base.content_hash,createdAt:iso(base.created_at),
     };
     const previous = await this.db.query<Record<string, unknown>>(`
-      SELECT * FROM decisions WHERE project_id=$1 AND status='ACTIVE'
-      ORDER BY created_at DESC LIMIT 20`,[row.project_id]);
+      SELECT * FROM decisions WHERE project_id=$1 AND organization_id=$2 AND status='ACTIVE'
+      ORDER BY created_at DESC LIMIT 20`,[row.project_id,row.organization_id]);
     const payload = row.payload;
     const artifact = payload.sourceArtifact as OrbitEvent["sourceArtifact"] | undefined;
     if (!artifact || artifact.provider !== "github" || !artifact.externalId) return "ignored";
@@ -62,7 +62,15 @@ export class DecisionAnalysisService {
       payload:payload as OrbitEvent["payload"],sourceArtifact:artifact,
     };
     const outcome = await this.detector.detect({
-      event,currentContext:base.content,activeDecisions:previous.rows as unknown as Decision[],
+      event,currentContext:base.content,activeDecisions:previous.rows.map((d) => ({
+        id:String(d.id),organizationId:String(d.organization_id),projectId:String(d.project_id),
+        sourceDecisionProposalId:String(d.source_decision_proposal_id),
+        sourceArtifactId:String(d.source_artifact_id),
+        title:String(d.title),rationale:String(d.rationale),
+        alternatives:d.alternatives as string[],scope:d.scope as string[],
+        status:"ACTIVE" as const,approvedByPrincipalId:String(d.approved_by_principal_id),
+        createdAt:iso(d.created_at as Date | string),
+      })),
     });
     if (outcome.kind === "none") return "ignored";
     const candidate = outcome.candidate;
