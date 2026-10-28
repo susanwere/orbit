@@ -1,4 +1,5 @@
 import { DomainError } from "@orbit/domain";
+import { verifyEventToken } from "./verify-event-token.js";
 import type { FastifyInstance } from "fastify";
 import type { ProjectAuthorizationService } from "../projects/project-authorization.js";
 import type { ProjectEventStream } from "./project-event-stream.js";
@@ -7,6 +8,7 @@ export interface EventRouteOptions {
   authorization: ProjectAuthorizationService;
   stream: ProjectEventStream;
   pollIntervalMs?: number;
+  tokenSecret: string;
 }
 
 export async function registerProjectEventRoutes(
@@ -16,12 +18,7 @@ export async function registerProjectEventRoutes(
   app.get<{ Params: { projectId: string } }>(
     "/projects/:projectId/events/stream",
     async (request, reply) => {
-      const principal = request.headers["x-principal-id"];
-      if (typeof principal !== "string" || !principal.trim()) {
-        throw new DomainError("unauthenticated", "Authenticated principal required.");
-      }
-      // FIXME: x-principal-id must be replaced with verified auth middleware
-      // before production deployment. Never trust this header at the internet edge.
+      const principal = verifyEventToken(request.headers.authorization, options.tokenSecret);
       await options.authorization.authorize(principal, request.params.projectId, "read");
       const header = request.headers["last-event-id"];
       if (header !== undefined && (typeof header !== "string" || header.length > 256)) {
