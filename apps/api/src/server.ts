@@ -59,7 +59,7 @@ const app = await buildApp({
     ? {
         authorization: new ProjectAuthorizationService(database),
         stream: new ProjectEventStream(database),
-        tokenSecret: process.env.ORBIT_EVENT_TOKEN_SECRET,
+        auth,
       }
     : undefined,
   decisionReview: auth ? decisionReview : undefined,
