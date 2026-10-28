@@ -231,11 +231,11 @@ function validateOutput(value: unknown): ModelDecisionOutput {
   return {
     isDecision: value.isDecision,
     confidence: value.confidence,
-    title: bounded(value.title.trim(), MAX_OUTPUT_TITLE),
-    rationale: bounded(value.rationale.trim(), MAX_OUTPUT_RATIONALE),
+    title: bounded((value.title as string).trim(), MAX_OUTPUT_TITLE),
+    rationale: bounded((value.rationale as string).trim(), MAX_OUTPUT_RATIONALE),
     alternatives: validateStringList(value.alternatives, "alternatives"),
     scope: validateStringList(value.scope, "scope"),
-    evidenceQuote: bounded(value.evidenceQuote.trim(), MAX_OUTPUT_EVIDENCE),
+    evidenceQuote: bounded((value.evidenceQuote as string).trim(), MAX_OUTPUT_EVIDENCE),
   };
 }
 
