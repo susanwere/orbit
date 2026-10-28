@@ -6,6 +6,7 @@ import { DecisionReviewRepository } from "./modules/decisions/decision-review-re
 import { DecisionReviewService } from "./modules/decisions/decision-review-service.js";
 import { PostgresDecisionPromotion } from "./modules/decisions/postgres-decision-promotion.js";
 import { NoopDomainEventPublisher } from "./modules/events/domain-event-publisher.js";
+import { ProjectEventStream } from "./modules/events/project-event-stream.js";
 import { PostgresWebhookInboxStore } from "./modules/integrations/github/webhook-inbox.js";
 import { ProjectAuthorizationService } from "./modules/projects/project-authorization.js";
 
@@ -27,6 +28,10 @@ const decisionReview = new DecisionReviewService(
 );
 
 const app = await buildApp({
+  eventStream: {
+    authorization: new ProjectAuthorizationService(database),
+    stream: new ProjectEventStream(database),
+  },
   decisionReview,
   githubWebhook:
     githubWebhookSecret && organizationId
