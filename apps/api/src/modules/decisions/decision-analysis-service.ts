@@ -74,7 +74,7 @@ export class DecisionAnalysisService {
     });
     if (outcome.kind === "none") return "ignored";
     const candidate = outcome.candidate;
-    const digest = fingerprint(`${event.id}:${candidate.evidenceQuote}:${candidate.title}`);
+    const digest = fingerprint(event.id);
     const proposalId = `dp_${this.newId()}`;
     const change = generateContextChangeProposal({
       id:`ccp_${this.newId()}`,organizationId:row.organization_id,
