@@ -13,7 +13,7 @@ import { DecisionReviewService } from "./modules/decisions/decision-review-servi
 import { PostgresDecisionPromotion } from "./modules/decisions/postgres-decision-promotion.js";
 import { NoopDomainEventPublisher } from "./modules/events/domain-event-publisher.js";
 import { PostgresExecutionImpactService } from "./modules/execution/postgres-execution-impact.js";
-import { ImpactAwareEventPublisher } from "./modules/execution/impact-aware-event-publisher.js";
+import { DomainEffectsWorker } from "./modules/execution/domain-effects-worker.js";
 import { ProjectEventStream } from "./modules/events/project-event-stream.js";
 import { PostgresWebhookInboxStore } from "./modules/integrations/github/webhook-inbox.js";
 import { GithubWebhookWorker } from "./modules/integrations/github/webhook-worker.js";
@@ -29,6 +29,7 @@ const githubWebhookSecret = process.env.GITHUB_WEBHOOK_SECRET;
 const organizationId = process.env.ORBIT_ORGANIZATION_ID;
 const projectId = process.env.ORBIT_PROJECT_ID;
 const webhookWorker = new GithubWebhookWorker(database);
+const effectsWorker = new DomainEffectsWorker(database,new PostgresExecutionImpactService(database));
 const analysisWorker = process.env.MODEL_API_KEY && process.env.ORBIT_SYSTEM_PRINCIPAL_ID
   ? new DecisionAnalysisWorker(
       database,
@@ -58,10 +59,7 @@ const decisionReview = new DecisionReviewService(
   new ContextChangeProposalRepository(database),
   new PostgresDecisionPromotion(
     database,
-    new ImpactAwareEventPublisher(
-      new PostgresExecutionImpactService(database),
-      new NoopDomainEventPublisher(),
-    ),
+    new NoopDomainEventPublisher(),
     undefined,
     (error) => console.error("Post-commit event handling failed:", error),
   ),
@@ -101,6 +99,7 @@ const app = await buildApp({
 const workerTimer = setInterval(() => {
   void webhookWorker.processBatch().catch((error) => app.log.error(error));
   void analysisWorker?.processBatch().catch((error) => app.log.error(error));
+  void effectsWorker.processBatch().catch((error) => app.log.error(error));
 }, 5000);
 void webhookWorker.processBatch().catch((error) => app.log.error(error));
 app.addHook("onClose", async () => {

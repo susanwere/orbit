@@ -53,13 +53,9 @@ export class PostgresExecutionImpactService {
       await tx.query<Record<string, never>>(
         "SELECT pg_advisory_xact_lock(hashtext($1))", [input.projectId],
       );
-      const head = await tx.query<{ current_context_version_id: string }>(
-        "SELECT current_context_version_id FROM project_context_heads WHERE project_id = $1 FOR SHARE",
-        [input.projectId],
-      );
-      if (head.rows[0]?.current_context_version_id !== input.currentContextVersionId) {
-        throw new DomainError("stale_context_version", "Context head changed before impact evaluation.");
-      }
+      // Committed context events can be replayed after the head has already
+      // advanced. Validate both immutable versions below rather than requiring
+      // the event to describe the *current* head at replay time.
       const versions = await tx.query<VersionRow>(
         `SELECT id, content FROM context_versions
          WHERE organization_id = $1 AND project_id = $2 AND id IN ($3, $4)`,
@@ -97,8 +93,12 @@ export class PostgresExecutionImpactService {
          JOIN execution_contracts ec
            ON ec.project_id = s.project_id AND ec.id = s.execution_contract_id
          WHERE s.organization_id = $1 AND s.project_id = $2 AND s.state = 'RUNNING'
+           AND (SELECT version_number FROM context_versions
+                WHERE id=cs.source_context_version_id AND project_id=s.project_id)
+             < (SELECT version_number FROM context_versions
+                WHERE id=$3 AND project_id=s.project_id)
          FOR UPDATE OF s`,
-        [input.organizationId, input.projectId],
+        [input.organizationId, input.projectId, input.currentContextVersionId],
       );
       let reviewed = 0;
       let continued = 0;
