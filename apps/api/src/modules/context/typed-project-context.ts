@@ -20,7 +20,7 @@ export function validateProjectContextAttributes(context: ProjectContext):void{
   if(engineering===undefined)return;
   if(typeof engineering!=="object"||engineering===null||Array.isArray(engineering))
     throw new DomainError("invalid_context_schema","Engineering constraints must be an object.");
-  const pagination=engineering.pagination;
+  const pagination=(engineering as Record<string,JsonValue>).pagination;
   if(pagination===undefined)return;
   if(typeof pagination!=="object"||pagination===null||Array.isArray(pagination))
     throw new DomainError("invalid_context_schema","Pagination constraints must be an object.");
