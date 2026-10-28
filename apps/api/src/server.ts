@@ -1,4 +1,5 @@
 import { PgDatabase } from "@orbit/db";
+import {HumanGateService} from "./modules/execution/human-gate-service.js";
 import { AgentSessionService } from "./modules/agents/agent-session-service.js";
 import { AgentContextSnapshotService } from "./modules/context/agent-context-snapshot-service.js";
 import { ProjectAuthorizationService } from "./modules/projects/project-authorization.js";
@@ -69,6 +70,8 @@ const decisionReview = new DecisionReviewService(
 
 const app = await buildApp({
   auth,
+  humanGates: auth ? {auth,service:new HumanGateService(database,
+    new ProjectAuthorizationService(database))}:undefined,
   agentSessions:auth?{auth,service:new AgentSessionService(database,
     new ProjectAuthorizationService(database),
     new AgentContextSnapshotService(database,new ProjectAuthorizationService(database)))}:undefined,
