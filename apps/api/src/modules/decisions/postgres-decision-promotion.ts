@@ -495,4 +495,11 @@ async function insertEvent(
       JSON.stringify(event.payload),
     ],
   );
+  if (event.type === "context.updated") {
+    await transaction.query<Record<string, never>>(
+      `INSERT INTO domain_effect_jobs(event_id,project_id)
+       VALUES($1,$2) ON CONFLICT(event_id) DO NOTHING`,
+      [event.id,event.projectId],
+    );
+  }
 }
