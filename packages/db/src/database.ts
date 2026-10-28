@@ -29,7 +29,7 @@ export class PgDatabase implements SqlDatabase {
   ): Promise<SqlQueryResult<Row>> {
     const result = await this.pool.query(text, [...params]);
     return {
-      rows: result.rows as readonly Row[],
+      rows: result.rows as unknown as readonly Row[],
       rowCount: result.rowCount ?? 0,
     };
   }
@@ -46,7 +46,7 @@ export class PgDatabase implements SqlDatabase {
       ): Promise<SqlQueryResult<Row>> => {
         const result = await client.query(text, [...params]);
         return {
-          rows: result.rows as readonly Row[],
+          rows: result.rows as unknown as readonly Row[],
           rowCount: result.rowCount ?? 0,
         };
       },
