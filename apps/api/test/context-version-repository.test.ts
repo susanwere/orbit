@@ -97,7 +97,7 @@ describe("context version construction", () => {
       updatedAt: createdAt,
     };
 
-    expect(() =>
+    try {
       buildNextContextVersion(
         {
           id: "context_v5",
@@ -108,12 +108,12 @@ describe("context version construction", () => {
           createdAt,
         },
         head,
-      ),
-    ).toThrowError(
-      expect.objectContaining<Partial<DomainError>>({
-        code: "stale_context_version",
-      }),
-    );
+      );
+      throw new Error("Expected stale context version to be rejected.");
+    } catch (error) {
+      expect(error).toBeInstanceOf(DomainError);
+      expect((error as DomainError).code).toBe("stale_context_version");
+    }
   });
 });
 
