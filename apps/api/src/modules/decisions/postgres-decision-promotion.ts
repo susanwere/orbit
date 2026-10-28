@@ -7,7 +7,16 @@ import {
 } from "@orbit/domain";
 import type { SqlDatabase, SqlExecutor } from "@orbit/db";
 import { randomUUID } from "node:crypto";
-import { hashProjectContext } from "../context/canonical-context.js";
+import {
+  hashProjectContext,
+  serializeCanonicalJson,
+} from "../context/canonical-context.js";
+import {
+  applyContextChangeOperations,
+} from "../context/context-mutation.js";
+import {
+  DEFAULT_PROPOSAL_ALLOWED_PATHS,
+} from "../context/context-change-generator.js";
 import type {
   DecisionPromotionPort,
   PromoteDecisionInput,
@@ -23,6 +32,7 @@ interface HeadRow extends Record<string, unknown> {
   project_id: string;
   current_context_version_id: string;
   version_number: number;
+  current_content: ProjectContext;
 }
 
 interface DecisionProposalRow extends Record<string, unknown> {
@@ -45,6 +55,7 @@ interface ContextChangeProposalRow extends Record<string, unknown> {
   decision_proposal_id: string;
   base_context_version_id: string;
   revision: number;
+  operations: import("@orbit/domain").ContextChangeOperation[];
   resulting_context_preview: ProjectContextPreview;
   status: string;
 }
@@ -107,6 +118,7 @@ export class PostgresDecisionPromotion implements DecisionPromotionPort {
     private readonly database: SqlDatabase,
     private readonly publisher: DomainEventPublisher,
     private readonly idFactory: PromotionIdFactory = defaultIdFactory,
+    private readonly onPublishError: (error: unknown) => void = () => {},
   ) {}
 
   async promote(input: PromoteDecisionInput): Promise<PromoteDecisionResult> {
@@ -114,9 +126,13 @@ export class PostgresDecisionPromotion implements DecisionPromotionPort {
       this.promoteInsideTransaction(transaction, input),
     );
 
-    // Publishing is intentionally after commit. Consumers can always recover
-    // from the durable events table if a live publish fails.
-    await this.publisher.publish(committed.events);
+    // Publishing is intentionally after commit. A live publish failure must
+    // never make the caller believe the committed approval rolled back.
+    try {
+      await this.publisher.publish(committed.events);
+    } catch (error) {
+      this.onPublishError(error);
+    }
     return committed.result;
   }
 
@@ -133,10 +149,18 @@ export class PostgresDecisionPromotion implements DecisionPromotionPort {
     );
 
     const headResult = await transaction.query<HeadRow>(
-      `SELECT organization_id, project_id, current_context_version_id, version_number
-       FROM project_context_heads
-       WHERE project_id = $1
-       FOR UPDATE`,
+      `SELECT
+         h.organization_id,
+         h.project_id,
+         h.current_context_version_id,
+         h.version_number,
+         cv.content AS current_content
+       FROM project_context_heads h
+       JOIN context_versions cv
+         ON cv.project_id = h.project_id
+        AND cv.id = h.current_context_version_id
+       WHERE h.project_id = $1
+       FOR UPDATE OF h`,
       [input.projectId],
     );
     const head = headResult.rows[0];
@@ -168,7 +192,8 @@ export class PostgresDecisionPromotion implements DecisionPromotionPort {
     const changeResult = await transaction.query<ContextChangeProposalRow>(
       `SELECT
          id, organization_id, project_id, decision_proposal_id,
-         base_context_version_id, revision, resulting_context_preview, status
+         base_context_version_id, revision, operations,
+         resulting_context_preview, status
        FROM context_change_proposals
        WHERE project_id = $1 AND id = $2
        FOR UPDATE`,
@@ -223,19 +248,48 @@ export class PostgresDecisionPromotion implements DecisionPromotionPort {
     const decisionId = this.idFactory("decision");
     const contextVersionId = this.idFactory("context");
     const nextVersionNumber = head.version_number + 1;
+    const recomputedPreview = applyContextChangeOperations(
+      head.current_content,
+      change.operations,
+      DEFAULT_PROPOSAL_ALLOWED_PATHS,
+    );
+
+    if (
+      serializeCanonicalJson(recomputedPreview) !==
+      serializeCanonicalJson(change.resulting_context_preview)
+    ) {
+      throw new DomainError(
+        "invalid_context_preview",
+        "Stored context preview does not match its reviewed operations and base context.",
+      );
+    }
+
     const authoritativeContext = materializeApprovedContext(
-      change.resulting_context_preview,
+      recomputedPreview,
       proposal.id,
       decisionId,
     );
+    if (
+      authoritativeContext.projectId !== input.projectId ||
+      authoritativeContext.originalIntentId !== head.current_content.originalIntentId
+    ) {
+      throw new DomainError(
+        "invalid_context_preview",
+        "Context proposal attempted to alter immutable project intent identity.",
+      );
+    }
+
     const contentHash = hashProjectContext(authoritativeContext);
 
-    await transaction.query<Record<string, never>>(
+    const applying = await transaction.query<Record<string, never>>(
       `UPDATE context_change_proposals
        SET status = 'APPLYING', updated_at = $3
        WHERE project_id = $1 AND id = $2 AND status = 'READY_FOR_REVIEW'`,
       [input.projectId, change.id, input.approvedAt],
     );
+    if (applying.rowCount !== 1) {
+      throw new DomainError("invalid_state", "Context Change Proposal could not enter APPLYING.");
+    }
 
     await transaction.query<Record<string, never>>(
       `INSERT INTO approvals (
@@ -321,18 +375,25 @@ export class PostgresDecisionPromotion implements DecisionPromotionPort {
       );
     }
 
-    await transaction.query<Record<string, never>>(
+    const approved = await transaction.query<Record<string, never>>(
       `UPDATE decision_proposals
        SET status = 'APPROVED', updated_at = $3
        WHERE project_id = $1 AND id = $2 AND status = 'READY_FOR_REVIEW'`,
       [input.projectId, proposal.id, input.approvedAt],
     );
-    await transaction.query<Record<string, never>>(
+    if (approved.rowCount !== 1) {
+      throw new DomainError("invalid_state", "Decision Proposal could not be approved.");
+    }
+
+    const applied = await transaction.query<Record<string, never>>(
       `UPDATE context_change_proposals
        SET status = 'APPLIED', updated_at = $3
        WHERE project_id = $1 AND id = $2 AND status = 'APPLYING'`,
       [input.projectId, change.id, input.approvedAt],
     );
+    if (applied.rowCount !== 1) {
+      throw new DomainError("invalid_state", "Context Change Proposal could not be applied.");
+    }
 
     const correlationId = `decision-promotion:${approvalId}`;
     const causationId = `decision-proposal:${proposal.id}`;
