@@ -154,6 +154,79 @@ export class DecisionReviewRepository {
     return mapDecision(row);
   }
 
+  /**
+   * Serialize competing rebase/review writes under the project lock. The
+   * second review is mandatory even when the append is conflict-free.
+   */
+  async rebase(
+    decision: DecisionProposal,
+    previous: ContextChangeProposal,
+    next: ContextChangeProposal,
+  ): Promise<DecisionReviewBundle> {
+    return this.database.transaction(async (transaction) => {
+      await transaction.query<Record<string, unknown>>(
+        "SELECT pg_advisory_xact_lock(hashtext($1))",
+        [decision.projectId],
+      );
+      const head = await transaction.query<{ current_context_version_id: string }>(
+        `SELECT current_context_version_id FROM project_context_heads
+         WHERE project_id = $1 FOR UPDATE`,
+        [decision.projectId],
+      );
+      if (head.rows[0]?.current_context_version_id !== next.baseContextVersionId) {
+        throw new DomainError("stale_context_version", "Context advanced while rebasing.");
+      }
+      const decisionRow = await transaction.query<DecisionProposalRow>(
+        `SELECT * FROM decision_proposals WHERE project_id = $1 AND id = $2 FOR UPDATE`,
+        [decision.projectId, decision.id],
+      );
+      if (decisionRow.rows[0]?.status !== "READY_FOR_REVIEW") {
+        throw new DomainError("invalid_state", "Decision proposal is no longer reviewable.");
+      }
+      const latest = await transaction.query<ChangeRow>(
+        `SELECT * FROM context_change_proposals
+         WHERE project_id = $1 AND decision_proposal_id = $2
+         ORDER BY revision DESC LIMIT 1 FOR UPDATE`,
+        [decision.projectId, decision.id],
+      );
+      if (
+        latest.rows[0]?.id !== previous.id ||
+        latest.rows[0]?.revision !== previous.revision ||
+        latest.rows[0]?.status !== "READY_FOR_REVIEW"
+      ) {
+        throw new DomainError("stale_context_change_proposal", "Proposal revision changed.");
+      }
+      const inserted = await transaction.query<ChangeRow>(
+        `INSERT INTO context_change_proposals (
+          id, organization_id, project_id, decision_proposal_id,
+          base_context_version_id, revision, operations,
+          resulting_context_preview, status, created_at, updated_at
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb, $8::jsonb, $9, $10, $11)
+        RETURNING *`,
+        [
+          next.id, next.organizationId, next.projectId, next.decisionProposalId,
+          next.baseContextVersionId, next.revision,
+          JSON.stringify(next.operations), JSON.stringify(next.resultingContextPreview),
+          next.status, next.createdAt, next.updatedAt,
+        ],
+      );
+      const updatedDecision = await transaction.query<DecisionProposalRow>(
+        `UPDATE decision_proposals
+         SET base_context_version_id = $3, updated_at = $4
+         WHERE project_id = $1 AND id = $2 AND status = 'READY_FOR_REVIEW'
+         RETURNING *`,
+        [decision.projectId, decision.id, next.baseContextVersionId, next.createdAt],
+      );
+      if (!inserted.rows[0] || !updatedDecision.rows[0]) {
+        throw new DomainError("invalid_state", "Could not persist rebased proposal.");
+      }
+      return {
+        decisionProposal: mapDecision(updatedDecision.rows[0]),
+        contextChangeProposal: mapChange(inserted.rows[0]),
+      };
+    });
+  }
+
   async reject(
     projectId: string,
     decisionProposalId: string,
