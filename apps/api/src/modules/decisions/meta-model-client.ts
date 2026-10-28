@@ -44,6 +44,7 @@ export class MetaModelApiClient implements StructuredJsonClient {
       },
       body: JSON.stringify({
         model: request.model,
+        store: false,
         messages: [
           { role: "system", content: request.systemPrompt },
           { role: "user", content: request.userPrompt },
@@ -61,10 +62,9 @@ export class MetaModelApiClient implements StructuredJsonClient {
     });
 
     if (!response.ok) {
-      const errorBody = await response.text();
       throw new DomainError(
         "model_api_error",
-        `Meta Model API returned HTTP ${response.status}: ${errorBody.slice(0, 500)}`,
+        `Meta Model API returned HTTP ${response.status}.`,
       );
     }
 
