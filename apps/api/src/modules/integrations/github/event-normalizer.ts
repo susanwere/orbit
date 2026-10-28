@@ -135,7 +135,7 @@ function normalizePullRequest(
   if (!pr || !repo || number === undefined) return null;
 
   const eventPayload: Record<string, JsonValue> = {
-    action,
+    action: action ?? "unknown",
     repositoryFullName: repo,
     pullRequestNumber: number,
   };
