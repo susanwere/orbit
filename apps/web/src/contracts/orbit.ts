@@ -92,6 +92,22 @@ export interface OrbitNodeModel {
   readonly updatedAt?: string;
 }
 
+/** Planned product models, not asserted backend REST responses. */
+export interface ProjectDraft {
+  readonly name: string;
+  readonly repositoryUrl?: string;
+  readonly originalIntent?: string;
+}
+export interface ProposedPlan {
+  readonly id: string;
+  readonly projectId: string;
+  readonly workItems: readonly { readonly title: string; readonly acceptanceCriteria: readonly string[] }[];
+  readonly status: "proposed" | "awaiting_approval" | "approved" | "rejected";
+}
+export type IntegrationCapabilityState =
+  | { readonly status: "not_implemented" | "disconnected" | "authorization_required" | "unavailable"; readonly provider: string }
+  | { readonly status: "connected"; readonly provider: string; readonly capabilities: readonly string[] };
+
 /** UI-level contract for explicitly *planned* capabilities, not a REST response. */
 export type FeatureAvailability =
   | { readonly status: "not_implemented"; readonly feature: "project_onboarding" | "intent_submission" | "planning" | "provider_oauth" | "provider_execution" }
