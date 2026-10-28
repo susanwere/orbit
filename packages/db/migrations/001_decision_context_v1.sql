@@ -14,7 +14,8 @@ CREATE TABLE projects (
   name TEXT NOT NULL,
   repository_ref TEXT,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  UNIQUE (organization_id, name)
+  UNIQUE (organization_id, name),
+  UNIQUE (organization_id, id)
 );
 CREATE INDEX idx_projects_organization ON projects (organization_id);
 
@@ -24,7 +25,8 @@ CREATE TABLE principals (
   type TEXT NOT NULL CHECK (type IN ('human', 'agent', 'system', 'integration')),
   display_name TEXT NOT NULL,
   role TEXT CHECK (role IN ('admin', 'member', 'viewer')),
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE (organization_id, id)
 );
 CREATE INDEX idx_principals_organization ON principals (organization_id);
 
@@ -98,7 +100,6 @@ CREATE TABLE context_versions (
   created_from_decision_id TEXT,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   UNIQUE (project_id, version_number),
-  UNIQUE (project_id, content_hash),
   UNIQUE (project_id, id)
 );
 CREATE INDEX idx_context_versions_project_history
@@ -369,6 +370,7 @@ CREATE TABLE agent_sessions (
   started_at TIMESTAMPTZ,
   ended_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE (project_id, id),
   FOREIGN KEY (project_id, context_snapshot_id)
     REFERENCES context_snapshots(project_id, id),
   FOREIGN KEY (project_id, execution_contract_id)
@@ -394,6 +396,87 @@ CREATE TABLE evidence (
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX idx_evidence_scope ON evidence (project_id, scope_type, scope_id, created_at DESC);
+
+-- Redundant organization_id columns are deliberate for tenant filtering.
+-- Composite foreign keys make it impossible for them to disagree with project
+-- or principal ownership.
+ALTER TABLE intents
+  ADD FOREIGN KEY (organization_id, project_id)
+    REFERENCES projects(organization_id, id),
+  ADD FOREIGN KEY (organization_id, created_by_principal_id)
+    REFERENCES principals(organization_id, id);
+
+ALTER TABLE source_artifacts
+  ADD FOREIGN KEY (organization_id, project_id)
+    REFERENCES projects(organization_id, id);
+
+ALTER TABLE webhook_inbox
+  ADD FOREIGN KEY (organization_id, project_id)
+    REFERENCES projects(organization_id, id);
+
+ALTER TABLE context_versions
+  ADD FOREIGN KEY (organization_id, project_id)
+    REFERENCES projects(organization_id, id),
+  ADD FOREIGN KEY (project_id, parent_context_version_id)
+    REFERENCES context_versions(project_id, id);
+
+ALTER TABLE project_context_heads
+  ADD FOREIGN KEY (organization_id, project_id)
+    REFERENCES projects(organization_id, id);
+
+ALTER TABLE decision_proposals
+  ADD FOREIGN KEY (organization_id, project_id)
+    REFERENCES projects(organization_id, id),
+  ADD FOREIGN KEY (organization_id, detected_by_principal_id)
+    REFERENCES principals(organization_id, id);
+
+ALTER TABLE context_change_proposals
+  ADD FOREIGN KEY (organization_id, project_id)
+    REFERENCES projects(organization_id, id);
+
+ALTER TABLE approvals
+  ADD FOREIGN KEY (organization_id, project_id)
+    REFERENCES projects(organization_id, id),
+  ADD FOREIGN KEY (organization_id, decided_by_principal_id)
+    REFERENCES principals(organization_id, id);
+
+ALTER TABLE decisions
+  ADD FOREIGN KEY (organization_id, project_id)
+    REFERENCES projects(organization_id, id),
+  ADD FOREIGN KEY (organization_id, approved_by_principal_id)
+    REFERENCES principals(organization_id, id);
+
+ALTER TABLE notifications
+  ADD FOREIGN KEY (organization_id, project_id)
+    REFERENCES projects(organization_id, id),
+  ADD FOREIGN KEY (organization_id, recipient_principal_id)
+    REFERENCES principals(organization_id, id);
+
+ALTER TABLE events
+  ADD FOREIGN KEY (organization_id, project_id)
+    REFERENCES projects(organization_id, id);
+
+ALTER TABLE context_snapshots
+  ADD FOREIGN KEY (organization_id, project_id)
+    REFERENCES projects(organization_id, id);
+
+ALTER TABLE execution_contracts
+  ADD FOREIGN KEY (organization_id, project_id)
+    REFERENCES projects(organization_id, id);
+
+ALTER TABLE agent_sessions
+  ADD FOREIGN KEY (organization_id, project_id)
+    REFERENCES projects(organization_id, id),
+  ADD FOREIGN KEY (organization_id, requested_by_principal_id)
+    REFERENCES principals(organization_id, id),
+  ADD FOREIGN KEY (organization_id, human_owner_principal_id)
+    REFERENCES principals(organization_id, id);
+
+ALTER TABLE evidence
+  ADD FOREIGN KEY (organization_id, project_id)
+    REFERENCES projects(organization_id, id),
+  ADD FOREIGN KEY (project_id, agent_session_id)
+    REFERENCES agent_sessions(project_id, id);
 
 -- Immutable historical records may be deleted by tenant cleanup/cascades, but
 -- application code cannot rewrite their contents in place.
