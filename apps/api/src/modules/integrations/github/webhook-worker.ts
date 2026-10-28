@@ -18,10 +18,10 @@ export class GithubWebhookWorker {
       const didWork = await this.db.transaction(async (tx) => {
         const claimed = await tx.query<InboxRow>(`
           SELECT * FROM webhook_inbox
-          WHERE (status IN ('received','failed') AND attempts < $1
+          WHERE ((status IN ('received','failed') AND attempts < $1
                  AND next_attempt_at <= now())
              OR (status = 'processing' AND claimed_at < now() - interval '2 minutes'
-                 AND attempts < $1)
+                 AND attempts < $1))
           AND ($2::text IS NULL OR project_id=$2)
           ORDER BY received_at, id LIMIT 1 FOR UPDATE SKIP LOCKED
         `, [MAX_ATTEMPTS,this.projectScope??null]);
