@@ -1,4 +1,6 @@
 import { PgDatabase } from "@orbit/db";
+import { MuseWorkGraphPlanner } from "./modules/planning/muse-work-graph-planner.js";
+import type { PlanningRouteOptions } from "./modules/planning/planning-routes.js";
 import type { OriginalIntentOptions } from "./modules/intent/original-intent-routes.js";
 import { HumanGateService } from "./modules/execution/human-gate-service.js";
 import { AgentSessionService } from "./modules/agents/agent-session-service.js";
@@ -90,7 +92,24 @@ const originalIntent: OriginalIntentOptions | undefined = auth
   ? { auth, db: database, authorization: new ProjectAuthorizationService(database) }
   : undefined;
 
+const planning: PlanningRouteOptions | undefined = auth
+  ? {
+      auth,
+      db: database,
+      authorization: new ProjectAuthorizationService(database),
+      planner: process.env.MODEL_API_KEY
+        ? new MuseWorkGraphPlanner(
+            new MetaModelApiClient({
+              apiKey: process.env.MODEL_API_KEY,
+              baseUrl: process.env.MODEL_API_BASE_URL,
+            }),
+          )
+        : undefined,
+    }
+  : undefined;
+
 const app = await buildApp({
+  planning,
   originalIntent,
   authExchange:
     identityVerifier && process.env.ORBIT_AUTH_SECRET && process.env.ORBIT_AUTH_ISSUER
