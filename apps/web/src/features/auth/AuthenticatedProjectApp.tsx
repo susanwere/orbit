@@ -23,10 +23,7 @@ export function AuthenticatedProjectApp({
   );
 
   const projectApi = useMemo(
-    () =>
-      createProjectApi(apiBaseUrl, () =>
-        sessionStore.getAuthorizationHeader(),
-      ),
+    () => createProjectApi(apiBaseUrl, () => sessionStore.getAuthorizationHeader()),
     [apiBaseUrl, sessionStore],
   );
 
@@ -39,10 +36,5 @@ export function AuthenticatedProjectApp({
     );
   }
 
-  return (
-    <App
-      key={`${session.organizationId}:${session.principalId}`}
-      projectApi={projectApi}
-    />
-  );
+  return <App key={`${session.organizationId}:${session.principalId}`} projectApi={projectApi} />;
 }
