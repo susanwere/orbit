@@ -4,9 +4,7 @@ import { createProjectApi, ProjectApiError } from "./project-api.js";
 describe("project API authorization handling", () => {
   it("reports an expired session and invalidates the authorization used for a 401", async () => {
     const onUnauthorized = vi.fn();
-    const sendRequest = vi.fn<typeof fetch>().mockResolvedValue(
-      new Response(null, { status: 401 }),
-    );
+    const sendRequest = vi.fn<typeof fetch>().mockResolvedValue(new Response(null, { status: 401 }));
     const projectApi = createProjectApi(
       "http://localhost:4000",
       () => "Bearer old-session",
@@ -18,14 +16,13 @@ describe("project API authorization handling", () => {
       status: 401,
       message: "Your session has expired. Sign in again.",
     });
-    expect(onUnauthorized).toHaveBeenCalledExactlyOnceWith("Bearer old-session");
+    expect(onUnauthorized).toHaveBeenCalledTimes(1);
+    expect(onUnauthorized).toHaveBeenCalledWith("Bearer old-session");
   });
 
   it("reports forbidden access without signing out a valid session", async () => {
     const onUnauthorized = vi.fn();
-    const sendRequest = vi.fn<typeof fetch>().mockResolvedValue(
-      new Response(null, { status: 403 }),
-    );
+    const sendRequest = vi.fn<typeof fetch>().mockResolvedValue(new Response(null, { status: 403 }));
     const projectApi = createProjectApi(
       "http://localhost:4000",
       () => "Bearer valid-session",
