@@ -58,8 +58,10 @@ jobs:
             // Preview the actual ORB-54 component in an isolated browser mount.
             // This does not simulate a real sign-in or modify production routes.
             await page.evaluate(async () => {
-              const React = await import('/node_modules/.vite/deps/react.js');
-              const ReactDOM = await import('/node_modules/.vite/deps/react-dom_client.js');
+              const reactModule = await import('/node_modules/.vite/deps/react.js');
+              const reactDomModule = await import('/node_modules/.vite/deps/react-dom_client.js');
+              const React = reactModule.default ?? reactModule;
+              const ReactDOM = reactDomModule.default ?? reactDomModule;
               const { AuthenticatedProjectApp } = await import('/src/features/auth/AuthenticatedProjectApp.tsx');
               const { createSessionStore } = await import('/src/features/auth/session-store.ts');
               document.getElementById('root').style.display = 'none';
