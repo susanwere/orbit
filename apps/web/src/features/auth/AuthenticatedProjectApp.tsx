@@ -1,4 +1,4 @@
-import { useMemo, useSyncExternalStore } from "react";
+import { useEffect, useMemo, useSyncExternalStore } from "react";
 import { App } from "../../App.js";
 import { createProjectApi } from "../projects/project-api.js";
 import type { SessionStore } from "./session-store.js";
@@ -9,21 +9,54 @@ interface AuthenticatedProjectAppProps {
 }
 
 /**
- * Mount only after a trusted identity integration supplies a session store.
- * A session change remounts the application and discards project-specific UI state.
+ * Project state exists only while a session is valid. Remounting the app on
+ * identity changes discards project-specific UI state before another user enters.
  */
 export function AuthenticatedProjectApp({
   sessionStore,
   apiBaseUrl,
 }: AuthenticatedProjectAppProps) {
-  const session = useSyncExternalStore(sessionStore.subscribe, sessionStore.getSession, () => null);
+  const authenticatedSession = useSyncExternalStore(
+    sessionStore.subscribe,
+    sessionStore.getSession,
+    () => null,
+  );
+
+  useEffect(() => {
+    if (!authenticatedSession) {
+      return;
+    }
+
+    const remainingSessionMilliseconds = authenticatedSession.expiresAt - Date.now();
+    if (remainingSessionMilliseconds <= 0) {
+      sessionStore.getSession();
+      return;
+    }
+
+    const expirationTimer = window.setTimeout(
+      () => {
+        sessionStore.getSession();
+      },
+      Math.min(remainingSessionMilliseconds, 2_147_483_647),
+    );
+
+    return () => window.clearTimeout(expirationTimer);
+  }, [authenticatedSession, sessionStore]);
 
   const projectApi = useMemo(
-    () => createProjectApi(apiBaseUrl, () => sessionStore.getAuthorizationHeader()),
+    () =>
+      createProjectApi(apiBaseUrl, () => sessionStore.getAuthorizationHeader(), fetch, {
+        onUnauthorized: (failedAuthorizationHeader) => {
+          // Do not sign out a replacement account after a stale request fails.
+          if (sessionStore.getAuthorizationHeader() === failedAuthorizationHeader) {
+            sessionStore.setSession(null);
+          }
+        },
+      }),
     [apiBaseUrl, sessionStore],
   );
 
-  if (!session) {
+  if (!authenticatedSession) {
     return (
       <main>
         <h1>Sign in required</h1>
@@ -32,5 +65,17 @@ export function AuthenticatedProjectApp({
     );
   }
 
-  return <App key={`${session.organizationId}:${session.principalId}`} projectApi={projectApi} />;
+  return (
+    <>
+      <nav aria-label="Account">
+        <button type="button" onClick={() => sessionStore.setSession(null)}>
+          Sign out
+        </button>
+      </nav>
+      <App
+        key={`${authenticatedSession.organizationId}:${authenticatedSession.principalId}`}
+        projectApi={projectApi}
+      />
+    </>
+  );
 }
