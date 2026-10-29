@@ -6,6 +6,8 @@ Applies to the entire repository. More specific `AGENTS.md` files in `apps/api`,
 - Before editing, inspect existing implementation, contracts, tests, and relevant Linear issue. Match established naming and patterns.
 - Scope changes to the requested task; avoid speculative abstractions, unrelated refactors, and unrequested dependencies.
 - Never minify application source. Use descriptive names, readable functions, and the committed Prettier style.
+- Name variables, parameters, functions, classes, and types for their purpose: prefer `projectRepository`, `authenticatedUser`, `repositoryUrl`, and `projectId` over `r`, `p`, `u`, or `x`. Avoid cryptic abbreviations and generic names such as `data`, `result`, or `value` when a more specific name improves understanding. Conventional short indices in tiny loops or well-known mathematical notation are fine.
+- For every PR, review new and changed identifiers for clarity. Formatting tools do not guarantee descriptive naming; do not rename unrelated identifiers during a formatting-only change.
 - Prefer clear modules and precise TypeScript types. Avoid `any`, unnecessary assertions, and swallowing errors.
 - Preserve behavior on formatting-only changes. Do not mix formatting migrations with functional changes.
 - Maintain secure defaults: validate external input, enforce authentication/authorization at boundaries, never commit credentials or log sensitive data.
