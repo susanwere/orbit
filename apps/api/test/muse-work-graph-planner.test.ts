@@ -1,5 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
-import { MuseWorkGraphPlanner, validateProposedWorkGraph } from "../src/modules/planning/muse-work-graph-planner.js";
+import {
+  MuseWorkGraphPlanner,
+  validateProposedWorkGraph,
+} from "../src/modules/planning/muse-work-graph-planner.js";
 
 const valid = {
   summary: "Build consent-first interview capture.",
@@ -89,11 +92,13 @@ describe("Muse work graph planning", () => {
   it("does not issue a model call for invalid intent", async () => {
     const complete = vi.fn();
     const planner = new MuseWorkGraphPlanner({ complete });
-    await expect(planner.propose({
-      originalIntent: " ",
-      knownDecisions: [],
-      knownConstraints: [],
-    })).rejects.toThrow();
+    await expect(
+      planner.propose({
+        originalIntent: " ",
+        knownDecisions: [],
+        knownConstraints: [],
+      }),
+    ).rejects.toThrow();
     expect(complete).not.toHaveBeenCalled();
   });
 });

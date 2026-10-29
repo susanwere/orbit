@@ -123,13 +123,7 @@ function keysAre(value: Record<string, unknown>, keys: readonly string[]) {
 
 export function validateProposedWorkGraph(value: unknown): ProposedWorkGraph {
   const raw = record(value);
-  keysAre(raw, [
-    "summary",
-    "workItems",
-    "guardrails",
-    "decisionsToReview",
-    "assumptions",
-  ]);
+  keysAre(raw, ["summary", "workItems", "guardrails", "decisionsToReview", "assumptions"]);
 
   const workItems = list(raw.workItems, 30, (item): PlannedWorkItem => {
     const data = record(item);
