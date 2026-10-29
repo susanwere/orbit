@@ -99,15 +99,17 @@ try {
   await page.getByRole("button", { name: "View projects" }).click();
   await page.getByRole("heading", { name: "Start with intent." }).waitFor();
 
+  await page.getByLabel("Project name").fill("HN Jobs Viewer");
+  await page.getByRole("button", { name: "Create project" }).click();
+  await page.getByRole("heading", { name: "HN Jobs Viewer" }).waitFor();
+  await page.getByText("No work has started yet.").waitFor();
+  assert.equal(await page.getByText("None").count(), 3);
+
   await page.screenshot({
     path: "docs/images/orbit-authenticated-project-creation.png",
     fullPage: true,
     animations: "disabled",
   });
-
-  await page.getByLabel("Project name").fill("HN Jobs Viewer");
-  await page.getByRole("button", { name: "Create project" }).click();
-  await page.getByRole("heading", { name: "Everything revolves around intent." }).waitFor();
 
   await page.getByRole("button", { name: "Sign out" }).click();
   await page.getByRole("heading", { name: "Sign in to Orbit" }).waitFor();
