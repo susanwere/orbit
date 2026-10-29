@@ -1,25 +1,26 @@
 # Orbit Engineering Standards
 
-These rules apply to all contributors and coding agents working on this repository.
+Applies to the entire repository. More specific `AGENTS.md` files in `apps/api`, `apps/web`, and `packages` add scoped guidance. Follow the closest applicable guidance without contradicting this file.
 
-## Readability and formatting
-- Write clear, human-readable source. Never minify application code.
-- Use descriptive names and meaningful whitespace. Avoid dense one-line functions and compressed conditionals.
-- Run `npm run format:api` for backend files, `npm run format:web` for frontend files, or `npm run format` across both apps and shared packages before opening a pull request.
-- CI checks changed TypeScript, JavaScript, JSON, and stylesheets in BOTH apps and shared packages. The repository-wide `npm run format:check` can be used once legacy files have been formatted.
-- Follow the committed Prettier configuration. CI rejects unformatted changed source files.
-- Do not bypass or disable formatting, typechecking, tests, or build checks to merge a change.
+## Working agreement
+- Before editing, inspect existing implementation, contracts, tests, and relevant Linear issue. Match established naming and patterns.
+- Scope changes to the requested task; avoid speculative abstractions, unrelated refactors, and unrequested dependencies.
+- Never minify application source. Use descriptive names, readable functions, and the committed Prettier style.
+- Prefer clear modules and precise TypeScript types. Avoid `any`, unnecessary assertions, and swallowing errors.
+- Preserve behavior on formatting-only changes. Do not mix formatting migrations with functional changes.
+- Maintain secure defaults: validate external input, enforce authentication/authorization at boundaries, never commit credentials or log sensitive data.
+- Treat AI-generated code as untrusted until reviewed and verified.
 
-## Architecture
-- Keep Fastify route handlers focused on request handling and response mapping.
-- Put domain logic in services and database queries in repositories when complexity justifies separation.
-- Apply authentication and resource authorization to every protected endpoint.
-- Validate external inputs and use parameterized SQL.
-- Prefer precise TypeScript types over `any` or loosely typed records when shapes are known.
-- Keep changes scoped; a formatting-only change must not include behavioral refactors.
+## Packages and boundaries
+- `apps/api`: Fastify application and protected HTTP interfaces; see its `AGENTS.md`.
+- `apps/web`: React/Vite frontend; see its `AGENTS.md`.
+- `packages/domain`: shared domain concepts and contracts.
+- `packages/db`: SQL database access and migrations; see `packages/AGENTS.md`.
 
-## Testing and delivery
-- Cover success paths, invalid input, unauthenticated and unauthorized requests, and failure behavior with focused tests.
-- Preserve and run existing typecheck, tests, and build checks.
-- Avoid claiming CI is green or a branch is protected until verified.
-- Use a separate, reviewable pull request to reformat existing legacy files.
+## Required verification
+- Format changed files before submitting. `npm run format` formats the repository; `npm run format:check` checks API, web, and shared-package source.
+- Run `npm run typecheck`, `npm test`, and `npm run build` when relevant to your change. CI must pass before merge.
+- Add or update tests for behavior changes, including errors and security boundaries.
+- Never weaken CI, bypass required checks, or claim a test passed without observing its result.
+- Keep pull requests reviewable; explain scope, risk, test evidence, and outstanding limitations.
+- Formatting conventions are automatically checked. Architectural guidance requires review unless a specific automated rule enforces it.
