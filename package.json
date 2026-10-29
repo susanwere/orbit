@@ -16,12 +16,15 @@
     "db:up": "docker compose up -d postgres",
     "db:down": "docker compose down",
     "db:migrate": "npm run migrate -w @orbit/db",
-    "format": "npx --yes prettier@3.6.2 --write \"apps/**/*.{ts,tsx,js,jsx,mjs,cjs,json,css,scss}\" \"packages/**/*.{ts,tsx,js,jsx,mjs,cjs,json,css,scss}\"",
-    "format:check": "npx --yes prettier@3.6.2 --check \"apps/**/*.{ts,tsx,js,jsx,mjs,cjs,json,css,scss}\" \"packages/**/*.{ts,tsx,js,jsx,mjs,cjs,json,css,scss}\"",
-    "format:api": "npx --yes prettier@3.6.2 --write \"apps/api/**/*.{ts,tsx,js,jsx,mjs,cjs,json}\"",
-    "format:web": "npx --yes prettier@3.6.2 --write \"apps/web/**/*.{ts,tsx,js,jsx,mjs,cjs,json,css,scss}\""
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "format:api": "prettier --write \"apps/api/**/*.{ts,tsx,js,jsx,mjs,cjs,json}\"",
+    "format:web": "prettier --write \"apps/web/**/*.{ts,tsx,js,jsx,mjs,cjs,json,css,scss}\""
   },
   "engines": {
     "node": ">=22"
+  },
+  "devDependencies": {
+    "prettier": "3.6.2"
   }
 }
