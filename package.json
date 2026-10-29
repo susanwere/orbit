@@ -19,7 +19,8 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "format:api": "prettier --write \"apps/api/**/*.{ts,tsx,js,jsx,mjs,cjs,json}\"",
-    "format:web": "prettier --write \"apps/web/**/*.{ts,tsx,js,jsx,mjs,cjs,json,css,scss}\""
+    "format:web": "prettier --write \"apps/web/**/*.{ts,tsx,js,jsx,mjs,cjs,json,css,scss}\"",
+    "format:changed": "node scripts/check-changed-format.mjs"
   },
   "engines": {
     "node": ">=22"
