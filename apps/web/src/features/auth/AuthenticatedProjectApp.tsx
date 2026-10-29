@@ -16,11 +16,7 @@ export function AuthenticatedProjectApp({
   sessionStore,
   apiBaseUrl,
 }: AuthenticatedProjectAppProps) {
-  const session = useSyncExternalStore(
-    sessionStore.subscribe,
-    sessionStore.getSession,
-    () => null,
-  );
+  const session = useSyncExternalStore(sessionStore.subscribe, sessionStore.getSession, () => null);
 
   const projectApi = useMemo(
     () => createProjectApi(apiBaseUrl, () => sessionStore.getAuthorizationHeader()),
