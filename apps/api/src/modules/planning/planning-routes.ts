@@ -16,6 +16,13 @@ export interface PlanningRouteOptions {
   readonly planner?: WorkGraphPlanner;
 }
 
+interface DecisionRow extends Record<string, unknown> {
+  title: string;
+  rationale: string;
+}
+interface ContextRow extends Record<string, unknown> {
+  content: unknown;
+}
 interface IntentRow extends Record<string, unknown> {
   id: string;
   statement: string;
@@ -93,10 +100,32 @@ export async function registerPlanningRoutes(
       }
 
       try {
+        const [decisions, context] = await Promise.all([
+          db.query<DecisionRow>(
+            "SELECT title,rationale FROM decisions WHERE organization_id=$1 AND project_id=$2 AND status='ACTIVE' ORDER BY created_at DESC LIMIT 20",
+            [actor.organizationId, actor.projectId],
+          ),
+          db.query<ContextRow>(
+            "SELECT v.content FROM context_versions v JOIN project_context_heads h ON h.current_context_version_id=v.id WHERE h.organization_id=$1 AND h.project_id=$2",
+            [actor.organizationId, actor.projectId],
+          ),
+        ]);
+        const rawContext = context.rows[0]?.content;
+        const contextValue =
+          rawContext && typeof rawContext === "object" && !Array.isArray(rawContext)
+            ? (rawContext as Record<string, unknown>)
+            : {};
+        const constraints = Array.isArray(contextValue.constraints)
+          ? contextValue.constraints.slice(0, 20).flatMap((item: unknown) => {
+              if (!item || typeof item !== "object" || Array.isArray(item)) return [];
+              const statement = (item as Record<string, unknown>).statement;
+              return typeof statement === "string" ? [statement] : [];
+            })
+          : [];
         const proposed = await planner.propose({
           originalIntent: intent.statement,
-          knownDecisions: [],
-          knownConstraints: [],
+          knownDecisions: decisions.rows.map((row) => row.title + ": " + row.rationale),
+          knownConstraints: constraints,
         });
         const saved = await db.query<PlanRow>(
           `UPDATE plan_proposals
