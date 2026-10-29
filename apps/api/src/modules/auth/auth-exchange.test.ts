@@ -87,7 +87,8 @@ describe("OIDC identity exchange", () => {
         organizationId: "orbit-org",
       });
 
-      const forgedToken = `${identityToken.slice(0, -1)}a`;
+      const corruptedSignature = `${signature[0] === "A" ? "B" : "A"}${signature.slice(1)}`;
+      const forgedToken = `${jwtHeader}.${jwtClaims}.${corruptedSignature}`;
       const forgedResponse = await application.inject({
         method: "POST",
         url: "/auth/exchange",
