@@ -1,5 +1,8 @@
 import cors from "@fastify/cors";
-import { registerOriginalIntentRoutes, type OriginalIntentOptions } from "./modules/intent/original-intent-routes.js";
+import {
+  registerOriginalIntentRoutes,
+  type OriginalIntentOptions,
+} from "./modules/intent/original-intent-routes.js";
 import {
   registerAuthExchangeRoutes,
   type AuthExchangeOptions,
@@ -96,7 +99,8 @@ export async function buildApp(options: AppOptions = {}) {
   }));
 
   if (options.authExchange) await app.register(registerAuthExchangeRoutes, options.authExchange);
-  if (options.originalIntent) await app.register(registerOriginalIntentRoutes, options.originalIntent);
+  if (options.originalIntent)
+    await app.register(registerOriginalIntentRoutes, options.originalIntent);
   if (options.projectManagement)
     await app.register(registerProjectManagementRoutes, options.projectManagement);
   if (options.operations) await app.register(registerOperationsRoutes, options.operations);
