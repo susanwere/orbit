@@ -1,5 +1,9 @@
 import cors from "@fastify/cors";
 import {
+  registerPlanningRoutes,
+  type PlanningRouteOptions,
+} from "./modules/planning/planning-routes.js";
+import {
   registerOriginalIntentRoutes,
   type OriginalIntentOptions,
 } from "./modules/intent/original-intent-routes.js";
@@ -48,6 +52,7 @@ import {
 export interface AppOptions {
   readonly authExchange?: AuthExchangeOptions;
   readonly originalIntent?: OriginalIntentOptions;
+  readonly planning?: PlanningRouteOptions;
   readonly projectManagement?: ProjectManagementOptions;
   readonly operations?: OperationsOptions;
   readonly humanGates?: { auth: AuthVerifier; service: HumanGateService };
