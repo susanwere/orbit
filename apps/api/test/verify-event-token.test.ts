@@ -9,12 +9,15 @@ function sign(claims: object): string {
 }
 describe("event stream token verification", () => {
   it("accepts signed, scoped, unexpired identity", () => {
-    expect(verifyEventToken(sign({ sub: "user1", aud: "orbit-events", exp: 1100 }), secret, 1000)).toBe("user1");
+    expect(
+      verifyEventToken(sign({ sub: "user1", aud: "orbit-events", exp: 1100 }), secret, 1000),
+    ).toBe("user1");
   });
   it("rejects forged identities", () => {
     const token = sign({ sub: "user1", aud: "orbit-events", exp: 1100 });
-    expect(() => verifyEventToken(token.replace("Bearer ", "Bearer hacked"), secret, 1000))
-      .toThrowError(expect.objectContaining({ code: "unauthenticated" }));
+    expect(() =>
+      verifyEventToken(token.replace("Bearer ", "Bearer hacked"), secret, 1000),
+    ).toThrowError(expect.objectContaining({ code: "unauthenticated" }));
   });
   it("rejects expired and wrong-audience credentials", () => {
     for (const claims of [

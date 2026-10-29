@@ -53,10 +53,7 @@ function expectedVersion(body: unknown): string {
     body === null ||
     typeof (body as { expectedContextVersionId?: unknown }).expectedContextVersionId !== "string"
   ) {
-    throw new DomainError(
-      "validation",
-      "expectedContextVersionId is required.",
-    );
+    throw new DomainError("validation", "expectedContextVersionId is required.");
   }
   return (body as { expectedContextVersionId: string }).expectedContextVersionId;
 }
@@ -84,65 +81,55 @@ export async function registerDecisionReviewRoutes(
       operations?: unknown[];
       expectedContextVersionId?: string;
     };
-  }>(
-    "/projects/:projectId/decision-proposals/:proposalId",
-    async (request) => {
-      const version = expectedVersion(request.body);
-      return service.edit(
-        auth.verify(request.headers.authorization).id,
-        request.params.projectId,
-        request.params.proposalId,
-        {
-          title: request.body?.title,
-          rationale: request.body?.rationale,
-          operations: parseOperations(request.body?.operations),
-          expectedContextVersionId: version,
-        },
-      );
-    },
+  }>("/projects/:projectId/decision-proposals/:proposalId", async (request) => {
+    const version = expectedVersion(request.body);
+    return service.edit(
+      auth.verify(request.headers.authorization).id,
+      request.params.projectId,
+      request.params.proposalId,
+      {
+        title: request.body?.title,
+        rationale: request.body?.rationale,
+        operations: parseOperations(request.body?.operations),
+        expectedContextVersionId: version,
+      },
+    );
+  });
+
+  app.post<{
+    Params: { projectId: string; proposalId: string };
+    Body: { expectedContextVersionId?: string };
+  }>("/projects/:projectId/decision-proposals/:proposalId/rebase", async (request) =>
+    service.rebase(
+      auth.verify(request.headers.authorization).id,
+      request.params.projectId,
+      request.params.proposalId,
+      expectedVersion(request.body),
+    ),
   );
 
   app.post<{
     Params: { projectId: string; proposalId: string };
     Body: { expectedContextVersionId?: string };
-  }>(
-    "/projects/:projectId/decision-proposals/:proposalId/rebase",
-    async (request) =>
-      service.rebase(
-        auth.verify(request.headers.authorization).id,
-        request.params.projectId,
-        request.params.proposalId,
-        expectedVersion(request.body),
-      ),
+  }>("/projects/:projectId/decision-proposals/:proposalId/approve", async (request) =>
+    service.approve(
+      auth.verify(request.headers.authorization).id,
+      request.params.projectId,
+      request.params.proposalId,
+      expectedVersion(request.body),
+    ),
   );
 
   app.post<{
     Params: { projectId: string; proposalId: string };
     Body: { expectedContextVersionId?: string };
-  }>(
-    "/projects/:projectId/decision-proposals/:proposalId/approve",
-    async (request) =>
-      service.approve(
-        auth.verify(request.headers.authorization).id,
-        request.params.projectId,
-        request.params.proposalId,
-        expectedVersion(request.body),
-      ),
-  );
-
-  app.post<{
-    Params: { projectId: string; proposalId: string };
-    Body: { expectedContextVersionId?: string };
-  }>(
-    "/projects/:projectId/decision-proposals/:proposalId/reject",
-    async (request, reply) => {
-      await service.reject(
-        auth.verify(request.headers.authorization).id,
-        request.params.projectId,
-        request.params.proposalId,
-        expectedVersion(request.body),
-      );
-      return reply.status(204).send();
-    },
-  );
+  }>("/projects/:projectId/decision-proposals/:proposalId/reject", async (request, reply) => {
+    await service.reject(
+      auth.verify(request.headers.authorization).id,
+      request.params.projectId,
+      request.params.proposalId,
+      expectedVersion(request.body),
+    );
+    return reply.status(204).send();
+  });
 }

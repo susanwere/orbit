@@ -57,16 +57,17 @@ function actorFrom(payload: JsonRecord): OrbitEventActor {
 
   return {
     type: senderType === "Bot" ? "integration" : "human",
-    id: id !== undefined ? `github-user:${id}` : login ? `github-user:${login}` : "github-user:unknown",
+    id:
+      id !== undefined
+        ? `github-user:${id}`
+        : login
+          ? `github-user:${login}`
+          : "github-user:unknown",
     displayName: login,
   };
 }
 
-function deterministicEventId(
-  deliveryId: string,
-  type: OrbitEventType,
-  entityId: string,
-): string {
+function deterministicEventId(deliveryId: string, type: OrbitEventType, entityId: string): string {
   const digest = createHash("sha256")
     .update(`${deliveryId}:${type}:${entityId}`, "utf8")
     .digest("hex")
@@ -75,10 +76,7 @@ function deterministicEventId(
   return `evt_${digest}`;
 }
 
-function occurredAt(
-  preferred: string | undefined,
-  fallback: string,
-): string {
+function occurredAt(preferred: string | undefined, fallback: string): string {
   return preferred ?? fallback;
 }
 
@@ -93,15 +91,10 @@ function buildEvent(input: {
   payload: Record<string, JsonValue>;
   sourceArtifact: OrbitEventSourceArtifact;
 }): OrbitEvent {
-  const correlationId =
-    `github:pull_request:${input.repositoryFullName}#${input.pullRequestNumber}`;
+  const correlationId = `github:pull_request:${input.repositoryFullName}#${input.pullRequestNumber}`;
 
   return {
-    id: deterministicEventId(
-      input.envelope.deliveryId,
-      input.type,
-      input.entityId,
-    ),
+    id: deterministicEventId(input.envelope.deliveryId, input.type, input.entityId),
     organizationId: input.envelope.organizationId,
     projectId: input.envelope.projectId,
     type: input.type,
@@ -170,10 +163,7 @@ function normalizePullRequest(
   });
 }
 
-function normalizeReview(
-  envelope: GitHubWebhookEnvelope,
-  payload: JsonRecord,
-): OrbitEvent | null {
+function normalizeReview(envelope: GitHubWebhookEnvelope, payload: JsonRecord): OrbitEvent | null {
   if (stringAt(payload, "action") !== "submitted") return null;
 
   const review = recordAt(payload, "review");
@@ -316,9 +306,7 @@ function normalizeIssueComment(
  * Text remains untrusted input. Normalization does not infer intent, decisions,
  * or authority; it only extracts the minimum fields needed downstream.
  */
-export function normalizeGitHubWebhook(
-  envelope: GitHubWebhookEnvelope,
-): OrbitEvent | null {
+export function normalizeGitHubWebhook(envelope: GitHubWebhookEnvelope): OrbitEvent | null {
   if (!isRecord(envelope.payload)) return null;
 
   switch (envelope.eventName) {

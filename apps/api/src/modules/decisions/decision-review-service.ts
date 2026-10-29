@@ -13,7 +13,10 @@ import { ContextChangeProposalRepository } from "../context/context-change-propo
 import { rebaseContextChangeProposal } from "../context/context-change-rebase.js";
 import { ProjectAuthorizationService } from "../projects/project-authorization.js";
 import type { DecisionPromotionPort, PromoteDecisionResult } from "./decision-promotion-port.js";
-import { DecisionReviewRepository, type DecisionReviewBundle } from "./decision-review-repository.js";
+import {
+  DecisionReviewRepository,
+  type DecisionReviewBundle,
+} from "./decision-review-repository.js";
 
 export interface EditDecisionReviewInput {
   readonly title?: string;
@@ -78,26 +81,39 @@ export class DecisionReviewService {
 
     const revision = current.contextChangeProposal.revision + 1;
     const changeId = `ccp_${this.idFactory()}`;
-    const title=input.title?.trim() || decision.title;
-    const rationale=input.rationale?.trim() || decision.rationale;
+    const title = input.title?.trim() || decision.title;
+    const rationale = input.rationale?.trim() || decision.rationale;
     const change = input.operations
       ? buildContextChangeRevision({
-          id:changeId,organizationId:actor.organizationId,projectId,
-          decisionProposalId:decision.id,baseContextVersion:base,
-          operations:input.operations,revision,createdAt:updatedAt,
+          id: changeId,
+          organizationId: actor.organizationId,
+          projectId,
+          decisionProposalId: decision.id,
+          baseContextVersion: base,
+          operations: input.operations,
+          revision,
+          createdAt: updatedAt,
         })
       : generateContextChangeProposal({
-          id:changeId,organizationId:actor.organizationId,projectId,
-          decisionProposalId:decision.id,baseContextVersion:base,
-          candidate:{
-            confidence:decision.confidence??1,title,rationale,
-            alternatives:decision.alternatives,scope:decision.scope,
-            evidenceQuote:decision.sourceQuote??title,
-          },revision,createdAt:updatedAt,
+          id: changeId,
+          organizationId: actor.organizationId,
+          projectId,
+          decisionProposalId: decision.id,
+          baseContextVersion: base,
+          candidate: {
+            confidence: decision.confidence ?? 1,
+            title,
+            rationale,
+            alternatives: decision.alternatives,
+            scope: decision.scope,
+            evidenceQuote: decision.sourceQuote ?? title,
+          },
+          revision,
+          createdAt: updatedAt,
         });
-    return this.reviewRepository.editReview(current,change,{
-      title:input.title?.trim() || undefined,
-      rationale:input.rationale?.trim() || undefined,
+    return this.reviewRepository.editReview(current, change, {
+      title: input.title?.trim() || undefined,
+      rationale: input.rationale?.trim() || undefined,
       updatedAt,
     });
   }

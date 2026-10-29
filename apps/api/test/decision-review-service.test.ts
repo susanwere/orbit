@@ -81,12 +81,18 @@ class FakeContextVersions {
     versionNumber: 3,
     updatedAt: now,
   };
-  async getHead() { return this.head; }
-  async getById(): Promise<ContextVersion | null> { return null; }
+  async getHead() {
+    return this.head;
+  }
+  async getById(): Promise<ContextVersion | null> {
+    return null;
+  }
 }
 
 class FakeContextChanges {
-  async create(value: ContextChangeProposal) { return value; }
+  async create(value: ContextChangeProposal) {
+    return value;
+  }
 }
 
 class FakePromotion implements DecisionPromotionPort {
@@ -115,12 +121,7 @@ function service(promotion = new FakePromotion()) {
 describe("DecisionReviewService", () => {
   it("authorizes and delegates approval without mutating context itself", async () => {
     const { value, promotion } = service();
-    const result = await value.approve(
-      "usr_1",
-      "project_1",
-      "dp_1",
-      "context_v3",
-    );
+    const result = await value.approve("usr_1", "project_1", "dp_1", "context_v3");
 
     expect(result.versionNumber).toBe(4);
     expect(promotion.input).toMatchObject({
@@ -134,9 +135,9 @@ describe("DecisionReviewService", () => {
   it("rejects stale expected context before promotion", async () => {
     const { value, promotion } = service();
 
-    await expect(
-      value.approve("usr_1", "project_1", "dp_1", "context_v2"),
-    ).rejects.toMatchObject({ code: "stale_context_version" });
+    await expect(value.approve("usr_1", "project_1", "dp_1", "context_v2")).rejects.toMatchObject({
+      code: "stale_context_version",
+    });
     expect(promotion.input).toBeUndefined();
   });
 
@@ -160,8 +161,8 @@ describe("DecisionReviewService", () => {
 
   it("rejects unauthorized reviewers", async () => {
     const { value } = service();
-    await expect(
-      value.approve("viewer", "project_1", "dp_1", "context_v3"),
-    ).rejects.toBeInstanceOf(DomainError);
+    await expect(value.approve("viewer", "project_1", "dp_1", "context_v3")).rejects.toBeInstanceOf(
+      DomainError,
+    );
   });
 });

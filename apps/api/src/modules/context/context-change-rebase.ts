@@ -1,8 +1,4 @@
-import {
-  DomainError,
-  type ContextChangeProposal,
-  type ContextVersion,
-} from "@orbit/domain";
+import { DomainError, type ContextChangeProposal, type ContextVersion } from "@orbit/domain";
 import { serializeCanonicalJson } from "./canonical-context.js";
 import { buildContextChangeRevision } from "./context-change-generator.js";
 
@@ -30,7 +26,10 @@ export function rebaseContextChangeProposal(
     previous.organizationId !== previousBase.organizationId ||
     previous.baseContextVersionId !== previousBase.id
   ) {
-    throw new DomainError("project_mismatch", "Proposal and context versions must share a scope and base.");
+    throw new DomainError(
+      "project_mismatch",
+      "Proposal and context versions must share a scope and base.",
+    );
   }
   if (previous.status !== "READY_FOR_REVIEW") {
     throw new DomainError("invalid_state", "Only reviewable proposals can be rebased.");
@@ -50,8 +49,7 @@ export function rebaseContextChangeProposal(
   );
   if (
     !appendOnly &&
-    serializeCanonicalJson(previousBase.content) !==
-      serializeCanonicalJson(current.content)
+    serializeCanonicalJson(previousBase.content) !== serializeCanonicalJson(current.content)
   ) {
     throw new DomainError(
       "stale_context_version",
@@ -68,7 +66,10 @@ export function rebaseContextChangeProposal(
     }
     const key = (value as Record<string, unknown>).key;
     if (typeof key !== "string" || existingKeys.has(key)) {
-      throw new DomainError("stale_context_version", "Proposed constraint conflicts with current context.");
+      throw new DomainError(
+        "stale_context_version",
+        "Proposed constraint conflicts with current context.",
+      );
     }
     existingKeys.add(key);
   }

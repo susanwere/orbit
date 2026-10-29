@@ -13,10 +13,7 @@ export function verifyGitHubWebhookSignature(
   }
 
   const suppliedHex = signatureHeader.slice(SIGNATURE_PREFIX.length);
-  if (
-    suppliedHex.length !== SHA256_HEX_LENGTH ||
-    !/^[0-9a-f]+$/i.test(suppliedHex)
-  ) {
+  if (suppliedHex.length !== SHA256_HEX_LENGTH || !/^[0-9a-f]+$/i.test(suppliedHex)) {
     return false;
   }
 

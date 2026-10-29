@@ -1,4 +1,7 @@
-import type { CommittedDomainEvent, DomainEventPublisher } from "../events/domain-event-publisher.js";
+import type {
+  CommittedDomainEvent,
+  DomainEventPublisher,
+} from "../events/domain-event-publisher.js";
 import type { PostgresExecutionImpactService } from "./postgres-execution-impact.js";
 
 /** Delivers context-change impacts only after the promotion transaction commits. */

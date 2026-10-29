@@ -1,7 +1,4 @@
-import type {
-  ContextChangeProposal,
-  ContextVersion,
-} from "@orbit/domain";
+import type { ContextChangeProposal, ContextVersion } from "@orbit/domain";
 import type { DecisionCandidate } from "../decisions/decision-detector.js";
 import {
   generateContextChangeProposal,
@@ -25,13 +22,9 @@ export interface ProposeContextChangeInput {
  * persists exactly the operations + preview that the human will later review.
  */
 export class ContextChangeProposalService {
-  constructor(
-    private readonly repository: ContextChangeProposalRepository,
-  ) {}
+  constructor(private readonly repository: ContextChangeProposalRepository) {}
 
-  async propose(
-    input: ProposeContextChangeInput,
-  ): Promise<ContextChangeProposal> {
+  async propose(input: ProposeContextChangeInput): Promise<ContextChangeProposal> {
     const proposalInput: GenerateContextChangeProposalInput = {
       ...input,
       revision: 1,

@@ -1,9 +1,6 @@
 import { DomainError } from "./errors.js";
 import type { Id, JsonValue } from "./types.js";
-import type {
-  ContextChangeOperation,
-  ProjectContextPreview,
-} from "./intent-context.js";
+import type { ContextChangeOperation, ProjectContextPreview } from "./intent-context.js";
 
 export type SourceArtifactType =
   | "pull_request"
@@ -29,11 +26,7 @@ export interface SourceArtifact {
   readonly createdAt: string;
 }
 
-export type DecisionProposalStatus =
-  | "DETECTED"
-  | "READY_FOR_REVIEW"
-  | "APPROVED"
-  | "REJECTED";
+export type DecisionProposalStatus = "DETECTED" | "READY_FOR_REVIEW" | "APPROVED" | "REJECTED";
 
 export interface DecisionProposal {
   readonly id: Id;
@@ -193,17 +186,9 @@ export function transitionContextChangeProposal(
   from: ContextChangeProposalStatus,
   to: ContextChangeProposalStatus,
 ): ContextChangeProposalStatus {
-  return transition(
-    "ContextChangeProposal",
-    CONTEXT_CHANGE_PROPOSAL_TRANSITIONS,
-    from,
-    to,
-  );
+  return transition("ContextChangeProposal", CONTEXT_CHANGE_PROPOSAL_TRANSITIONS, from, to);
 }
 
-export function transitionDecision(
-  from: DecisionStatus,
-  to: DecisionStatus,
-): DecisionStatus {
+export function transitionDecision(from: DecisionStatus, to: DecisionStatus): DecisionStatus {
   return transition("Decision", DECISION_TRANSITIONS, from, to);
 }

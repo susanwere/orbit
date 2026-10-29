@@ -69,10 +69,7 @@ export function buildNextContextVersion(
   currentHead: ProjectContextHead | null,
 ): ContextVersion {
   if (input.content.projectId !== input.projectId) {
-    throw new DomainError(
-      "project_mismatch",
-      "ProjectContext belongs to a different project.",
-    );
+    throw new DomainError("project_mismatch", "ProjectContext belongs to a different project.");
   }
 
   const actualCurrentVersionId = currentHead?.currentContextVersionId ?? null;
@@ -152,10 +149,7 @@ export class ContextVersionRepository {
     return result.rows[0] ? mapVersion(result.rows[0]) : null;
   }
 
-  async getById(
-    projectId: string,
-    contextVersionId: string,
-  ): Promise<ContextVersion | null> {
+  async getById(projectId: string, contextVersionId: string): Promise<ContextVersion | null> {
     const result = await this.database.query<ContextVersionRow>(
       `SELECT
          id,
@@ -203,10 +197,9 @@ export class ContextVersionRepository {
     return this.database.transaction(async (transaction) => {
       // Locks even when the project has no head yet, avoiding a concurrent
       // "first version" race that SELECT ... FOR UPDATE cannot lock.
-      await transaction.query<Record<string, never>>(
-        "SELECT pg_advisory_xact_lock(hashtext($1))",
-        [input.projectId],
-      );
+      await transaction.query<Record<string, never>>("SELECT pg_advisory_xact_lock(hashtext($1))", [
+        input.projectId,
+      ]);
 
       const head = await this.getHeadForUpdate(transaction, input.projectId);
       const version = buildNextContextVersion(input, head);

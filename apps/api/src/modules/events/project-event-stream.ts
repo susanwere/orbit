@@ -13,8 +13,7 @@ interface EventRow extends Record<string, unknown> {
   occurred_at: Date | string;
   payload: unknown;
 }
-const iso = (value: Date | string) =>
-  value instanceof Date ? value.toISOString() : value;
+const iso = (value: Date | string) => (value instanceof Date ? value.toISOString() : value);
 
 /** Durable store is the source of truth; live SSE only reads committed rows. */
 export class ProjectEventStream {
@@ -43,7 +42,10 @@ export class ProjectEventStream {
       [projectId, after?.at ?? null, after?.id ?? null, limit],
     );
     const events = rows.rows.map((row) => ({
-      id: row.id, type: row.type, occurredAt: iso(row.occurred_at), payload: row.payload,
+      id: row.id,
+      type: row.type,
+      occurredAt: iso(row.occurred_at),
+      payload: row.payload,
     }));
     const last = events.at(-1);
     return { events, cursor: last ? { at: last.occurredAt, id: last.id } : after };

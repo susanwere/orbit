@@ -7,16 +7,9 @@ import {
 } from "@orbit/domain";
 import type { SqlDatabase, SqlExecutor } from "@orbit/db";
 import { randomUUID } from "node:crypto";
-import {
-  hashProjectContext,
-  serializeCanonicalJson,
-} from "../context/canonical-context.js";
-import {
-  applyContextChangeOperations,
-} from "../context/context-mutation.js";
-import {
-  DEFAULT_PROPOSAL_ALLOWED_PATHS,
-} from "../context/context-change-generator.js";
+import { hashProjectContext, serializeCanonicalJson } from "../context/canonical-context.js";
+import { applyContextChangeOperations } from "../context/context-mutation.js";
+import { DEFAULT_PROPOSAL_ALLOWED_PATHS } from "../context/context-change-generator.js";
 import type {
   DecisionPromotionPort,
   PromoteDecisionInput,
@@ -60,23 +53,15 @@ interface ContextChangeProposalRow extends Record<string, unknown> {
   status: string;
 }
 
-export type PromotionIdKind =
-  | "approval"
-  | "decision"
-  | "context"
-  | "event";
+export type PromotionIdKind = "approval" | "decision" | "context" | "event";
 
 export type PromotionIdFactory = (kind: PromotionIdKind) => string;
 
-const defaultIdFactory: PromotionIdFactory = (kind) =>
-  `${kind}_${randomUUID()}`;
+const defaultIdFactory: PromotionIdFactory = (kind) => `${kind}_${randomUUID()}`;
 
 function isProposedConstraint(
   constraint: ContextConstraintPreview,
-): constraint is Extract<
-  ContextConstraintPreview,
-  { readonly sourceDecisionProposalId: string }
-> {
+): constraint is Extract<ContextConstraintPreview, { readonly sourceDecisionProposalId: string }> {
   return "sourceDecisionProposalId" in constraint;
 }
 
@@ -143,10 +128,9 @@ export class PostgresDecisionPromotion implements DecisionPromotionPort {
     result: PromoteDecisionResult;
     events: readonly CommittedDomainEvent[];
   }> {
-    await transaction.query<Record<string, never>>(
-      "SELECT pg_advisory_xact_lock(hashtext($1))",
-      [input.projectId],
-    );
+    await transaction.query<Record<string, never>>("SELECT pg_advisory_xact_lock(hashtext($1))", [
+      input.projectId,
+    ]);
 
     const headResult = await transaction.query<HeadRow>(
       `SELECT
@@ -214,10 +198,7 @@ export class PostgresDecisionPromotion implements DecisionPromotionPort {
       throw new DomainError("forbidden", "Proposal provenance does not match project scope.");
     }
 
-    if (
-      proposal.status !== "READY_FOR_REVIEW" ||
-      change.status !== "READY_FOR_REVIEW"
-    ) {
+    if (proposal.status !== "READY_FOR_REVIEW" || change.status !== "READY_FOR_REVIEW") {
       throw new DomainError("invalid_state", "Proposal is no longer approvable.");
     }
 
@@ -471,10 +452,7 @@ export class PostgresDecisionPromotion implements DecisionPromotionPort {
   }
 }
 
-async function insertEvent(
-  transaction: SqlExecutor,
-  event: CommittedDomainEvent,
-): Promise<void> {
+async function insertEvent(transaction: SqlExecutor, event: CommittedDomainEvent): Promise<void> {
   await transaction.query<Record<string, never>>(
     `INSERT INTO events (
        id, organization_id, project_id, type, occurred_at, correlation_id,
@@ -499,7 +477,7 @@ async function insertEvent(
     await transaction.query<Record<string, never>>(
       `INSERT INTO domain_effect_jobs(event_id,project_id)
        VALUES($1,$2) ON CONFLICT(event_id) DO NOTHING`,
-      [event.id,event.projectId],
+      [event.id, event.projectId],
     );
   }
 }

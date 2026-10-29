@@ -38,22 +38,18 @@ export async function registerGitHubWebhookRoutes(
   // This parser is encapsulated inside the GitHub webhook plugin so other JSON
   // APIs keep Fastify's normal parser. Signature verification always uses the
   // exact bytes received from GitHub, never a re-serialized object.
-  app.addContentTypeParser(
-    "application/json",
-    { parseAs: "buffer" },
-    (request, body, done) => {
-      const rawBody = body as Buffer;
-      rawBodies.set(request, rawBody);
+  app.addContentTypeParser("application/json", { parseAs: "buffer" }, (request, body, done) => {
+    const rawBody = body as Buffer;
+    rawBodies.set(request, rawBody);
 
-      try {
-        done(null, JSON.parse(rawBody.toString("utf8")));
-      } catch (error) {
-        const parseError = error as Error & { statusCode?: number };
-        parseError.statusCode = 400;
-        done(parseError, undefined);
-      }
-    },
-  );
+    try {
+      done(null, JSON.parse(rawBody.toString("utf8")));
+    } catch (error) {
+      const parseError = error as Error & { statusCode?: number };
+      parseError.statusCode = 400;
+      done(parseError, undefined);
+    }
+  });
 
   app.post("/webhooks/github", async (request, reply) => {
     const rawBody = rawBodies.get(request);

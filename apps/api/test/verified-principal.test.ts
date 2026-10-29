@@ -11,28 +11,43 @@ const sign = (claims: Record<string, unknown>, key = secret) => {
   const signature = createHmac("sha256", key).update(`${header}.${payload}`).digest("base64url");
   return `Bearer ${header}.${payload}.${signature}`;
 };
-const valid = { iss: config.issuer, aud: config.audience, sub: "user_1",
-  organizationId: "org_1", exp: 1100, iat: 900 };
+const valid = {
+  iss: config.issuer,
+  aud: config.audience,
+  sub: "user_1",
+  organizationId: "org_1",
+  exp: 1100,
+  iat: 900,
+};
 describe("verified Orbit principal", () => {
   it("validates a signed subject and organization", () => {
     expect(auth.verify(sign(valid))).toEqual({ id: "user_1", organizationId: "org_1" });
   });
   it("fails closed on forged, expired, missing and invalid issuer/audience tokens", () => {
     for (const token of [
-      undefined, "Bearer malformed", sign(valid, "a-different-signing-secret-12345678"),
-      sign({ ...valid, exp: 1000 }), sign({ ...valid, aud: "orbit-events" }),
-      sign({ ...valid, iss: "untrusted" }), sign({ ...valid, organizationId: "" }),
-      sign({ ...valid, nbf: 1100 }), sign({ ...valid, iat: 1200 }),
-    ]) expect(() => auth.verify(token)).toThrowError(
-      expect.objectContaining({ code: "unauthenticated" }),
-    );
+      undefined,
+      "Bearer malformed",
+      sign(valid, "a-different-signing-secret-12345678"),
+      sign({ ...valid, exp: 1000 }),
+      sign({ ...valid, aud: "orbit-events" }),
+      sign({ ...valid, iss: "untrusted" }),
+      sign({ ...valid, organizationId: "" }),
+      sign({ ...valid, nbf: 1100 }),
+      sign({ ...valid, iat: 1200 }),
+    ])
+      expect(() => auth.verify(token)).toThrowError(
+        expect.objectContaining({ code: "unauthenticated" }),
+      );
   });
   it("rejects creation of unconfigured verification", () => {
     expect(() => new HmacJwtAuthVerifier({ ...config, secret: "short" })).toThrow();
   });
   it("never registers review endpoints without auth middleware", async () => {
     const app = await buildApp();
-    expect((await app.inject({ method: "POST", url: "/projects/p/decision-proposals/x/approve" })).statusCode).toBe(404);
+    expect(
+      (await app.inject({ method: "POST", url: "/projects/p/decision-proposals/x/approve" }))
+        .statusCode,
+    ).toBe(404);
     await app.close();
   });
 });

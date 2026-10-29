@@ -5,7 +5,9 @@ import { replayHnJobsDemo } from "./fixtures/hn-jobs-demo.js";
 const connection = process.env.TEST_DATABASE_URL;
 describe.skipIf(!connection)("HN Jobs deterministic demo replay", () => {
   let db: PgDatabase;
-  beforeAll(() => { db = new PgDatabase(connection!); });
+  beforeAll(() => {
+    db = new PgDatabase(connection!);
+  });
   afterAll(async () => {
     await db.query("DELETE FROM organizations WHERE id = 'demo_hn_org'");
     await db.close();
@@ -20,24 +22,31 @@ describe.skipIf(!connection)("HN Jobs deterministic demo replay", () => {
     expect(first.futureSessionContextVersionId).toBe("demo_context_v4");
     expect(first.includedDecisionIds).toContain("D-107");
     expect(first.eventTypes).toEqual([
-      "decision.accepted", "context.version_created", "context.updated",
+      "decision.accepted",
+      "context.version_created",
+      "context.updated",
     ]);
-    expect(first.reviewedOperations).toEqual([{
-      op: "add", path: "/constraints/-",
-      value: {
-        id: "constraint_proposed_demo_decision_proposal",
-        key: "decision.demo_decision_proposal",
-        statement: "Fetch 20 jobs initially and use explicit Load More rather than infinite scroll",
-        sourceDecisionProposalId: "demo_decision_proposal",
-        createdAt: "2026-10-28T12:00:00.000Z",
+    expect(first.reviewedOperations).toEqual([
+      {
+        op: "add",
+        path: "/constraints/-",
+        value: {
+          id: "constraint_proposed_demo_decision_proposal",
+          key: "decision.demo_decision_proposal",
+          statement:
+            "Fetch 20 jobs initially and use explicit Load More rather than infinite scroll",
+          sourceDecisionProposalId: "demo_decision_proposal",
+          createdAt: "2026-10-28T12:00:00.000Z",
+        },
       },
-    }, {
-      op: "add",
-      path: "/attributes/engineeringConstraints",
-      value: {
-        pagination: { mode:"load_more",batchSize:20,infiniteScroll:false },
+      {
+        op: "add",
+        path: "/attributes/engineeringConstraints",
+        value: {
+          pagination: { mode: "load_more", batchSize: 20, infiniteScroll: false },
+        },
       },
-    }]);
+    ]);
     const authoritative = await db.query<{
       status: string;
       source_decision_proposal_id: string;

@@ -39,9 +39,7 @@ function mapRow(row: ContextChangeProposalRow): ContextChangeProposal {
 export class ContextChangeProposalRepository {
   constructor(private readonly database: SqlDatabase) {}
 
-  async create(
-    proposal: ContextChangeProposal,
-  ): Promise<ContextChangeProposal> {
+  async create(proposal: ContextChangeProposal): Promise<ContextChangeProposal> {
     const result = await this.database.query<ContextChangeProposalRow>(
       `INSERT INTO context_change_proposals (
          id,
@@ -96,10 +94,7 @@ export class ContextChangeProposalRepository {
     return mapRow(row);
   }
 
-  async getById(
-    projectId: string,
-    proposalId: string,
-  ): Promise<ContextChangeProposal | null> {
+  async getById(projectId: string, proposalId: string): Promise<ContextChangeProposal | null> {
     const result = await this.database.query<ContextChangeProposalRow>(
       `SELECT
          id,

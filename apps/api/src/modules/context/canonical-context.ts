@@ -40,7 +40,5 @@ export function serializeProjectContext(context: ProjectContext): string {
 }
 
 export function hashProjectContext(context: ProjectContext): string {
-  return createHash("sha256")
-    .update(serializeProjectContext(context), "utf8")
-    .digest("hex");
+  return createHash("sha256").update(serializeProjectContext(context), "utf8").digest("hex");
 }

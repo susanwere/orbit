@@ -2,8 +2,18 @@ import { describe, expect, it } from "vitest";
 import { ProjectEventStream } from "../src/modules/events/project-event-stream.js";
 
 const events = [
-  { id: "a", type: "decision.accepted", occurred_at: "2026-10-28T10:00:00Z", payload: { decisionId: "d1" } },
-  { id: "b", type: "context.updated", occurred_at: "2026-10-28T10:00:01Z", payload: { version: 4 } },
+  {
+    id: "a",
+    type: "decision.accepted",
+    occurred_at: "2026-10-28T10:00:00Z",
+    payload: { decisionId: "d1" },
+  },
+  {
+    id: "b",
+    type: "context.updated",
+    occurred_at: "2026-10-28T10:00:01Z",
+    payload: { version: 4 },
+  },
 ];
 
 class MemoryDatabase {
@@ -14,9 +24,16 @@ class MemoryDatabase {
       return { rows: events.filter((event) => event.id === after) };
     }
     const id = params[2];
-    return { rows: events.filter((event) =>
-      !after || event.occurred_at > after || (event.occurred_at === after && event.id > String(id))
-    ).slice(0, Number(params[3])) };
+    return {
+      rows: events
+        .filter(
+          (event) =>
+            !after ||
+            event.occurred_at > after ||
+            (event.occurred_at === after && event.id > String(id)),
+        )
+        .slice(0, Number(params[3])),
+    };
   }
 }
 
@@ -33,7 +50,8 @@ describe("ProjectEventStream", () => {
 
   it("resolves an exact event-id cursor for reconnection", async () => {
     expect(await stream.cursor("project1", "a")).toEqual({
-      at: "2026-10-28T10:00:00Z", id: "a",
+      at: "2026-10-28T10:00:00Z",
+      id: "a",
     });
   });
 

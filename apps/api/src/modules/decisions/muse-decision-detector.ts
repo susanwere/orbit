@@ -1,19 +1,11 @@
-import {
-  DomainError,
-  type Decision,
-  type OrbitEvent,
-  type ProjectContext,
-} from "@orbit/domain";
+import { DomainError, type Decision, type OrbitEvent, type ProjectContext } from "@orbit/domain";
 import type {
   DecisionCandidate,
   DecisionDetectionInput,
   DecisionDetectionResult,
   DecisionDetector,
 } from "./decision-detector.js";
-import type {
-  StructuredJsonClient,
-  StructuredJsonRequest,
-} from "./meta-model-client.js";
+import type { StructuredJsonClient, StructuredJsonRequest } from "./meta-model-client.js";
 
 const MAX_SOURCE_TEXT = 20_000;
 const MAX_CURRENT_INTENT = 4_000;
@@ -120,9 +112,7 @@ function decisionSummary(decision: Decision) {
     id: decision.id,
     title: bounded(decision.title, MAX_DECISION_TEXT),
     rationale: bounded(decision.rationale, MAX_DECISION_TEXT),
-    scope: decision.scope.slice(0, MAX_LIST_ITEMS).map((item) =>
-      bounded(item, MAX_LIST_ITEM_TEXT),
-    ),
+    scope: decision.scope.slice(0, MAX_LIST_ITEMS).map((item) => bounded(item, MAX_LIST_ITEM_TEXT)),
   };
 }
 
@@ -168,10 +158,7 @@ function validateStringList(value: unknown, field: string): readonly string[] {
 
   return value.map((item) => {
     if (typeof item !== "string") {
-      throw new DomainError(
-        "invalid_model_output",
-        `${field} must contain only strings.`,
-      );
+      throw new DomainError("invalid_model_output", `${field} must contain only strings.`);
     }
     return bounded(item.trim(), MAX_LIST_ITEM_TEXT);
   });
@@ -179,10 +166,7 @@ function validateStringList(value: unknown, field: string): readonly string[] {
 
 function validateOutput(value: unknown): ModelDecisionOutput {
   if (!isRecord(value)) {
-    throw new DomainError(
-      "invalid_model_output",
-      "Decision detector output must be an object.",
-    );
+    throw new DomainError("invalid_model_output", "Decision detector output must be an object.");
   }
 
   const allowedKeys = new Set([
@@ -196,10 +180,7 @@ function validateOutput(value: unknown): ModelDecisionOutput {
   ]);
   for (const key of Object.keys(value)) {
     if (!allowedKeys.has(key)) {
-      throw new DomainError(
-        "invalid_model_output",
-        `Unexpected decision detector field: ${key}`,
-      );
+      throw new DomainError("invalid_model_output", `Unexpected decision detector field: ${key}`);
     }
   }
 
@@ -213,18 +194,12 @@ function validateOutput(value: unknown): ModelDecisionOutput {
     value.confidence < 0 ||
     value.confidence > 1
   ) {
-    throw new DomainError(
-      "invalid_model_output",
-      "confidence must be a number between 0 and 1.",
-    );
+    throw new DomainError("invalid_model_output", "confidence must be a number between 0 and 1.");
   }
 
   for (const field of ["title", "rationale", "evidenceQuote"] as const) {
     if (typeof value[field] !== "string") {
-      throw new DomainError(
-        "invalid_model_output",
-        `${field} must be a string.`,
-      );
+      throw new DomainError("invalid_model_output", `${field} must be a string.`);
     }
   }
 
@@ -239,10 +214,7 @@ function validateOutput(value: unknown): ModelDecisionOutput {
   };
 }
 
-function validateCandidate(
-  output: ModelDecisionOutput,
-  sourceText: string,
-): DecisionCandidate {
+function validateCandidate(output: ModelDecisionOutput, sourceText: string): DecisionCandidate {
   if (!output.title || !output.rationale || !output.evidenceQuote) {
     throw new DomainError(
       "invalid_model_output",
@@ -296,9 +268,7 @@ export class MuseDecisionDetector implements DecisionDetector {
       };
     }
 
-    const rawOutput = await this.client.complete(
-      buildRequest(input, this.model, sourceText),
-    );
+    const rawOutput = await this.client.complete(buildRequest(input, this.model, sourceText));
     const output = validateOutput(rawOutput);
 
     if (!output.isDecision) {

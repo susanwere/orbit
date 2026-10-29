@@ -50,9 +50,9 @@ export class PostgresExecutionImpactService {
     currentContextVersionId: string;
   }): Promise<ImpactSummary> {
     return this.db.transaction(async (tx) => {
-      await tx.query<Record<string, never>>(
-        "SELECT pg_advisory_xact_lock(hashtext($1))", [input.projectId],
-      );
+      await tx.query<Record<string, never>>("SELECT pg_advisory_xact_lock(hashtext($1))", [
+        input.projectId,
+      ]);
       // Committed context events can be replayed after the head has already
       // advanced. Validate both immutable versions below rather than requiring
       // the event to describe the *current* head at replay time.
@@ -60,7 +60,9 @@ export class PostgresExecutionImpactService {
         `SELECT id, content FROM context_versions
          WHERE organization_id = $1 AND project_id = $2 AND id IN ($3, $4)`,
         [
-          input.organizationId, input.projectId, input.previousContextVersionId,
+          input.organizationId,
+          input.projectId,
+          input.previousContextVersionId,
           input.currentContextVersionId,
         ],
       );
@@ -123,7 +125,10 @@ export class PostgresExecutionImpactService {
           createdAt: this.clock(),
         };
         const decision = evaluateExecutionImpact({
-          previous, current, snapshot, mission: session.mission,
+          previous,
+          current,
+          snapshot,
+          mission: session.mission,
           allowedPaths: session.contract_allowed_paths,
         });
         if (decision.result === "ALLOW_CONTINUE") {
@@ -145,7 +150,10 @@ export class PostgresExecutionImpactService {
             causation_id, actor_type, actor_id, entity_type, entity_id, payload
           ) VALUES ($1,$2,$3,'execution.review_required',$4,$5,$6,'system','orbit','AgentSession',$7,$8::jsonb)`,
           [
-            eventId, input.organizationId, input.projectId, now,
+            eventId,
+            input.organizationId,
+            input.projectId,
+            now,
             `context-impact:${input.currentContextVersionId}`,
             `context-version:${input.currentContextVersionId}`,
             session.id,
@@ -163,10 +171,16 @@ export class PostgresExecutionImpactService {
             trigger_context_version_id,reason,affected_paths)
           VALUES($1,$2,$3,$4,$5,$6,$7,$8::jsonb)
           ON CONFLICT(project_id,agent_session_id,trigger_context_version_id) DO NOTHING`,
-          [`gate_${this.newId()}`,input.organizationId,input.projectId,session.id,
-            session.human_owner_principal_id,input.currentContextVersionId,
-            'Material context change requires human review',
-            JSON.stringify(decision.affectedPaths)],
+          [
+            `gate_${this.newId()}`,
+            input.organizationId,
+            input.projectId,
+            session.id,
+            session.human_owner_principal_id,
+            input.currentContextVersionId,
+            "Material context change requires human review",
+            JSON.stringify(decision.affectedPaths),
+          ],
         );
         await tx.query<Record<string, never>>(
           `INSERT INTO notifications (
@@ -177,8 +191,14 @@ export class PostgresExecutionImpactService {
              'Review material changes before resuming work.',$6)
            ON CONFLICT(project_id,recipient_principal_id,type,subject_type,subject_id)
            DO NOTHING`,
-          [`notification_${this.newId()}`, input.organizationId, input.projectId,
-            session.human_owner_principal_id, session.id, now],
+          [
+            `notification_${this.newId()}`,
+            input.organizationId,
+            input.projectId,
+            session.human_owner_principal_id,
+            session.id,
+            now,
+          ],
         );
       }
       return { reviewed, continued };

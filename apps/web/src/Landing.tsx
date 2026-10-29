@@ -16,19 +16,54 @@ interface Orbiter {
 // each other — since a whole ring rotates together, they can never collide.
 const ORBITERS: Orbiter[] = [
   // Orbit 1 — why: what governs the work
-  { label: "Decision", glyph: "◐", ring: 0, angle: 0, tone: "indigo", note: "What we decided — and why" },
+  {
+    label: "Decision",
+    glyph: "◐",
+    ring: 0,
+    angle: 0,
+    tone: "indigo",
+    note: "What we decided — and why",
+  },
   { label: "Guardrail", glyph: "⬡", ring: 0, angle: 0, tone: "amber", note: "What is allowed" },
-  { label: "Context", glyph: "☰", ring: 0, angle: 0, tone: "indigo", note: "Authorized product memory" },
-  { label: "Evidence", glyph: "✓", ring: 0, angle: 0, tone: "green", note: "Proof the work honors the intent" },
+  {
+    label: "Context",
+    glyph: "☰",
+    ring: 0,
+    angle: 0,
+    tone: "indigo",
+    note: "Authorized product memory",
+  },
+  {
+    label: "Evidence",
+    glyph: "✓",
+    ring: 0,
+    angle: 0,
+    tone: "green",
+    note: "Proof the work honors the intent",
+  },
   // Orbit 2 — execution: who/what does the work
   { label: "Work Item", glyph: "▦", ring: 1, angle: 0, tone: "cyan", note: "Accountable work" },
   { label: "Agent", glyph: "⚙", ring: 1, angle: 0, tone: "cyan", note: "Scoped execution" },
-  { label: "Human Gate", glyph: "◆", ring: 1, angle: 0, tone: "amber", note: "Judgment, when it matters" },
+  {
+    label: "Human Gate",
+    glyph: "◆",
+    ring: 1,
+    angle: 0,
+    tone: "amber",
+    note: "Judgment, when it matters",
+  },
   { label: "Human", glyph: "●", ring: 1, angle: 0, tone: "green", note: "Owns the outcome" },
   // Orbit 3 — proof & systems: what the work touches and produces
   { label: "CI", glyph: "▣", ring: 2, angle: 0, tone: "muted", note: "Deterministic checks" },
   { label: "Release", glyph: "➤", ring: 2, angle: 0, tone: "green", note: "Shipped outcome" },
-  { label: "Pull Request", glyph: "⑂", ring: 2, angle: 0, tone: "muted", note: "External artifact" },
+  {
+    label: "Pull Request",
+    glyph: "⑂",
+    ring: 2,
+    angle: 0,
+    tone: "muted",
+    note: "External artifact",
+  },
   { label: "Outcome", glyph: "◎", ring: 2, angle: 0, tone: "indigo", note: "What we learned" },
 ];
 
@@ -108,7 +143,13 @@ export function Landing({ onEnter }: { onEnter: () => void }) {
           </div>
 
           {ORBITERS.map((o, i) => (
-            <OrbiterNode key={o.label} orbiter={o} angle={angleByLabel.get(o.label) ?? 0} isActive={i === active} onHover={() => setActive(i)} />
+            <OrbiterNode
+              key={o.label}
+              orbiter={o}
+              angle={angleByLabel.get(o.label) ?? 0}
+              isActive={i === active}
+              onHover={() => setActive(i)}
+            />
           ))}
         </div>
 
@@ -121,16 +162,30 @@ export function Landing({ onEnter }: { onEnter: () => void }) {
             <span>— {current.note}</span>
           </p>
           <div className="landing-ctas">
-            <button className="cta-primary" onClick={onEnter}>View projects</button>
+            <button className="cta-primary" onClick={onEnter}>
+              View projects
+            </button>
           </div>
-          <p className="landing-foot">Work, agents, decisions and evidence — moving around one outcome.</p>
+          <p className="landing-foot">
+            Work, agents, decisions and evidence — moving around one outcome.
+          </p>
         </div>
       </section>
     </main>
   );
 }
 
-function OrbiterNode({ orbiter, angle, isActive, onHover }: { orbiter: Orbiter; angle: number; isActive: boolean; onHover: () => void }) {
+function OrbiterNode({
+  orbiter,
+  angle,
+  isActive,
+  onHover,
+}: {
+  orbiter: Orbiter;
+  angle: number;
+  isActive: boolean;
+  onHover: () => void;
+}) {
   const r = RING_R[orbiter.ring]!;
   const speed = RING_SPEED[orbiter.ring]!;
   const spinClass = RING_DIR[orbiter.ring] === 1 ? "spin-cw" : "spin-ccw";

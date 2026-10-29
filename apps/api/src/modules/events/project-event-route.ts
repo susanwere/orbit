@@ -55,9 +55,12 @@ export async function registerProjectEventRoutes(
             const batch = await options.stream.read(projectId, cursor);
             for (const event of batch.events) {
               if (closed) break;
-              response.write(`id: ${event.id}\nevent: ${event.type}\ndata: ${JSON.stringify({
-                occurredAt: event.occurredAt, payload: event.payload,
-              })}\n\n`);
+              response.write(
+                `id: ${event.id}\nevent: ${event.type}\ndata: ${JSON.stringify({
+                  occurredAt: event.occurredAt,
+                  payload: event.payload,
+                })}\n\n`,
+              );
               cursor = { at: event.occurredAt, id: event.id };
             }
             if (batch.events.length < 100) break;

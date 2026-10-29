@@ -3,8 +3,14 @@ import type { SqlDatabase } from "@orbit/db";
 import type { ProjectAuthorizationService } from "../projects/project-authorization.js";
 
 export type ProvenanceStage =
-  | "intent" | "work_item" | "pull_request" | "decision"
-  | "context_version" | "agent_session" | "ci_evidence" | "release";
+  | "intent"
+  | "work_item"
+  | "pull_request"
+  | "decision"
+  | "context_version"
+  | "agent_session"
+  | "ci_evidence"
+  | "release";
 export interface ProvenanceNode {
   id: string;
   stage: ProvenanceStage;
@@ -25,26 +31,43 @@ export interface ProvenanceTrace {
   missingStages: ProvenanceStage[];
 }
 
-interface IntentRow extends Record<string, unknown> { id: string; statement: string }
+interface IntentRow extends Record<string, unknown> {
+  id: string;
+  statement: string;
+}
 interface DecisionRow extends Record<string, unknown> {
-  id: string; source_artifact_id: string; title: string;
-  status: string; supersedes_decision_id: string | null;
+  id: string;
+  source_artifact_id: string;
+  title: string;
+  status: string;
+  supersedes_decision_id: string | null;
   superseded_by_decision_id: string | null;
 }
 interface ArtifactRow extends Record<string, unknown> {
-  id: string; type: string; title: string | null; url: string | null;
+  id: string;
+  type: string;
+  title: string | null;
+  url: string | null;
   metadata: Record<string, unknown>;
 }
 interface VersionRow extends Record<string, unknown> {
-  id: string; version_number: number;
+  id: string;
+  version_number: number;
 }
 interface SessionRow extends Record<string, unknown> {
-  id: string; mission: string; state: string; source_context_version_id: string;
+  id: string;
+  mission: string;
+  state: string;
+  source_context_version_id: string;
 }
 interface EvidenceRow extends Record<string, unknown> {
-  id: string; title: string; result: string; artifact_ref: string | null;
+  id: string;
+  title: string;
+  result: string;
+  artifact_ref: string | null;
   agent_session_id: string | null;
-  scope_type: string; scope_id: string;
+  scope_type: string;
+  scope_id: string;
 }
 const reference = (value: unknown): string | undefined =>
   typeof value === "string" && value.trim() ? value : undefined;
@@ -59,11 +82,7 @@ export class WhyProvenanceQuery {
     private readonly authorization: ProjectAuthorizationService,
   ) {}
 
-  async get(
-    principalId: string,
-    projectId: string,
-    decisionId: string,
-  ): Promise<ProvenanceTrace> {
+  async get(principalId: string, projectId: string, decisionId: string): Promise<ProvenanceTrace> {
     const actor = await this.authorization.authorize(principalId, projectId, "read");
     const decisionRows = await this.db.query<DecisionRow>(
       `SELECT id, source_artifact_id, title, status,
@@ -87,8 +106,11 @@ export class WhyProvenanceQuery {
              WHERE organization_id = $1 AND project_id = $2 AND id IN ($4,$5)
            ))`,
         [
-          actor.organizationId, projectId, decision.source_artifact_id,
-          decision.supersedes_decision_id ?? "", decision.superseded_by_decision_id ?? "",
+          actor.organizationId,
+          projectId,
+          decision.source_artifact_id,
+          decision.supersedes_decision_id ?? "",
+          decision.superseded_by_decision_id ?? "",
         ],
       ),
       this.db.query<VersionRow>(
@@ -102,8 +124,12 @@ export class WhyProvenanceQuery {
           supersedes_decision_id, superseded_by_decision_id
          FROM decisions WHERE organization_id = $1 AND project_id = $2
            AND id IN ($3, $4)`,
-        [actor.organizationId, projectId,
-          decision.supersedes_decision_id ?? "", decision.superseded_by_decision_id ?? ""],
+        [
+          actor.organizationId,
+          projectId,
+          decision.supersedes_decision_id ?? "",
+          decision.superseded_by_decision_id ?? "",
+        ],
       ),
     ]);
 
@@ -119,8 +145,10 @@ export class WhyProvenanceQuery {
       }
     };
     const decisionNodeId = insert({
-      id: `decision:${decision.id}`, stage: "decision",
-      title: decision.title, status: decision.status,
+      id: `decision:${decision.id}`,
+      stage: "decision",
+      title: decision.title,
+      status: decision.status,
     });
     for (const row of intents.rows) {
       insert({ id: `intent:${row.id}`, stage: "intent", title: row.statement });
@@ -129,11 +157,18 @@ export class WhyProvenanceQuery {
 
     const source = artifacts.rows.find((a) => a.id === decision.source_artifact_id);
     if (source) {
-      const sourceIsPr = ["pull_request", "pull_request_comment", "pull_request_review", "issue_comment"].includes(source.type);
+      const sourceIsPr = [
+        "pull_request",
+        "pull_request_comment",
+        "pull_request_review",
+        "issue_comment",
+      ].includes(source.type);
       if (sourceIsPr) {
         const sourceId = insert({
-          id: `artifact:${source.id}`, stage: "pull_request",
-          title: source.title ?? "GitHub discussion", url: source.url ?? undefined,
+          id: `artifact:${source.id}`,
+          stage: "pull_request",
+          title: source.title ?? "GitHub discussion",
+          url: source.url ?? undefined,
         });
         connect(sourceId, decisionNodeId, "source decision evidence");
         const workItemId = reference(source.metadata?.workItemArtifactId);
@@ -146,8 +181,10 @@ export class WhyProvenanceQuery {
           const item = linkedWork.rows[0];
           if (item) {
             const workNode = insert({
-              id: `artifact:${item.id}`, stage: "work_item",
-              title: item.title ?? "Work item", url: item.url ?? undefined,
+              id: `artifact:${item.id}`,
+              stage: "work_item",
+              title: item.title ?? "Work item",
+              url: item.url ?? undefined,
             });
             connect(workNode, sourceId, "explicit work-item reference");
           }
@@ -156,8 +193,10 @@ export class WhyProvenanceQuery {
     }
     for (const relative of superseded.rows) {
       const id = insert({
-        id: `decision:${relative.id}`, stage: "decision",
-        title: relative.title, status: relative.status,
+        id: `decision:${relative.id}`,
+        stage: "decision",
+        title: relative.title,
+        status: relative.status,
       });
       if (relative.id === decision.supersedes_decision_id) {
         connect(id, decisionNodeId, "superseded by");
@@ -168,26 +207,29 @@ export class WhyProvenanceQuery {
     const versionIds = versions.rows.map((version) => version.id);
     for (const version of versions.rows) {
       const id = insert({
-        id: `context:${version.id}`, stage: "context_version",
+        id: `context:${version.id}`,
+        stage: "context_version",
         title: `Context v${version.version_number}`,
       });
       connect(decisionNodeId, id, "created authoritative context");
     }
     const sessions = versionIds.length
       ? await this.db.query<SessionRow>(
-        `SELECT s.id, s.mission, s.state, cs.source_context_version_id
+          `SELECT s.id, s.mission, s.state, cs.source_context_version_id
          FROM agent_sessions s
          JOIN context_snapshots cs ON cs.id = s.context_snapshot_id AND cs.project_id = s.project_id
          WHERE s.organization_id = $1 AND s.project_id = $2
            AND cs.source_context_version_id = ANY($3::text[])
          ORDER BY s.created_at DESC LIMIT 200`,
-        [actor.organizationId, projectId, versionIds],
-      )
+          [actor.organizationId, projectId, versionIds],
+        )
       : { rows: [] as SessionRow[] };
     for (const session of sessions.rows) {
       const id = insert({
-        id: `session:${session.id}`, stage: "agent_session",
-        title: session.mission, status: session.state,
+        id: `session:${session.id}`,
+        stage: "agent_session",
+        title: session.mission,
+        status: session.state,
       });
       connect(`context:${session.source_context_version_id}`, id, "agent snapshot from context");
     }
@@ -202,8 +244,10 @@ export class WhyProvenanceQuery {
     );
     for (const record of evidence.rows) {
       const id = insert({
-        id: `evidence:${record.id}`, stage: "ci_evidence",
-        title: record.title, status: record.result,
+        id: `evidence:${record.id}`,
+        stage: "ci_evidence",
+        title: record.title,
+        status: record.result,
         url: record.artifact_ref ?? undefined,
       });
       if (record.agent_session_id) {
@@ -222,8 +266,10 @@ export class WhyProvenanceQuery {
     );
     for (const release of releases.rows) {
       const id = insert({
-        id: `artifact:${release.id}`, stage: "release",
-        title: release.title ?? "Release", url: release.url ?? undefined,
+        id: `artifact:${release.id}`,
+        stage: "release",
+        title: release.title ?? "Release",
+        url: release.url ?? undefined,
       });
       const sessionId = reference(release.metadata?.agentSessionId);
       const versionId = reference(release.metadata?.contextVersionId);
@@ -232,11 +278,20 @@ export class WhyProvenanceQuery {
       else connect(decisionNodeId, id, "released decision");
     }
     const stages: ProvenanceStage[] = [
-      "intent", "work_item", "pull_request", "decision",
-      "context_version", "agent_session", "ci_evidence", "release",
+      "intent",
+      "work_item",
+      "pull_request",
+      "decision",
+      "context_version",
+      "agent_session",
+      "ci_evidence",
+      "release",
     ];
     return {
-      projectId, decisionId, nodes, links,
+      projectId,
+      decisionId,
+      nodes,
+      links,
       missingStages: stages.filter((stage) => !nodes.some((node) => node.stage === stage)),
     };
   }

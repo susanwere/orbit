@@ -6,10 +6,7 @@ import {
 } from "@orbit/domain";
 import type { DecisionCandidate } from "../decisions/decision-detector.js";
 import { paginationFromEvidence } from "./typed-project-context.js";
-import {
-  applyContextChangeOperations,
-  asJsonValue,
-} from "./context-mutation.js";
+import { applyContextChangeOperations, asJsonValue } from "./context-mutation.js";
 
 export const DEFAULT_PROPOSAL_ALLOWED_PATHS = [
   "/constraints/-",
@@ -58,10 +55,7 @@ export function generateContextChangeProposal(
   input: GenerateContextChangeProposalInput,
 ): ContextChangeProposal {
   if (input.baseContextVersion.projectId !== input.projectId) {
-    throw new DomainError(
-      "project_mismatch",
-      "Base ContextVersion belongs to another project.",
-    );
+    throw new DomainError("project_mismatch", "Base ContextVersion belongs to another project.");
   }
 
   if (input.baseContextVersion.organizationId !== input.organizationId) {
@@ -72,18 +66,17 @@ export function generateContextChangeProposal(
   }
 
   if (!input.candidate.title.trim()) {
-    throw new DomainError(
-      "invalid_decision_candidate",
-      "Decision candidate title is required.",
-    );
+    throw new DomainError("invalid_decision_candidate", "Decision candidate title is required.");
   }
 
   const operations: ContextChangeOperation[] = [decisionConstraintOperation(input)];
   const pagination = paginationFromEvidence(input.candidate.evidenceQuote);
   if (pagination) {
     const current = input.baseContextVersion.content.attributes.engineeringConstraints;
-    const engineering = current && typeof current === "object" && !Array.isArray(current)
-      ? current as Record<string, import("@orbit/domain").JsonValue> : {};
+    const engineering =
+      current && typeof current === "object" && !Array.isArray(current)
+        ? (current as Record<string, import("@orbit/domain").JsonValue>)
+        : {};
     operations.push({
       op: current === undefined ? "add" : "replace",
       path: "/attributes/engineeringConstraints",
@@ -112,7 +105,6 @@ export function generateContextChangeProposal(
   };
 }
 
-
 export interface BuildContextChangeRevisionInput {
   readonly id: string;
   readonly organizationId: string;
@@ -132,10 +124,16 @@ export function buildContextChangeRevision(
     throw new DomainError("project_mismatch", "Base ContextVersion belongs to another project.");
   }
   if (input.baseContextVersion.organizationId !== input.organizationId) {
-    throw new DomainError("organization_mismatch", "Base ContextVersion belongs to another organization.");
+    throw new DomainError(
+      "organization_mismatch",
+      "Base ContextVersion belongs to another organization.",
+    );
   }
   if (input.revision < 1 || !Number.isInteger(input.revision)) {
-    throw new DomainError("validation", "Context Change Proposal revision must be a positive integer.");
+    throw new DomainError(
+      "validation",
+      "Context Change Proposal revision must be a positive integer.",
+    );
   }
 
   const preview = applyContextChangeOperations(

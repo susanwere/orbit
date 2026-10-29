@@ -7,19 +7,17 @@ export interface ImpactDecision {
   changedPaths: readonly string[];
   affectedPaths: readonly string[];
 }
-const equal = (a: unknown, b: unknown) =>
-  serializeCanonicalJson(a) === serializeCanonicalJson(b);
+const equal = (a: unknown, b: unknown) => serializeCanonicalJson(a) === serializeCanonicalJson(b);
 const matches = (mission: string, text: string) => {
-  const missionTokens = mission.toLowerCase().split(/[^a-z0-9]+/).filter((t) => t.length > 3);
+  const missionTokens = mission
+    .toLowerCase()
+    .split(/[^a-z0-9]+/)
+    .filter((t) => t.length > 3);
   return missionTokens.some((token) => text.toLowerCase().includes(token));
 };
-const pointer = (segment: string) =>
-  segment.replace(/~/g, "~0").replace(/\//g, "~1");
+const pointer = (segment: string) => segment.replace(/~/g, "~0").replace(/\//g, "~1");
 
-export function diffProjectContext(
-  previous: ProjectContext,
-  next: ProjectContext,
-): string[] {
+export function diffProjectContext(previous: ProjectContext, next: ProjectContext): string[] {
   const paths: string[] = [];
   if (!equal(previous.currentIntent, next.currentIntent)) paths.push("/currentIntent");
   const oldConstraints = new Map(previous.constraints.map((c) => [c.id, c]));
@@ -29,9 +27,7 @@ export function diffProjectContext(
       paths.push(`/constraints/${pointer(id)}`);
     }
   }
-  const keys = new Set([
-    ...Object.keys(previous.attributes), ...Object.keys(next.attributes),
-  ]);
+  const keys = new Set([...Object.keys(previous.attributes), ...Object.keys(next.attributes)]);
   for (const key of keys) {
     if (!equal(previous.attributes[key] ?? null, next.attributes[key] ?? null)) {
       paths.push(`/attributes/${pointer(key)}`);
@@ -57,8 +53,8 @@ export function evaluateExecutionImpact(input: {
     }
     if (!path.startsWith("/constraints/")) return false;
     const id = path.slice("/constraints/".length).replace(/~1/g, "/").replace(/~0/g, "~");
-    const constraint = current.constraints.find((c) => c.id === id) ??
-      previous.constraints.find((c) => c.id === id);
+    const constraint =
+      current.constraints.find((c) => c.id === id) ?? previous.constraints.find((c) => c.id === id);
     if (!constraint) return false;
     return (
       snapshot.includedConstraintIds.includes(id) ||

@@ -6,12 +6,32 @@
  * Do not treat planned onboarding, planning or provider integrations as live APIs.
  */
 import type {
-  AgentSession, ContextChangeOperation, ContextChangeProposal, ContextSnapshot,
-  ContextVersion, Decision, DecisionProposal, Intent, Notification, ProjectContext,
+  AgentSession,
+  ContextChangeOperation,
+  ContextChangeProposal,
+  ContextSnapshot,
+  ContextVersion,
+  Decision,
+  DecisionProposal,
+  Intent,
+  Notification,
+  ProjectContext,
   ProjectContextPreview,
 } from "@orbit/domain";
 
-export type { AgentSession, ContextChangeOperation, ContextChangeProposal, ContextSnapshot, ContextVersion, Decision, DecisionProposal, Intent, Notification, ProjectContext, ProjectContextPreview };
+export type {
+  AgentSession,
+  ContextChangeOperation,
+  ContextChangeProposal,
+  ContextSnapshot,
+  ContextVersion,
+  Decision,
+  DecisionProposal,
+  Intent,
+  Notification,
+  ProjectContext,
+  ProjectContextPreview,
+};
 
 export interface DecisionReviewBundle {
   readonly decisionProposal: DecisionProposal;
@@ -20,7 +40,10 @@ export interface DecisionReviewBundle {
 export type DecisionReviewState =
   | { readonly status: "idle" | "loading" }
   | { readonly status: "ready" | "editing"; readonly review: DecisionReviewBundle }
-  | { readonly status: "approving" | "rejecting" | "rebasing"; readonly review: DecisionReviewBundle }
+  | {
+      readonly status: "approving" | "rejecting" | "rebasing";
+      readonly review: DecisionReviewBundle;
+    }
   | { readonly status: "stale"; readonly review: DecisionReviewBundle; readonly message: string }
   | { readonly status: "applied" | "rejected" }
   | { readonly status: "failed"; readonly message: string };
@@ -77,9 +100,18 @@ export interface ProjectStreamEvent {
 }
 
 export type OrbitNodeKind =
-  | "decision" | "guardrail" | "context" | "evidence"
-  | "work_item" | "agent" | "human_gate" | "human"
-  | "ci" | "release" | "pull_request" | "outcome";
+  | "decision"
+  | "guardrail"
+  | "context"
+  | "evidence"
+  | "work_item"
+  | "agent"
+  | "human_gate"
+  | "human"
+  | "ci"
+  | "release"
+  | "pull_request"
+  | "outcome";
 export type OrbitNodeStatus = "empty" | "idle" | "active" | "attention" | "blocked" | "error";
 export interface OrbitNodeModel {
   readonly id: OrbitNodeKind;
@@ -101,16 +133,38 @@ export interface ProjectDraft {
 export interface ProposedPlan {
   readonly id: string;
   readonly projectId: string;
-  readonly workItems: readonly { readonly title: string; readonly acceptanceCriteria: readonly string[] }[];
+  readonly workItems: readonly {
+    readonly title: string;
+    readonly acceptanceCriteria: readonly string[];
+  }[];
   readonly status: "proposed" | "awaiting_approval" | "approved" | "rejected";
 }
 export type IntegrationCapabilityState =
-  | { readonly status: "not_implemented" | "disconnected" | "authorization_required" | "unavailable"; readonly provider: string }
-  | { readonly status: "connected"; readonly provider: string; readonly capabilities: readonly string[] };
+  | {
+      readonly status:
+        | "not_implemented"
+        | "disconnected"
+        | "authorization_required"
+        | "unavailable";
+      readonly provider: string;
+    }
+  | {
+      readonly status: "connected";
+      readonly provider: string;
+      readonly capabilities: readonly string[];
+    };
 
 /** UI-level contract for explicitly *planned* capabilities, not a REST response. */
 export type FeatureAvailability =
-  | { readonly status: "not_implemented"; readonly feature: "project_onboarding" | "intent_submission" | "planning" | "provider_oauth" | "provider_execution" }
+  | {
+      readonly status: "not_implemented";
+      readonly feature:
+        | "project_onboarding"
+        | "intent_submission"
+        | "planning"
+        | "provider_oauth"
+        | "provider_execution";
+    }
   | { readonly status: "available" };
 
 export type ApiFailure =
@@ -118,7 +172,11 @@ export type ApiFailure =
   | { readonly kind: "forbidden"; readonly status: 403; readonly message: string }
   | { readonly kind: "not_found"; readonly status: 404; readonly message: string }
   | { readonly kind: "stale_context_version"; readonly status: 409; readonly message: string }
-  | { readonly kind: "validation" | "invalid_state" | "other"; readonly status: number; readonly message: string };
+  | {
+      readonly kind: "validation" | "invalid_state" | "other";
+      readonly status: number;
+      readonly message: string;
+    };
 
 export type LoadState<T> =
   | { readonly status: "idle" | "loading" }

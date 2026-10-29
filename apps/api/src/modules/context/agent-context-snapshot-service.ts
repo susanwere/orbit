@@ -1,5 +1,10 @@
 import { randomUUID } from "node:crypto";
-import { DomainError, type AgentDefinition, type ContextSnapshot, type Decision } from "@orbit/domain";
+import {
+  DomainError,
+  type AgentDefinition,
+  type ContextSnapshot,
+  type Decision,
+} from "@orbit/domain";
 import type { SqlDatabase, SqlExecutor } from "@orbit/db";
 import type { ProjectAuthorizationService } from "../projects/project-authorization.js";
 import { resolveContextSnapshot } from "./resolve-agent-context.js";
@@ -27,7 +32,7 @@ interface DecisionRow extends Record<string, unknown> {
   approved_by_principal_id: string;
   created_at: Date | string;
 }
-const iso = (value: Date | string) => value instanceof Date ? value.toISOString() : value;
+const iso = (value: Date | string) => (value instanceof Date ? value.toISOString() : value);
 
 export class AgentContextSnapshotService {
   constructor(
@@ -50,12 +55,15 @@ export class AgentContextSnapshotService {
     return this.database.transaction(async (tx) => this.createWithinTransaction(tx, input));
   }
 
-  async createWithinTransaction(tx: SqlExecutor, input: {
-    projectId: string;
-    requestedByPrincipalId: string;
-    agent: AgentDefinition;
-    mission: string;
-  }): Promise<ContextSnapshot> {
+  async createWithinTransaction(
+    tx: SqlExecutor,
+    input: {
+      projectId: string;
+      requestedByPrincipalId: string;
+      agent: AgentDefinition;
+      mission: string;
+    },
+  ): Promise<ContextSnapshot> {
     // Lock current head before resolving; an approved context change cannot
     // sneak in between reading the head and persisting the snapshot.
     const result = await tx.query<CurrentVersionRow>(
@@ -75,20 +83,29 @@ export class AgentContextSnapshotService {
       [input.projectId, row.organization_id],
     );
     const active: Decision[] = decisions.rows.map((d) => ({
-      id: d.id, organizationId: d.organization_id, projectId: d.project_id,
+      id: d.id,
+      organizationId: d.organization_id,
+      projectId: d.project_id,
       sourceDecisionProposalId: d.source_decision_proposal_id,
       sourceArtifactId: d.source_artifact_id,
-      title: d.title, rationale: d.rationale,
-      alternatives: d.alternatives, scope: d.scope,
-      status: d.status, approvedByPrincipalId: d.approved_by_principal_id,
+      title: d.title,
+      rationale: d.rationale,
+      alternatives: d.alternatives,
+      scope: d.scope,
+      status: d.status,
+      approvedByPrincipalId: d.approved_by_principal_id,
       createdAt: iso(d.created_at),
     }));
     const snapshot = resolveContextSnapshot({
       id: `snapshot_${this.id()}`,
       version: {
-        id: row.id, organizationId: row.organization_id, projectId: row.project_id,
-        versionNumber: row.version_number, content: row.content,
-        contentHash: row.content_hash, createdAt: iso(row.created_at),
+        id: row.id,
+        organizationId: row.organization_id,
+        projectId: row.project_id,
+        versionNumber: row.version_number,
+        content: row.content,
+        contentHash: row.content_hash,
+        createdAt: iso(row.created_at),
       },
       activeDecisions: active,
       agent: input.agent,
@@ -107,14 +124,23 @@ export class AgentContextSnapshotService {
         $9::jsonb, $10::jsonb, $11::jsonb, $12,
         $13::jsonb, $14::jsonb, $15::jsonb, $16::jsonb, $17)`,
       [
-        snapshot.id, snapshot.organizationId, snapshot.projectId,
-        snapshot.sourceContextVersionId, snapshot.mission,
-        JSON.stringify(snapshot.items), JSON.stringify(snapshot.includedDecisionIds),
-        JSON.stringify(snapshot.includedConstraintIds), JSON.stringify(snapshot.includedPaths),
-        JSON.stringify(snapshot.excludedPaths), JSON.stringify(snapshot.authorizationBasis),
-        snapshot.maxClassification, JSON.stringify(snapshot.allowedRepositories),
-        JSON.stringify(snapshot.allowedPaths), JSON.stringify(snapshot.forbiddenData),
-        JSON.stringify(snapshot.approvalRequiredActions), snapshot.createdAt,
+        snapshot.id,
+        snapshot.organizationId,
+        snapshot.projectId,
+        snapshot.sourceContextVersionId,
+        snapshot.mission,
+        JSON.stringify(snapshot.items),
+        JSON.stringify(snapshot.includedDecisionIds),
+        JSON.stringify(snapshot.includedConstraintIds),
+        JSON.stringify(snapshot.includedPaths),
+        JSON.stringify(snapshot.excludedPaths),
+        JSON.stringify(snapshot.authorizationBasis),
+        snapshot.maxClassification,
+        JSON.stringify(snapshot.allowedRepositories),
+        JSON.stringify(snapshot.allowedPaths),
+        JSON.stringify(snapshot.forbiddenData),
+        JSON.stringify(snapshot.approvalRequiredActions),
+        snapshot.createdAt,
       ],
     );
     return snapshot;
