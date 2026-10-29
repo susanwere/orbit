@@ -27,10 +27,15 @@ export interface ProjectCreationApi {
   createProject(name: string): Promise<CreatedProject>;
   connectRepository(projectId: string, repository: string): Promise<ConnectedRepository>;
 }
+export interface ProjectApiOptions {
+  readonly onUnauthorized?: (authorizationHeader: string) => void;
+}
+
 export function createProjectApi(
   baseUrl: string,
   getAuthorization: () => string | undefined,
   fetchImpl: typeof fetch = fetch,
+  options: ProjectApiOptions = {},
 ): ProjectCreationApi {
   const send = async <T>(path: string, body: Record<string, string>): Promise<T> => {
     const authorization = getAuthorization();
@@ -46,6 +51,13 @@ export function createProjectApi(
       throw new ProjectApiError(0, "Connection unavailable. Your changes have been preserved.");
     }
     if (!response.ok) {
+      if (response.status === 401) {
+        options.onUnauthorized?.(authorization);
+        throw new ProjectApiError(401, "Your session has expired. Sign in again.");
+      }
+      if (response.status === 403) {
+        throw new ProjectApiError(403, "You do not have permission to access this project.");
+      }
       const payload: unknown = await response.json().catch(() => null);
       const message =
         payload &&
