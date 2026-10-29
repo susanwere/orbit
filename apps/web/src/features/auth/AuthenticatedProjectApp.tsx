@@ -33,28 +33,26 @@ export function AuthenticatedProjectApp({
       return;
     }
 
-    const expirationTimer = window.setTimeout(() => {
-      sessionStore.getSession();
-    }, Math.min(remainingSessionMilliseconds, 2_147_483_647));
+    const expirationTimer = window.setTimeout(
+      () => {
+        sessionStore.getSession();
+      },
+      Math.min(remainingSessionMilliseconds, 2_147_483_647),
+    );
 
     return () => window.clearTimeout(expirationTimer);
   }, [authenticatedSession, sessionStore]);
 
   const projectApi = useMemo(
     () =>
-      createProjectApi(
-        apiBaseUrl,
-        () => sessionStore.getAuthorizationHeader(),
-        fetch,
-        {
-          onUnauthorized: (failedAuthorizationHeader) => {
-            // Do not sign out a replacement account after a stale request fails.
-            if (sessionStore.getAuthorizationHeader() === failedAuthorizationHeader) {
-              sessionStore.setSession(null);
-            }
-          },
+      createProjectApi(apiBaseUrl, () => sessionStore.getAuthorizationHeader(), fetch, {
+        onUnauthorized: (failedAuthorizationHeader) => {
+          // Do not sign out a replacement account after a stale request fails.
+          if (sessionStore.getAuthorizationHeader() === failedAuthorizationHeader) {
+            sessionStore.setSession(null);
+          }
         },
-      ),
+      }),
     [apiBaseUrl, sessionStore],
   );
 
