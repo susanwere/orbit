@@ -5,7 +5,8 @@ These rules apply to all contributors and coding agents working on this reposito
 ## Readability and formatting
 - Write clear, human-readable source. Never minify application code.
 - Use descriptive names and meaningful whitespace. Avoid dense one-line functions and compressed conditionals.
-- Run `npm run format` on modified source files before opening a pull request.
+- Run `npm run format:api` for backend files, `npm run format:web` for frontend files, or `npm run format` across both apps and shared packages before opening a pull request.
+- CI checks changed TypeScript, JavaScript, JSON, and stylesheets in BOTH apps and shared packages. The repository-wide `npm run format:check` can be used once legacy files have been formatted.
 - Follow the committed Prettier configuration. CI rejects unformatted changed source files.
 - Do not bypass or disable formatting, typechecking, tests, or build checks to merge a change.
 
