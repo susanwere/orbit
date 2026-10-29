@@ -86,6 +86,17 @@ jobs:
             await browser.close();
           }
           NODE
+      - name: Start authentication-enabled frontend
+        run: |
+          VITE_GOOGLE_CLIENT_ID=ci-google-client VITE_API_BASE_URL=http://127.0.0.1:4000 npm run dev -w @orbit/web -- --port 5174 > /tmp/orbit-auth-vite.log 2>&1 &
+          for attempt in $(seq 1 60); do
+            if curl -fsS http://127.0.0.1:5174/ >/dev/null; then exit 0; fi
+            sleep 2
+          done
+          cat /tmp/orbit-auth-vite.log
+          exit 1
+      - name: Verify mocked browser authentication and project creation
+        run: node scripts/auth-browser-smoke.mjs
       - name: Upload screenshot for PR reviewers
         if: always()
         uses: actions/upload-artifact@v4
@@ -94,5 +105,6 @@ jobs:
           path: |
             docs/images/orbit-universe.png
             docs/images/orbit-auth-signed-out.png
+            docs/images/orbit-authenticated-project-creation.png
             /tmp/orbit-vite.log
           if-no-files-found: warn
