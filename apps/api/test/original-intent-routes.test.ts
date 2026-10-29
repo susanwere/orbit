@@ -59,7 +59,16 @@ describe("original intent API", () => {
     expect((await app.inject({ method: "GET", url: "/projects/allowed/intent" })).statusCode).toBe(
       401,
     );
-    expect((await app.inject({ method: "POST", url: "/projects/other/intent", headers: { authorization: "Bearer valid" }, payload: { statement: "Build a UI" } })).statusCode).toBe(403);
+    expect(
+      (
+        await app.inject({
+          method: "POST",
+          url: "/projects/other/intent",
+          headers: { authorization: "Bearer valid" },
+          payload: { statement: "Build a UI" },
+        })
+      ).statusCode,
+    ).toBe(403);
     await app.close();
   });
 
@@ -67,7 +76,7 @@ describe("original intent API", () => {
     const { originalIntent, queries } = fixture();
     const app = await buildApp({ originalIntent: originalIntent as never });
     const headers = { authorization: "Bearer valid" };
-        const first = await app.inject({
+    const first = await app.inject({
       method: "POST",
       url: "/projects/allowed/intent",
       headers,
@@ -75,14 +84,18 @@ describe("original intent API", () => {
     });
     expect(first.statusCode).toBe(201);
     expect(first.json().intent.statement).toBe("Build a recorder");
-        const again = await app.inject({
+    const again = await app.inject({
       method: "POST",
       url: "/projects/allowed/intent",
       headers,
       payload: { statement: "Overwrite" },
     });
     expect(again.statusCode).toBe(409);
-    const read = await app.inject({ method: "GET", url: "/projects/allowed/intent", headers });
+    const read = await app.inject({
+      method: "GET",
+      url: "/projects/allowed/intent",
+      headers,
+    });
     expect(read.json().intent.statement).toBe("Build a recorder");
     expect(queries.every((q) => /^(SELECT|INSERT)/.test(q.sql))).toBe(true);
     await app.close();
@@ -91,7 +104,12 @@ describe("original intent API", () => {
   it("does not allow viewers to create original intent", async () => {
     const { originalIntent } = fixture("viewer");
     const app = await buildApp({ originalIntent: originalIntent as never });
-    const response = await app.inject({ method: "POST", url: "/projects/allowed/intent", headers: { authorization: "Bearer valid" }, payload: { statement: "Build" } });
+    const response = await app.inject({
+      method: "POST",
+      url: "/projects/allowed/intent",
+      headers: { authorization: "Bearer valid" },
+      payload: { statement: "Build" },
+    });
     expect(response.statusCode).toBe(403);
     await app.close();
   });
