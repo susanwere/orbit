@@ -1,0 +1,66 @@
+import { describe, expect, it, vi } from "vitest";
+import { createProjectApi, ProjectApiError } from "./project-api.js";
+
+describe("project API authorization handling", () => {
+  it("reports an expired session and invalidates the authorization used for a 401", async () => {
+    const onUnauthorized = vi.fn();
+    const sendRequest = vi.fn<typeof fetch>().mockResolvedValue(
+      new Response(null, { status: 401 }),
+    );
+    const projectApi = createProjectApi(
+      "http://localhost:4000",
+      () => "Bearer old-session",
+      sendRequest,
+      { onUnauthorized },
+    );
+
+    await expect(projectApi.createProject("HN Jobs Viewer")).rejects.toMatchObject({
+      status: 401,
+      message: "Your session has expired. Sign in again.",
+    });
+    expect(onUnauthorized).toHaveBeenCalledExactlyOnceWith("Bearer old-session");
+  });
+
+  it("reports forbidden access without signing out a valid session", async () => {
+    const onUnauthorized = vi.fn();
+    const sendRequest = vi.fn<typeof fetch>().mockResolvedValue(
+      new Response(null, { status: 403 }),
+    );
+    const projectApi = createProjectApi(
+      "http://localhost:4000",
+      () => "Bearer valid-session",
+      sendRequest,
+      { onUnauthorized },
+    );
+
+    await expect(projectApi.createProject("HN Jobs Viewer")).rejects.toMatchObject({
+      status: 403,
+      message: "You do not have permission to access this project.",
+    });
+    expect(onUnauthorized).not.toHaveBeenCalled();
+  });
+
+  it("never sends a request without authorization", async () => {
+    const sendRequest = vi.fn<typeof fetch>();
+    const projectApi = createProjectApi("http://localhost:4000", () => undefined, sendRequest);
+
+    await expect(projectApi.createProject("HN Jobs Viewer")).rejects.toBeInstanceOf(
+      ProjectApiError,
+    );
+    expect(sendRequest).not.toHaveBeenCalled();
+  });
+
+  it("does not lose user-provided project data on network errors", async () => {
+    const sendRequest = vi.fn<typeof fetch>().mockRejectedValue(new Error("offline"));
+    const projectApi = createProjectApi(
+      "http://localhost:4000",
+      () => "Bearer valid-session",
+      sendRequest,
+    );
+
+    await expect(projectApi.createProject("HN Jobs Viewer")).rejects.toMatchObject({
+      status: 0,
+      message: "Connection unavailable. Your changes have been preserved.",
+    });
+  });
+});
