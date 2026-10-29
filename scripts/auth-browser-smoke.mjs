@@ -17,7 +17,7 @@ try {
 
   const corsHeaders = {
     "access-control-allow-origin": "*",
-    "access-control-allow-methods": "POST, OPTIONS",
+    "access-control-allow-methods": "GET, POST, OPTIONS",
     "access-control-allow-headers": "authorization, content-type",
   };
 
@@ -92,6 +92,67 @@ try {
     });
   });
 
+  await page.route(`${apiOrigin}/projects/project-1/intent`, async (route) => {
+    const method = route.request().method();
+    if (method === "OPTIONS") {
+      await route.fulfill({ status: 204, headers: corsHeaders });
+      return;
+    }
+    assert.equal(route.request().headers().authorization, "Bearer ci-orbit-access-token");
+    if (method === "GET") {
+      await route.fulfill({
+        contentType: "application/json",
+        headers: corsHeaders,
+        body: JSON.stringify({ intent: null }),
+      });
+      return;
+    }
+    assert.equal(route.request().postDataJSON().statement, "Build a responsive Hacker News jobs viewer.");
+    await route.fulfill({
+      status: 201,
+      contentType: "application/json",
+      headers: corsHeaders,
+      body: JSON.stringify({
+        intent: {
+          id: "original-intent-1",
+          project_id: "project-1",
+          statement: "Build a responsive Hacker News jobs viewer.",
+        },
+      }),
+    });
+  });
+
+  await page.route(`${apiOrigin}/projects/project-1/plan`, async (route) => {
+    const method = route.request().method();
+    if (method === "OPTIONS") {
+      await route.fulfill({ status: 204, headers: corsHeaders });
+      return;
+    }
+    assert.equal(route.request().headers().authorization, "Bearer ci-orbit-access-token");
+    await route.fulfill({
+      status: method === "POST" ? 201 : 200,
+      contentType: "application/json",
+      headers: corsHeaders,
+      body: JSON.stringify({
+        plan: method === "POST"
+          ? { id: "proposed-plan-1", status: "READY_FOR_REVIEW", revision: 1 }
+          : null,
+      }),
+    });
+  });
+
+  await page.route(`${apiOrigin}/projects/project-1/repositories`, async (route) => {
+    if (route.request().method() === "OPTIONS") {
+      await route.fulfill({ status: 204, headers: corsHeaders });
+      return;
+    }
+    await route.fulfill({
+      contentType: "application/json",
+      headers: corsHeaders,
+      body: JSON.stringify({ repositories: [] }),
+    });
+  });
+
   await page.goto(frontendOrigin, { waitUntil: "domcontentloaded" });
   await page.getByRole("heading", { name: "Sign in to Orbit" }).waitFor();
   await page.getByRole("button", { name: "Continue with Google" }).click();
@@ -101,9 +162,10 @@ try {
 
   await page.getByLabel("Project name").fill("HN Jobs Viewer");
   await page.getByRole("button", { name: "Create project" }).click();
-  await page.getByRole("heading", { name: "HN Jobs Viewer" }).waitFor();
-  await page.getByText("No work has started yet.").waitFor();
-  assert.equal(await page.getByText("None").count(), 3);
+  await page.getByRole("heading", { name: "What do you want to build?" }).waitFor();
+  await page.getByLabel("Your original intent").fill("Build a responsive Hacker News jobs viewer.");
+  await page.getByRole("button", { name: "Save intent & propose plan" }).click();
+  await page.getByText("Proposed plan ready").waitFor();
 
   await page.screenshot({
     path: "docs/images/orbit-authenticated-project-creation.png",
@@ -115,7 +177,7 @@ try {
   await page.getByRole("heading", { name: "Sign in to Orbit" }).waitFor();
   assert.equal(await page.getByRole("button", { name: "View projects" }).count(), 0);
 
-  console.log("Mocked browser sign-in, protected project creation, and sign-out passed.");
+  console.log("Mocked browser sign-in, protected project and Intent planning, and sign-out passed.");
 } finally {
   await browser.close();
 }
