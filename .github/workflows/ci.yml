@@ -52,3 +52,32 @@ jobs:
           TEST_DATABASE_URL: postgres://orbit:orbit@localhost:5432/orbit
       - name: Build
         run: npm run build
+
+  format-baseline-once:
+    if: github.event_name == 'pull_request' && github.head_ref == 'chore/enforce-readable-source' && github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Format files without changing logic
+        run: npm run format
+      - name: Commit formatting-only changes
+        run: |
+          if git diff --quiet; then
+            echo "Source already formatted."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -u
+          git commit -m "style: apply Prettier to existing source (no logic changes)"
+          git push origin HEAD:chore/enforce-readable-source
