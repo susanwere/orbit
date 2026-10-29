@@ -8,6 +8,7 @@ Applies within `apps/api/` in addition to the root `AGENTS.md`.
 - Extract substantial business rules into services, and SQL/data access into repositories when needed. Avoid gratuitous layers for trivial behavior.
 - Keep domain errors explicit; do not leak stack traces or internal implementation details to clients.
 - Reuse existing module conventions and dependency injection patterns.
+- Prefer names that reveal the business meaning of dependencies and query results, such as `authorizationService`, `projectRepository`, `projectRecord`, and `repositoryRegistration`. Avoid single-letter database/query aliases in TypeScript variables when clarity would improve.
 
 ## Security and persistence
 - Authenticate protected endpoints and authorize access to the exact project or organization resource, not merely a logged-in user.
