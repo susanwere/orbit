@@ -17,6 +17,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
+          ref: ${{ github.head_ref }}
           persist-credentials: true
       - uses: actions/setup-node@v4
         with:
@@ -27,6 +28,16 @@ jobs:
           npm ci
           npm install --no-save --package-lock=false playwright
           npx playwright install --with-deps chromium
+      - name: Format project empty state once
+        run: |
+          npx prettier --write apps/web/src/features/projects/ProjectEmptyState.tsx
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- apps/web/src/features/projects/ProjectEmptyState.tsx
+          if ! git diff --cached --quiet; then
+            git commit -m "style(projects): format project empty state"
+            git push origin HEAD:feat/orb-23-project-empty-state
+          fi
       - name: Start Orbit frontend
         run: |
           npm run dev:web > /tmp/orbit-vite.log 2>&1 &
