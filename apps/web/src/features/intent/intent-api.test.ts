@@ -2,6 +2,27 @@ import { describe, expect, it, vi } from "vitest";
 import { createIntentApi } from "./intent-api.js";
 
 describe("intent API authorization and durable intent", () => {
+  it("writes versioned edits and requests explicit human approval separately", async () => {
+    const send = vi.fn<typeof fetch>()
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        plan: { id: "plan", revision: 2, status: "READY_FOR_REVIEW" },
+      }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        plan: { id: "plan", revision: 3, status: "APPROVED" },
+      }), { status: 200 }));
+    const api = createIntentApi("http://localhost:4000", () => "Bearer signed", send);
+    const content = { summary: "Reviewed plan" };
+    expect((await api.updatePlan("project-1", 1, content)).revision).toBe(2);
+    expect((await api.approvePlan("project-1", 2)).status).toBe("APPROVED");
+    expect(send.mock.calls[0]?.[1]?.method).toBe("PATCH");
+    expect(send.mock.calls[0]?.[1]?.body).toBe(JSON.stringify({
+      expectedRevision: 1, content,
+    }));
+    expect(send.mock.calls[1]?.[1]?.body).toBe(JSON.stringify({
+      expectedRevision: 2,
+    }));
+  });
+
   it("reads existing intent and plan with the current authenticated principal", async () => {
     const send = vi
       .fn<typeof fetch>()
