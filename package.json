@@ -17,10 +17,9 @@
     "db:down": "docker compose down",
     "db:migrate": "npm run migrate -w @orbit/db",
     "format": "prettier --write .",
-    "format:check": "prettier --check .",
+    "format:check": "prettier --check \"apps/**/*.{ts,tsx,js,jsx,mjs,cjs,json,css,scss}\" \"packages/**/*.{ts,tsx,js,jsx,mjs,cjs,json,css,scss}\" \"scripts/**/*.{js,mjs,cjs,ts}\"",
     "format:api": "prettier --write \"apps/api/**/*.{ts,tsx,js,jsx,mjs,cjs,json}\"",
-    "format:web": "prettier --write \"apps/web/**/*.{ts,tsx,js,jsx,mjs,cjs,json,css,scss}\"",
-    "format:changed": "node scripts/check-changed-format.mjs"
+    "format:web": "prettier --write \"apps/web/**/*.{ts,tsx,js,jsx,mjs,cjs,json,css,scss}\""
   },
   "engines": {
     "node": ">=22"
