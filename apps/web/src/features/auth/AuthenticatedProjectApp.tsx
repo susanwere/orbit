@@ -6,6 +6,7 @@ import type { SessionStore } from "./session-store.js";
 interface AuthenticatedProjectAppProps {
   readonly sessionStore: SessionStore;
   readonly apiBaseUrl: string;
+  readonly onSignOut?: () => void;
 }
 
 /**
@@ -15,6 +16,7 @@ interface AuthenticatedProjectAppProps {
 export function AuthenticatedProjectApp({
   sessionStore,
   apiBaseUrl,
+  onSignOut,
 }: AuthenticatedProjectAppProps) {
   const authenticatedSession = useSyncExternalStore(
     sessionStore.subscribe,
@@ -68,7 +70,13 @@ export function AuthenticatedProjectApp({
   return (
     <>
       <nav aria-label="Account">
-        <button type="button" onClick={() => sessionStore.setSession(null)}>
+        <button
+          type="button"
+          onClick={() => {
+            onSignOut?.();
+            sessionStore.setSession(null);
+          }}
+        >
           Sign out
         </button>
       </nav>
