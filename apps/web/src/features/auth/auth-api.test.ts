@@ -34,9 +34,9 @@ describe("trusted identity exchange client", () => {
   });
 
   it("refuses an unlinked account without storing a token", async () => {
-    const fetchImplementation = vi.fn<typeof fetch>().mockResolvedValue(
-      new Response(null, { status: 403 }),
-    );
+    const fetchImplementation = vi
+      .fn<typeof fetch>()
+      .mockResolvedValue(new Response(null, { status: 403 }));
     await expect(
       exchangeIdentityToken("http://localhost:4000", "id-token", fetchImplementation),
     ).rejects.toThrow("not been granted access");

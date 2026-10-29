@@ -24,11 +24,7 @@ export function AuthGateway({ googleClientId, apiBaseUrl }: AuthGatewayProps) {
 
   if (!authenticatedSession) {
     return (
-      <GoogleSignIn
-        clientId={googleClientId}
-        apiBaseUrl={apiBaseUrl}
-        sessionStore={sessionStore}
-      />
+      <GoogleSignIn clientId={googleClientId} apiBaseUrl={apiBaseUrl} sessionStore={sessionStore} />
     );
   }
 
