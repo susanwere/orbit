@@ -94,4 +94,19 @@ describe("intent API authorization and durable intent", () => {
     await expect(api.getPlan("project")).rejects.toMatchObject({ status: 401 });
     expect(onUnauthorized).toHaveBeenCalledWith("Bearer signed");
   });
+  it("sends expected revision for edits and approval, without dispatching execution", async () => {
+    const fetchImpl = vi.fn<typeof fetch>()
+      .mockResolvedValueOnce(new Response(JSON.stringify({ plan: { id: "p", revision: 3 } }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ plan: { id: "p", revision: 4, status: "APPROVED" } }), { status: 200 }));
+    const api = createIntentApi("http://localhost:4000", () => "Bearer valid", fetchImpl);
+    const graph = { summary: "Build a jobs viewer", workItems: [], guardrails: [], decisionsToReview: [], assumptions: [] };
+    await api.updatePlan("project-1", 2, graph);
+    await api.approvePlan("project-1", 3);
+    expect(fetchImpl).toHaveBeenCalledTimes(2);
+    expect(fetchImpl.mock.calls[0]?.[1]?.method).toBe("PATCH");
+    expect(JSON.parse(String(fetchImpl.mock.calls[0]?.[1]?.body))).toEqual({ expectedRevision: 2, content: graph });
+    expect(fetchImpl.mock.calls[1]?.[1]?.method).toBe("POST");
+    expect(JSON.parse(String(fetchImpl.mock.calls[1]?.[1]?.body))).toEqual({ expectedRevision: 3 });
+  });
+
 });
