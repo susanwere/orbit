@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useSyncExternalStore } from "react";
 import { App } from "../../App.js";
 import { createProjectApi } from "../projects/project-api.js";
+import { createIntentApi } from "../intent/intent-api.js";
 import type { SessionStore } from "./session-store.js";
 
 interface AuthenticatedProjectAppProps {
@@ -25,7 +26,19 @@ export function AuthenticatedProjectApp({
   );
 
   useEffect(() => {
-    if (!authenticatedSession) {
+    const intentApi = useMemo(
+    () =>
+      createIntentApi(apiBaseUrl, () => sessionStore.getAuthorizationHeader(), fetch, {
+        onUnauthorized: (failedAuthorizationHeader) => {
+          if (sessionStore.getAuthorizationHeader() === failedAuthorizationHeader) {
+            sessionStore.setSession(null);
+          }
+        },
+      }),
+    [apiBaseUrl, sessionStore],
+  );
+
+  if (!authenticatedSession) {
       return;
     }
 
@@ -83,6 +96,7 @@ export function AuthenticatedProjectApp({
       <App
         key={`${authenticatedSession.organizationId}:${authenticatedSession.principalId}`}
         projectApi={projectApi}
+        intentApi={intentApi}
       />
     </>
   );
