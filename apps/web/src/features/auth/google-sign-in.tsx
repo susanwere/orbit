@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { SessionStore } from "./session-store.js";
+import { exchangeIdentityToken } from "./auth-api.js";
 
 interface IdentityCredential {
   readonly credential: string;
@@ -48,42 +49,9 @@ export function GoogleSignIn({ clientId, apiBaseUrl, sessionStore }: GoogleSignI
       setIsAuthenticating(true);
 
       try {
-        const exchangeResponse = await fetch(new URL("/auth/exchange", apiBaseUrl), {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ idToken: credential }),
-        });
-        if (!exchangeResponse.ok) {
-          throw new Error(
-            exchangeResponse.status === 403
-              ? "This Google account has not been granted access to Orbit."
-              : "Unable to verify your Google sign-in. Please try again.",
-          );
-        }
-
-        const exchangePayload: unknown = await exchangeResponse.json();
-        if (
-          !exchangePayload ||
-          typeof exchangePayload !== "object" ||
-          !("accessToken" in exchangePayload) ||
-          typeof exchangePayload.accessToken !== "string" ||
-          !("principalId" in exchangePayload) ||
-          typeof exchangePayload.principalId !== "string" ||
-          !("organizationId" in exchangePayload) ||
-          typeof exchangePayload.organizationId !== "string" ||
-          !("expiresAt" in exchangePayload) ||
-          typeof exchangePayload.expiresAt !== "number"
-        ) {
-          throw new Error("Orbit returned an invalid authentication response.");
-        }
-
+        const authenticatedSession = await exchangeIdentityToken(apiBaseUrl, credential);
         if (isMounted) {
-          sessionStore.setSession({
-            accessToken: exchangePayload.accessToken,
-            principalId: exchangePayload.principalId,
-            organizationId: exchangePayload.organizationId,
-            expiresAt: exchangePayload.expiresAt * 1000,
-          });
+          sessionStore.setSession(authenticatedSession);
         }
       } catch (authenticationFailure) {
         if (isMounted) {
