@@ -107,7 +107,10 @@ try {
       });
       return;
     }
-    assert.equal(route.request().postDataJSON().statement, "Build a responsive Hacker News jobs viewer.");
+    assert.equal(
+      route.request().postDataJSON().statement,
+      "Build a responsive Hacker News jobs viewer.",
+    );
     await route.fulfill({
       status: 201,
       contentType: "application/json",
@@ -134,9 +137,10 @@ try {
       contentType: "application/json",
       headers: corsHeaders,
       body: JSON.stringify({
-        plan: method === "POST"
-          ? { id: "proposed-plan-1", status: "READY_FOR_REVIEW", revision: 1 }
-          : null,
+        plan:
+          method === "POST"
+            ? { id: "proposed-plan-1", status: "READY_FOR_REVIEW", revision: 1 }
+            : null,
       }),
     });
   });
@@ -177,7 +181,9 @@ try {
   await page.getByRole("heading", { name: "Sign in to Orbit" }).waitFor();
   assert.equal(await page.getByRole("button", { name: "View projects" }).count(), 0);
 
-  console.log("Mocked browser sign-in, protected project and Intent planning, and sign-out passed.");
+  console.log(
+    "Mocked browser sign-in, protected project and Intent planning, and sign-out passed.",
+  );
 } finally {
   await browser.close();
 }

@@ -27,18 +27,18 @@ export function AuthenticatedProjectApp({
 
   useEffect(() => {
     const intentApi = useMemo(
-    () =>
-      createIntentApi(apiBaseUrl, () => sessionStore.getAuthorizationHeader(), fetch, {
-        onUnauthorized: (failedAuthorizationHeader) => {
-          if (sessionStore.getAuthorizationHeader() === failedAuthorizationHeader) {
-            sessionStore.setSession(null);
-          }
-        },
-      }),
-    [apiBaseUrl, sessionStore],
-  );
+      () =>
+        createIntentApi(apiBaseUrl, () => sessionStore.getAuthorizationHeader(), fetch, {
+          onUnauthorized: (failedAuthorizationHeader) => {
+            if (sessionStore.getAuthorizationHeader() === failedAuthorizationHeader) {
+              sessionStore.setSession(null);
+            }
+          },
+        }),
+      [apiBaseUrl, sessionStore],
+    );
 
-  if (!authenticatedSession) {
+    if (!authenticatedSession) {
       return;
     }
 

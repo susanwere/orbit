@@ -17,7 +17,9 @@ export function App({ projectApi, intentApi }: AppProps) {
   const [activeProject, setActiveProject] = useState<CreatedProject | null>(null);
 
   if (page === "project" && activeProject && intentApi) {
-    return <IntentEntry project={activeProject} api={intentApi} onBack={() => setPage("landing")} />;
+    return (
+      <IntentEntry project={activeProject} api={intentApi} onBack={() => setPage("landing")} />
+    );
   }
 
   if (page === "universe") return <Universe onExit={() => setPage("landing")} />;

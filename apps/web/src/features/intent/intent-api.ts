@@ -75,10 +75,8 @@ export function createIntentApi(
     getIntent: async (id) =>
       (await request<{ intent: StoredIntent | null }>(`${path(id)}/intent`)).intent,
     submitIntent: async (id, statement) =>
-      (await request<{ intent: StoredIntent }>(`${path(id)}/intent`, "POST", { statement }))
-        .intent,
-    getPlan: async (id) =>
-      (await request<{ plan: ProjectPlan | null }>(`${path(id)}/plan`)).plan,
+      (await request<{ intent: StoredIntent }>(`${path(id)}/intent`, "POST", { statement })).intent,
+    getPlan: async (id) => (await request<{ plan: ProjectPlan | null }>(`${path(id)}/plan`)).plan,
     generatePlan: async (id) =>
       (await request<{ plan: ProjectPlan }>(`${path(id)}/plan`, "POST")).plan,
     getRepositories: async (id) =>

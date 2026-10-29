@@ -53,12 +53,9 @@ describe("intent API authorization and durable intent", () => {
         }),
       )
       .mockResolvedValueOnce(new Response(null, { status: 403 }));
-    const api = createIntentApi(
-      "http://localhost:4000",
-      () => "Bearer signed",
-      send,
-      { onUnauthorized },
-    );
+    const api = createIntentApi("http://localhost:4000", () => "Bearer signed", send, {
+      onUnauthorized,
+    });
     await expect(api.generatePlan("project")).rejects.toMatchObject({
       status: 503,
       message: "Muse planning is not configured.",
@@ -70,12 +67,9 @@ describe("intent API authorization and durable intent", () => {
   it("signs out only the authorization used for expired requests", async () => {
     const onUnauthorized = vi.fn();
     const send = vi.fn<typeof fetch>().mockResolvedValue(new Response(null, { status: 401 }));
-    const api = createIntentApi(
-      "http://localhost:4000",
-      () => "Bearer signed",
-      send,
-      { onUnauthorized },
-    );
+    const api = createIntentApi("http://localhost:4000", () => "Bearer signed", send, {
+      onUnauthorized,
+    });
     await expect(api.getPlan("project")).rejects.toMatchObject({ status: 401 });
     expect(onUnauthorized).toHaveBeenCalledWith("Bearer signed");
   });

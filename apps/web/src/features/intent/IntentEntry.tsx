@@ -121,12 +121,14 @@ export function IntentEntry({ project, api, onBack }: IntentEntryProps) {
         <p className="intent-overline">STEP 01 · PRODUCT INTENT</p>
         <h1 id="intent-heading">What do you want to build?</h1>
         <p className="intent-description">
-          Describe the outcome you want. Orbit will propose work items, workflows, dependencies,
-          and approval points for you to review before any execution begins.
+          Describe the outcome you want. Orbit will propose work items, workflows, dependencies, and
+          approval points for you to review before any execution begins.
         </p>
 
         {phase === "loading" ? (
-          <p role="status" className="intent-muted">Loading your project…</p>
+          <p role="status" className="intent-muted">
+            Loading your project…
+          </p>
         ) : (
           <form
             onSubmit={(event) => {
@@ -233,7 +235,9 @@ export function IntentEntry({ project, api, onBack }: IntentEntryProps) {
               ))}
             </ul>
           ) : (
-            <p>{repositoryError ? "Repository summary unavailable." : "No repository connected yet."}</p>
+            <p>
+              {repositoryError ? "Repository summary unavailable." : "No repository connected yet."}
+            </p>
           )}
         </aside>
       </section>
