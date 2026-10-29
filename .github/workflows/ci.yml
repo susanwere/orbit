@@ -36,24 +36,8 @@ jobs:
           cache: npm
       - name: Install dependencies
         run: npm ci
-      - name: Check formatting of changed source files
-        env:
-          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
-        shell: bash
-        run: |
-          base="$BASE_SHA"
-          if ! git cat-file -e "$base^{commit}" 2>/dev/null; then
-            base="$(git rev-parse HEAD^)"
-          fi
-          mapfile -d '' files < <(
-            git diff --name-only --diff-filter=ACMR -z "$base" HEAD -- \
-              '*.ts' '*.tsx' '*.js' '*.jsx' '*.mjs' '*.cjs' '*.json' '*.css' '*.scss'
-          )
-          if (( ${#files[@]} > 0 )); then
-            npx --yes prettier@3.6.2 --check "${files[@]}"
-          else
-            echo "No changed source files to check."
-          fi
+      - name: Check code formatting
+        run: npm run format:check
       - name: Build workspace dependencies
         run: npm run build -w @orbit/domain && npm run build -w @orbit/db
       - name: Typecheck
