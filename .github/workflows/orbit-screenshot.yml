@@ -36,7 +36,7 @@ jobs:
           done
           cat /tmp/orbit-vite.log
           exit 1
-      - name: Capture rendered 3D app and assert WebGL
+      - name: Capture Universe and the ORB-54 signed-out boundary
         run: |
           mkdir -p docs/images
           node --input-type=module <<'NODE'
@@ -54,6 +54,32 @@ jobs:
             await page.waitForTimeout(2200);
             await page.screenshot({ path: 'docs/images/orbit-universe.png', fullPage: true, animations: 'disabled' });
             console.log('Captured Orbit Universe screenshot with WebGL enabled');
+
+            // Preview the actual ORB-54 component in an isolated browser mount.
+            // This does not simulate a real sign-in or modify production routes.
+            await page.evaluate(async () => {
+              const React = await import('/node_modules/.vite/deps/react.js');
+              const ReactDOM = await import('/node_modules/.vite/deps/react-dom_client.js');
+              const { AuthenticatedProjectApp } = await import('/src/features/auth/AuthenticatedProjectApp.tsx');
+              const { createSessionStore } = await import('/src/features/auth/session-store.ts');
+              document.getElementById('root').style.display = 'none';
+              const screenshotRoot = document.createElement('div');
+              screenshotRoot.id = 'auth-screenshot-root';
+              document.body.prepend(screenshotRoot);
+              ReactDOM.createRoot(screenshotRoot).render(
+                React.createElement(AuthenticatedProjectApp, {
+                  sessionStore: createSessionStore(),
+                  apiBaseUrl: 'http://127.0.0.1:3000',
+                }),
+              );
+            });
+            await page.getByRole('heading', { name: 'Sign in required' }).waitFor();
+            await page.screenshot({
+              path: 'docs/images/orbit-auth-signed-out.png',
+              fullPage: true,
+              animations: 'disabled',
+            });
+            console.log('Captured actual ORB-54 signed-out UI component');
           } finally {
             await browser.close();
           }
@@ -62,8 +88,9 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: orbit-universe-screenshot
+          name: orbit-pr-ui-screenshots
           path: |
             docs/images/orbit-universe.png
+            docs/images/orbit-auth-signed-out.png
             /tmp/orbit-vite.log
           if-no-files-found: warn
