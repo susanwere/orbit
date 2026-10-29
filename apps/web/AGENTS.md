@@ -4,6 +4,7 @@ Applies within `apps/web/` in addition to the root `AGENTS.md`.
 
 ## React, TypeScript and UI
 - Prefer small, cohesive functional components, explicit props, and domain-specific types.
+- Name state, props, callbacks, and handlers by intent: use `isCreatingProject`, `selectedRepository`, `handleProjectCreate`, and `projectCreationError` instead of opaque abbreviations.
 - Keep presentation distinct from API access and complex state transitions. Use hooks only where they clarify shared or lifecycle behavior.
 - Do not introduce derived state or effects when plain render calculations suffice.
 - Follow the existing Vite/React architecture and Orbit design contracts; do not invent backend capabilities or optimistic success paths.
