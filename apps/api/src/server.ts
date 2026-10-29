@@ -8,6 +8,8 @@ import { MuseDecisionDetector } from "./modules/decisions/muse-decision-detector
 import { DecisionAnalysisService } from "./modules/decisions/decision-analysis-service.js";
 import { DecisionAnalysisWorker } from "./modules/decisions/decision-analysis-worker.js";
 import { HmacJwtAuthVerifier } from "./modules/auth/verified-principal.js";
+import { OidcTokenVerifier } from "./modules/auth/oidc-token-verifier.js";
+import { OrbitAccessTokenIssuer } from "./modules/auth/orbit-access-token.js";
 import { buildApp } from "./app.js";
 import { ContextVersionRepository } from "./modules/context/context-version-repository.js";
 import { ContextChangeProposalRepository } from "./modules/context/context-change-proposal-repository.js";
@@ -71,7 +73,27 @@ const decisionReview = new DecisionReviewService(
   ),
 );
 
+const identityVerifier =
+  auth && process.env.ORBIT_OIDC_ISSUER && process.env.ORBIT_OIDC_AUDIENCE && process.env.ORBIT_OIDC_JWKS_URL
+    ? new OidcTokenVerifier({
+        issuer: process.env.ORBIT_OIDC_ISSUER,
+        audience: process.env.ORBIT_OIDC_AUDIENCE,
+        jwksUrl: process.env.ORBIT_OIDC_JWKS_URL,
+      })
+    : undefined;
+
 const app = await buildApp({
+  authExchange: identityVerifier && process.env.ORBIT_AUTH_SECRET && process.env.ORBIT_AUTH_ISSUER
+    ? {
+        database,
+        identityVerifier,
+        tokenIssuer: new OrbitAccessTokenIssuer({
+          secret: process.env.ORBIT_AUTH_SECRET,
+          issuer: process.env.ORBIT_AUTH_ISSUER,
+          audience: "orbit-api",
+        }),
+      }
+    : undefined,
   auth,
   projectManagement: auth
     ? { auth, db: database, authorization: new ProjectAuthorizationService(database) }
