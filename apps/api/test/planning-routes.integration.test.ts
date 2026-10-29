@@ -19,15 +19,11 @@ const proposed = {
       workflows: [
         {
           name: "Engineering",
-          steps: [
-            { title: "Implement stop control", executor: "agent", requiresApproval: false },
-          ],
+          steps: [{ title: "Implement stop control", executor: "agent", requiresApproval: false }],
         },
         {
           name: "Review",
-          steps: [
-            { title: "Review privacy behavior", executor: "human", requiresApproval: true },
-          ],
+          steps: [{ title: "Review privacy behavior", executor: "human", requiresApproval: true }],
         },
       ],
     },
@@ -112,13 +108,15 @@ describe.skipIf(!databaseUrl)("authenticated planning and human review API (Post
     const url = `/projects/${project}/plan`;
 
     expect((await app.inject({ method: "GET", url })).statusCode).toBe(401);
+    expect((await app.inject({ method: "POST", url, headers: token(viewer) })).statusCode).toBe(
+      403,
+    );
+    expect((await app.inject({ method: "GET", url, headers: token(outsider) })).statusCode).toBe(
+      403,
+    );
     expect(
-      (await app.inject({ method: "POST", url, headers: token(viewer) })).statusCode,
-    ).toBe(403);
-    expect(
-      (await app.inject({ method: "GET", url, headers: token(outsider) })).statusCode,
-    ).toBe(403);
-    expect((await app.inject({ method: "GET", url, headers: token(admin) })).json().plan).toBeNull();
+      (await app.inject({ method: "GET", url, headers: token(admin) })).json().plan,
+    ).toBeNull();
   });
 
   it("creates a bounded proposal, supports editing and authentic human approval", async () => {
@@ -133,9 +131,7 @@ describe.skipIf(!databaseUrl)("authenticated planning and human review API (Post
     const plan = created.json().plan;
     expect(plan.status).toBe("READY_FOR_REVIEW");
     expect(plan.content.workItems[0].workflows).toHaveLength(2);
-    expect(
-      (await app.inject({ method: "POST", url, headers: token(admin) })).statusCode,
-    ).toBe(409);
+    expect((await app.inject({ method: "POST", url, headers: token(admin) })).statusCode).toBe(409);
 
     const editedContent = structuredClone(proposed);
     editedContent.summary = "Reviewed consent-first interview capture";
