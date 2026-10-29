@@ -17,7 +17,7 @@ try {
 
   const corsHeaders = {
     "access-control-allow-origin": "*",
-    "access-control-allow-methods": "GET, POST, OPTIONS",
+    "access-control-allow-methods": "GET, POST, PATCH, OPTIONS",
     "access-control-allow-headers": "authorization, content-type",
   };
 
@@ -125,6 +125,52 @@ try {
     });
   });
 
+  const proposal = {
+    summary: "Build a responsive Hacker News jobs viewer",
+    workItems: [
+      {
+        key: "HN-1",
+        title: "Job list",
+        description: "Render a responsive jobs list with accessible navigation",
+        dependsOn: [],
+        workflows: [
+          {
+            name: "Design",
+            steps: [{ title: "Review job list", executor: "human", requiresApproval: true }],
+          },
+          {
+            name: "Engineering",
+            steps: [{ title: "Implement list", executor: "agent", requiresApproval: false }],
+          },
+        ],
+      },
+    ],
+    guardrails: ["Accessible keyboard navigation"],
+    decisionsToReview: ["Choose pagination"],
+    assumptions: ["Existing React project"],
+  };
+  let approved = false;
+  let revision = 1;
+  await page.route(`${apiOrigin}/projects/project-1/plan/approve`, async (route) => {
+    assert.equal(route.request().headers().authorization, "Bearer ci-orbit-access-token");
+    assert.equal(route.request().postDataJSON().expectedRevision, revision);
+    approved = true;
+    revision++;
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      headers: corsHeaders,
+      body: JSON.stringify({
+        plan: {
+          id: "proposed-plan-1",
+          project_id: "project-1",
+          status: "APPROVED",
+          revision,
+          content: proposal,
+        },
+      }),
+    });
+  });
   await page.route(`${apiOrigin}/projects/project-1/plan`, async (route) => {
     const method = route.request().method();
     if (method === "OPTIONS") {
@@ -132,15 +178,28 @@ try {
       return;
     }
     assert.equal(route.request().headers().authorization, "Bearer ci-orbit-access-token");
+    if (method === "PATCH") {
+      const body = route.request().postDataJSON();
+      assert.equal(body.expectedRevision, revision);
+      assert.equal(body.content.workItems[0].title, "Responsive job list");
+      proposal.workItems[0].title = body.content.workItems[0].title;
+      revision++;
+    }
     await route.fulfill({
       status: method === "POST" ? 201 : 200,
       contentType: "application/json",
       headers: corsHeaders,
       body: JSON.stringify({
         plan:
-          method === "POST"
-            ? { id: "proposed-plan-1", status: "READY_FOR_REVIEW", revision: 1 }
-            : null,
+          method === "GET"
+            ? null
+            : {
+                id: "proposed-plan-1",
+                project_id: "project-1",
+                status: approved ? "APPROVED" : "READY_FOR_REVIEW",
+                revision,
+                content: proposal,
+              },
       }),
     });
   });
@@ -170,6 +229,12 @@ try {
   await page.getByLabel("Your original intent").fill("Build a responsive Hacker News jobs viewer.");
   await page.getByRole("button", { name: "Save intent & propose plan" }).click();
   await page.getByText("Proposed plan ready").waitFor();
+  await page.getByRole("button", { name: "Review proposed plan" }).click();
+  await page.getByRole("heading", { name: "Review the proposed plan." }).waitFor();
+  await page.getByLabel("Work item title").fill("Responsive job list");
+  await page.getByRole("button", { name: "Save changes" }).click();
+  await page.getByRole("button", { name: "Approve plan" }).click();
+  await page.getByText("Plan approved by a human.").waitFor();
 
   await page.screenshot({
     path: "docs/images/orbit-authenticated-project-creation.png",

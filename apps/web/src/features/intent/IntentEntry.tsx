@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState, type FormEvent } from "react";
+import { PlanReview } from "../planning/PlanReview.js";
 import type { CreatedProject, ConnectedRepository } from "../projects/project-api.js";
 import type { ProjectIntentApi, ProjectPlan, StoredIntent } from "./intent-api.js";
 import "./intent-entry.css";
@@ -19,6 +20,7 @@ export function IntentEntry({ project, api, onBack }: IntentEntryProps) {
   const [phase, setPhase] = useState<Phase>("loading");
   const [error, setError] = useState<string | null>(null);
   const [repositoryError, setRepositoryError] = useState(false);
+  const [reviewOpen, setReviewOpen] = useState(false);
   const busy = phase === "loading" || phase === "saving" || phase === "planning";
 
   const refresh = useCallback(async () => {
@@ -109,6 +111,18 @@ export function IntentEntry({ project, api, onBack }: IntentEntryProps) {
   }
 
   const proposed = plan?.status === "READY_FOR_REVIEW" || plan?.status === "APPROVED";
+  if (reviewOpen && plan && proposed) {
+    return (
+      <PlanReview
+        project={project}
+        originalIntent={intent}
+        plan={plan}
+        api={api}
+        onBack={() => setReviewOpen(false)}
+        onUpdated={setPlan}
+      />
+    );
+  }
   return (
     <main className="intent-page">
       <section className="intent-panel" aria-labelledby="intent-heading">
@@ -219,6 +233,9 @@ export function IntentEntry({ project, api, onBack }: IntentEntryProps) {
                 ? "Your plan is approved. Execution is not started automatically."
                 : "Muse Spark returned a proposal. The Plan Review experience is the next step; no work has started."}
             </p>
+            <button type="button" className="cta-primary" onClick={() => setReviewOpen(true)}>
+              {plan.status === "APPROVED" ? "View approved plan" : "Review proposed plan"}
+            </button>
           </div>
         )}
 

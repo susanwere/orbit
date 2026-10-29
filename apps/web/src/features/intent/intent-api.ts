@@ -23,6 +23,8 @@ export interface ProjectIntentApi {
   submitIntent(projectId: string, statement: string): Promise<StoredIntent>;
   getPlan(projectId: string): Promise<ProjectPlan | null>;
   generatePlan(projectId: string): Promise<ProjectPlan>;
+  updatePlan(projectId: string, expectedRevision: number, content: unknown): Promise<ProjectPlan>;
+  approvePlan(projectId: string, expectedRevision: number): Promise<ProjectPlan>;
   getRepositories(projectId: string): Promise<readonly ConnectedRepository[]>;
 }
 
@@ -79,6 +81,19 @@ export function createIntentApi(
     getPlan: async (id) => (await request<{ plan: ProjectPlan | null }>(`${path(id)}/plan`)).plan,
     generatePlan: async (id) =>
       (await request<{ plan: ProjectPlan }>(`${path(id)}/plan`, "POST")).plan,
+    updatePlan: async (id, expectedRevision, content) =>
+      (
+        await request<{ plan: ProjectPlan }>(`${path(id)}/plan`, "PATCH", {
+          expectedRevision,
+          content,
+        })
+      ).plan,
+    approvePlan: async (id, expectedRevision) =>
+      (
+        await request<{ plan: ProjectPlan }>(`${path(id)}/plan/approve`, "POST", {
+          expectedRevision,
+        })
+      ).plan,
     getRepositories: async (id) =>
       (await request<{ repositories: ConnectedRepository[] }>(`${path(id)}/repositories`))
         .repositories,
