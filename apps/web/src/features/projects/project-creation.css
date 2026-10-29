@@ -72,3 +72,34 @@
 .project-create-error {
   color: #ffbec4 !important;
 }
+
+.project-empty-facts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+  margin: 0.75rem 0;
+}
+
+.project-empty-facts div {
+  padding: 1rem;
+  border: 1px solid rgba(175, 166, 223, 0.18);
+  border-radius: 10px;
+  background: #10131c;
+}
+
+.project-empty-facts dt {
+  font-size: 0.8rem;
+  color: #929bb2;
+}
+
+.project-empty-facts dd {
+  margin: 0.35rem 0 0;
+  color: #f7f6ff;
+  font-weight: 600;
+}
+
+@media (max-width: 440px) {
+  .project-empty-facts {
+    grid-template-columns: 1fr;
+  }
+}
