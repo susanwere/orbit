@@ -18,8 +18,8 @@ export function ProjectEmptyState({ project, onBack }: ProjectEmptyStateProps) {
         <h1 id="project-empty-heading">{project.name}</h1>
         <p role="status">Your project is ready. No work has started yet.</p>
         <p>
-          Begin by describing what you want to build. Intent authoring will be available in the
-          next step of Orbit.
+          Begin by describing what you want to build. Intent authoring will be available in the next
+          step of Orbit.
         </p>
         <dl className="project-empty-facts">
           <div>
