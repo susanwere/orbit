@@ -147,7 +147,7 @@ export function validateProposedWorkGraph(value: unknown): ProposedWorkGraph {
         return {
           title: text(s.title, 200),
           executor: s.executor as PlannedStep["executor"],
-          requiresApproval: s.requiresApproval,
+          requiresApproval: s.requiresApproval as boolean,
         };
       });
       if (!steps.length) invalid("A workflow must contain steps.");
