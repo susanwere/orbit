@@ -127,16 +127,24 @@ try {
 
   const proposal = {
     summary: "Build a responsive Hacker News jobs viewer",
-    workItems: [{
-      key: "HN-1",
-      title: "Job list",
-      description: "Render a responsive jobs list with accessible navigation",
-      dependsOn: [],
-      workflows: [
-        { name: "Design", steps: [{ title: "Review job list", executor: "human", requiresApproval: true }] },
-        { name: "Engineering", steps: [{ title: "Implement list", executor: "agent", requiresApproval: false }] },
-      ],
-    }],
+    workItems: [
+      {
+        key: "HN-1",
+        title: "Job list",
+        description: "Render a responsive jobs list with accessible navigation",
+        dependsOn: [],
+        workflows: [
+          {
+            name: "Design",
+            steps: [{ title: "Review job list", executor: "human", requiresApproval: true }],
+          },
+          {
+            name: "Engineering",
+            steps: [{ title: "Implement list", executor: "agent", requiresApproval: false }],
+          },
+        ],
+      },
+    ],
     guardrails: ["Accessible keyboard navigation"],
     decisionsToReview: ["Choose pagination"],
     assumptions: ["Existing React project"],
@@ -153,7 +161,13 @@ try {
       contentType: "application/json",
       headers: corsHeaders,
       body: JSON.stringify({
-        plan: { id: "proposed-plan-1", project_id: "project-1", status: "APPROVED", revision, content: proposal },
+        plan: {
+          id: "proposed-plan-1",
+          project_id: "project-1",
+          status: "APPROVED",
+          revision,
+          content: proposal,
+        },
       }),
     });
   });
@@ -176,13 +190,16 @@ try {
       contentType: "application/json",
       headers: corsHeaders,
       body: JSON.stringify({
-        plan: method === "GET" ? null : {
-          id: "proposed-plan-1",
-          project_id: "project-1",
-          status: approved ? "APPROVED" : "READY_FOR_REVIEW",
-          revision,
-          content: proposal,
-        },
+        plan:
+          method === "GET"
+            ? null
+            : {
+                id: "proposed-plan-1",
+                project_id: "project-1",
+                status: approved ? "APPROVED" : "READY_FOR_REVIEW",
+                revision,
+                content: proposal,
+              },
       }),
     });
   });

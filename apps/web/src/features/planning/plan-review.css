@@ -1,1 +1,109 @@
-.plan-panel{width:min(100%,1050px)}.plan-panel h2{font-size:1.3rem;margin:1.25rem 0 .25rem}.plan-panel h3{font-size:1rem}.plan-panel label{display:block;font-weight:600;font-size:.88rem;margin-top:.65rem}.plan-panel input:not([type=checkbox]),.plan-panel textarea,.plan-panel select{font:inherit;color:#f7f6ff;background:#10131c;border:1px solid #596072;border-radius:9px;padding:.7rem;width:100%;margin-top:.3rem}.plan-panel button{cursor:pointer;border-radius:8px;padding:.6rem .8rem;color:#fff;background:#171b29;border:1px solid #555d70}.plan-panel button:disabled{opacity:.55;cursor:not-allowed}.plan-panel :is(button,input,textarea,select,summary):focus-visible{outline:3px solid #a59bf5;outline-offset:3px}.plan-original{background:#10131c;border:1px solid #39384e;border-radius:12px;padding:1rem}.plan-original p{white-space:pre-wrap;line-height:1.6;color:#bdc3d5}.plan-work-items{display:grid;gap:1.1rem}.plan-work-item{border:1px solid #44445c;background:#131522;border-radius:14px;padding:1.15rem}.plan-item-top{display:flex;justify-content:space-between;gap:1rem;align-items:center}.plan-workflow{margin-top:.8rem;border-top:1px solid #39384e;padding-top:.7rem}.plan-workflow ol{padding-left:1.5rem}.plan-workflow li{padding:.5rem 0}.plan-checkbox{display:flex!important;gap:.7rem;align-items:center}.plan-checkbox input{width:18px;height:18px}.plan-lists{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:1rem}.plan-original summary{cursor:pointer;font-weight:600}@media(max-width:520px){.plan-work-item{padding:.85rem}.plan-item-top{align-items:flex-start;flex-direction:column}}
+.plan-panel {
+  width: min(100%, 1050px);
+}
+.plan-panel h2 {
+  font-size: 1.3rem;
+  margin: 1.25rem 0 0.25rem;
+}
+.plan-panel h3 {
+  font-size: 1rem;
+}
+.plan-panel label {
+  display: block;
+  font-weight: 600;
+  font-size: 0.88rem;
+  margin-top: 0.65rem;
+}
+.plan-panel input:not([type="checkbox"]),
+.plan-panel textarea,
+.plan-panel select {
+  font: inherit;
+  color: #f7f6ff;
+  background: #10131c;
+  border: 1px solid #596072;
+  border-radius: 9px;
+  padding: 0.7rem;
+  width: 100%;
+  margin-top: 0.3rem;
+}
+.plan-panel button {
+  cursor: pointer;
+  border-radius: 8px;
+  padding: 0.6rem 0.8rem;
+  color: #fff;
+  background: #171b29;
+  border: 1px solid #555d70;
+}
+.plan-panel button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+.plan-panel :is(button, input, textarea, select, summary):focus-visible {
+  outline: 3px solid #a59bf5;
+  outline-offset: 3px;
+}
+.plan-original {
+  background: #10131c;
+  border: 1px solid #39384e;
+  border-radius: 12px;
+  padding: 1rem;
+}
+.plan-original p {
+  white-space: pre-wrap;
+  line-height: 1.6;
+  color: #bdc3d5;
+}
+.plan-work-items {
+  display: grid;
+  gap: 1.1rem;
+}
+.plan-work-item {
+  border: 1px solid #44445c;
+  background: #131522;
+  border-radius: 14px;
+  padding: 1.15rem;
+}
+.plan-item-top {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: center;
+}
+.plan-workflow {
+  margin-top: 0.8rem;
+  border-top: 1px solid #39384e;
+  padding-top: 0.7rem;
+}
+.plan-workflow ol {
+  padding-left: 1.5rem;
+}
+.plan-workflow li {
+  padding: 0.5rem 0;
+}
+.plan-checkbox {
+  display: flex !important;
+  gap: 0.7rem;
+  align-items: center;
+}
+.plan-checkbox input {
+  width: 18px;
+  height: 18px;
+}
+.plan-lists {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1rem;
+}
+.plan-original summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+@media (max-width: 520px) {
+  .plan-work-item {
+    padding: 0.85rem;
+  }
+  .plan-item-top {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}

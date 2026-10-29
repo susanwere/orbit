@@ -84,18 +84,31 @@ export function createIntentApi(
     generatePlan: async (id) =>
       (await request<{ plan: ProjectPlan }>(`${path(id)}/plan`, "POST")).plan,
     updatePlan: async (id, expectedRevision, content) =>
-      (await request<{ plan: ProjectPlan }>(`${path(id)}/plan`, "PATCH", { expectedRevision, content })).plan,
+      (
+        await request<{ plan: ProjectPlan }>(`${path(id)}/plan`, "PATCH", {
+          expectedRevision,
+          content,
+        })
+      ).plan,
     approvePlan: async (id, expectedRevision) =>
-      (await request<{ plan: ProjectPlan }>(`${path(id)}/plan/approve`, "POST", { expectedRevision })).plan,
+      (
+        await request<{ plan: ProjectPlan }>(`${path(id)}/plan/approve`, "POST", {
+          expectedRevision,
+        })
+      ).plan,
     updatePlan: async (id, revision, content) =>
-      (await request<{ plan: ProjectPlan }>(`${path(id)}/plan`, "PATCH", {
-        expectedRevision: revision,
-        content,
-      })).plan,
+      (
+        await request<{ plan: ProjectPlan }>(`${path(id)}/plan`, "PATCH", {
+          expectedRevision: revision,
+          content,
+        })
+      ).plan,
     approvePlan: async (id, revision) =>
-      (await request<{ plan: ProjectPlan }>(`${path(id)}/plan/approve`, "POST", {
-        expectedRevision: revision,
-      })).plan,
+      (
+        await request<{ plan: ProjectPlan }>(`${path(id)}/plan/approve`, "POST", {
+          expectedRevision: revision,
+        })
+      ).plan,
     getRepositories: async (id) =>
       (await request<{ repositories: ConnectedRepository[] }>(`${path(id)}/repositories`))
         .repositories,

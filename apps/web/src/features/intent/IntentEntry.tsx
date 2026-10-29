@@ -126,7 +126,16 @@ export function IntentEntry({ project, api, onBack }: IntentEntryProps) {
     );
   }
   if (reviewOpen && plan && proposed) {
-    return <PlanReview project={project} originalIntent={intent} plan={plan} api={api} onBack={() => setReviewOpen(false)} onUpdated={setPlan} />;
+    return (
+      <PlanReview
+        project={project}
+        originalIntent={intent}
+        plan={plan}
+        api={api}
+        onBack={() => setReviewOpen(false)}
+        onUpdated={setPlan}
+      />
+    );
   }
   return (
     <main className="intent-page">

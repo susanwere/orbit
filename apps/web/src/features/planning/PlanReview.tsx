@@ -37,7 +37,8 @@ function readGraph(value: unknown): WorkGraph | null {
     !Array.isArray(data.guardrails) ||
     !Array.isArray(data.decisionsToReview) ||
     !Array.isArray(data.assumptions)
-  ) return null;
+  )
+    return null;
   for (const item of data.workItems) {
     if (
       !item ||
@@ -47,20 +48,28 @@ function readGraph(value: unknown): WorkGraph | null {
       typeof item.description !== "string" ||
       !Array.isArray(item.dependsOn) ||
       !Array.isArray(item.workflows)
-    ) return null;
+    )
+      return null;
     for (const workflow of item.workflows) {
-      if (!workflow || typeof workflow.name !== "string" || !Array.isArray(workflow.steps)) return null;
+      if (!workflow || typeof workflow.name !== "string" || !Array.isArray(workflow.steps))
+        return null;
       for (const step of workflow.steps) {
         if (
           !step ||
           typeof step.title !== "string" ||
           !["human", "agent", "system"].includes(step.executor) ||
           typeof step.requiresApproval !== "boolean"
-        ) return null;
+        )
+          return null;
       }
     }
   }
-  if (![...data.guardrails, ...data.decisionsToReview, ...data.assumptions].every((x) => typeof x === "string")) return null;
+  if (
+    ![...data.guardrails, ...data.decisionsToReview, ...data.assumptions].every(
+      (x) => typeof x === "string",
+    )
+  )
+    return null;
   return structuredClone(value) as WorkGraph;
 }
 
@@ -96,7 +105,13 @@ export function PlanReview({ project, originalIntent, plan, api, onBack, onUpdat
   };
   const editList = (name: "guardrails" | "decisionsToReview" | "assumptions", value: string) => {
     if (!graph) return;
-    change({ ...graph, [name]: value.split("\n").map((s) => s.trim()).filter(Boolean) });
+    change({
+      ...graph,
+      [name]: value
+        .split("\n")
+        .map((s) => s.trim())
+        .filter(Boolean),
+    });
   };
   async function latest() {
     setBusy(true);
@@ -155,11 +170,16 @@ export function PlanReview({ project, originalIntent, plan, api, onBack, onUpdat
       <section className="intent-panel plan-panel" aria-labelledby="plan-heading">
         <div className="intent-topline">
           <span className="eyebrow">ORBIT / {project.name} / PROPOSED PLAN</span>
-          <button type="button" onClick={onBack} className="intent-back">Back to intent</button>
+          <button type="button" onClick={onBack} className="intent-back">
+            Back to intent
+          </button>
         </div>
         <p className="intent-overline">STEP 02 · HUMAN REVIEW</p>
         <h1 id="plan-heading">Review the proposed plan.</h1>
-        <p className="intent-description">Muse Spark suggests the work. You decide what gets approved. No agent runs, repository changes, or external work items are created from this screen.</p>
+        <p className="intent-description">
+          Muse Spark suggests the work. You decide what gets approved. No agent runs, repository
+          changes, or external work items are created from this screen.
+        </p>
         {originalIntent && (
           <details className="plan-original">
             <summary>Original intent (immutable)</summary>
@@ -169,7 +189,15 @@ export function PlanReview({ project, originalIntent, plan, api, onBack, onUpdat
         {!graph ? (
           <div role="alert" className="intent-error">
             The proposal could not be displayed. No approval was performed.
-            <button type="button" onClick={() => { void latest(); }} disabled={busy}>Reload proposal</button>
+            <button
+              type="button"
+              onClick={() => {
+                void latest();
+              }}
+              disabled={busy}
+            >
+              Reload proposal
+            </button>
           </div>
         ) : (
           <>
@@ -204,7 +232,9 @@ export function PlanReview({ project, originalIntent, plan, api, onBack, onUpdat
                             })),
                         });
                       }}
-                    >Remove item</button>
+                    >
+                      Remove item
+                    </button>
                   </div>
                   <label htmlFor={`plan-title-${index}`}>Work item title</label>
                   <input
@@ -223,14 +253,21 @@ export function PlanReview({ project, originalIntent, plan, api, onBack, onUpdat
                     disabled={!canEdit}
                     onChange={(event) => editItem(index, { description: event.target.value })}
                   />
-                  <label htmlFor={`plan-dependencies-${index}`}>Dependencies (work item keys, comma-separated)</label>
+                  <label htmlFor={`plan-dependencies-${index}`}>
+                    Dependencies (work item keys, comma-separated)
+                  </label>
                   <input
                     id={`plan-dependencies-${index}`}
                     value={item.dependsOn.join(", ")}
                     disabled={!canEdit}
-                    onChange={(event) => editItem(index, {
-                      dependsOn: event.target.value.split(",").map((x) => x.trim()).filter(Boolean),
-                    })}
+                    onChange={(event) =>
+                      editItem(index, {
+                        dependsOn: event.target.value
+                          .split(",")
+                          .map((x) => x.trim())
+                          .filter(Boolean),
+                      })
+                    }
                   />
                   <h3>Workflows</h3>
                   {item.workflows.map((workflow, wi) => (
@@ -247,7 +284,8 @@ export function PlanReview({ project, originalIntent, plan, api, onBack, onUpdat
                               maxLength={200}
                               onChange={(event) => {
                                 const next = structuredClone(graph);
-                                next.workItems[index]!.workflows[wi]!.steps[si]!.title = event.target.value;
+                                next.workItems[index]!.workflows[wi]!.steps[si]!.title =
+                                  event.target.value;
                                 change(next);
                               }}
                             />
@@ -258,7 +296,8 @@ export function PlanReview({ project, originalIntent, plan, api, onBack, onUpdat
                               disabled={!canEdit}
                               onChange={(event) => {
                                 const next = structuredClone(graph);
-                                next.workItems[index]!.workflows[wi]!.steps[si]!.executor = event.target.value as Executor;
+                                next.workItems[index]!.workflows[wi]!.steps[si]!.executor = event
+                                  .target.value as Executor;
                                 change(next);
                               }}
                             >
@@ -273,7 +312,9 @@ export function PlanReview({ project, originalIntent, plan, api, onBack, onUpdat
                                 disabled={!canEdit}
                                 onChange={(event) => {
                                   const next = structuredClone(graph);
-                                  next.workItems[index]!.workflows[wi]!.steps[si]!.requiresApproval = event.target.checked;
+                                  next.workItems[index]!.workflows[wi]!.steps[
+                                    si
+                                  ]!.requiresApproval = event.target.checked;
                                   change(next);
                                 }}
                               />
@@ -303,18 +344,33 @@ export function PlanReview({ project, originalIntent, plan, api, onBack, onUpdat
                       title: "New work item",
                       description: "Describe the work and expected outcome",
                       dependsOn: [],
-                      workflows: [{ name: "Implementation", steps: [{ title: "Complete work item", executor: "human", requiresApproval: true }] }],
+                      workflows: [
+                        {
+                          name: "Implementation",
+                          steps: [
+                            {
+                              title: "Complete work item",
+                              executor: "human",
+                              requiresApproval: true,
+                            },
+                          ],
+                        },
+                      ],
                     },
                   ],
                 });
               }}
-            >Add work item</button>
+            >
+              Add work item
+            </button>
             <div className="plan-lists">
-              {([
-                ["guardrails", "Proposed guardrails"],
-                ["decisionsToReview", "Decisions requiring review"],
-                ["assumptions", "Assumptions"],
-              ] as const).map(([key, heading]) => (
+              {(
+                [
+                  ["guardrails", "Proposed guardrails"],
+                  ["decisionsToReview", "Decisions requiring review"],
+                  ["assumptions", "Assumptions"],
+                ] as const
+              ).map(([key, heading]) => (
                 <div key={key}>
                   <label htmlFor={`plan-${key}`}>{heading} (one per line)</label>
                   <textarea
@@ -327,21 +383,60 @@ export function PlanReview({ project, originalIntent, plan, api, onBack, onUpdat
                 </div>
               ))}
             </div>
-            <p className="intent-hint">All work and guardrails above are proposals, not executed or enforced policies. Approval records human acceptance; execution is a separate controlled step.</p>
-            {error && <p role="alert" className="intent-error">{error}</p>}
+            <p className="intent-hint">
+              All work and guardrails above are proposals, not executed or enforced policies.
+              Approval records human acceptance; execution is a separate controlled step.
+            </p>
+            {error && (
+              <p role="alert" className="intent-error">
+                {error}
+              </p>
+            )}
             <div className="intent-actions">
-              <button type="button" onClick={() => { void latest(); }} disabled={busy}>Reload latest</button>
+              <button
+                type="button"
+                onClick={() => {
+                  void latest();
+                }}
+                disabled={busy}
+              >
+                Reload latest
+              </button>
               {!approved && (
                 <>
-                  <button type="button" onClick={() => { void save(); }} disabled={busy || !dirty}>Save changes</button>
-                  <button type="button" className="cta-primary" onClick={() => { void approve(); }} disabled={busy || dirty}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      void save();
+                    }}
+                    disabled={busy || !dirty}
+                  >
+                    Save changes
+                  </button>
+                  <button
+                    type="button"
+                    className="cta-primary"
+                    onClick={() => {
+                      void approve();
+                    }}
+                    disabled={busy || dirty}
+                  >
                     {busy ? "Working…" : "Approve plan"}
                   </button>
                 </>
               )}
             </div>
-            {dirty && <p role="status" className="intent-muted">Save your edits before approving this plan.</p>}
-            {approved && <p role="status" className="intent-confirmed">Plan approved by a human. No agents have started; execution is a separate authorized workflow.</p>}
+            {dirty && (
+              <p role="status" className="intent-muted">
+                Save your edits before approving this plan.
+              </p>
+            )}
+            {approved && (
+              <p role="status" className="intent-confirmed">
+                Plan approved by a human. No agents have started; execution is a separate authorized
+                workflow.
+              </p>
+            )}
           </>
         )}
       </section>
