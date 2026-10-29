@@ -29,11 +29,7 @@ export async function registerOriginalIntentRoutes(
     "/projects/:projectId/intent",
     async (request) => {
       const principal = auth.verify(request.headers.authorization);
-      const access = await authorization.authorize(
-        principal.id,
-        request.params.projectId,
-        "read",
-      );
+      const access = await authorization.authorize(principal.id, request.params.projectId, "read");
       const result = await db.query<IntentRow>(
         "SELECT id,organization_id,project_id,statement,created_by_principal_id,created_at FROM intents WHERE organization_id=$1 AND project_id=$2",
         [access.organizationId, access.projectId],
