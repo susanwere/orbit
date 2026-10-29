@@ -74,7 +74,10 @@ const decisionReview = new DecisionReviewService(
 );
 
 const identityVerifier =
-  auth && process.env.ORBIT_OIDC_ISSUER && process.env.ORBIT_OIDC_AUDIENCE && process.env.ORBIT_OIDC_JWKS_URL
+  auth &&
+  process.env.ORBIT_OIDC_ISSUER &&
+  process.env.ORBIT_OIDC_AUDIENCE &&
+  process.env.ORBIT_OIDC_JWKS_URL
     ? new OidcTokenVerifier({
         issuer: process.env.ORBIT_OIDC_ISSUER,
         audience: process.env.ORBIT_OIDC_AUDIENCE,
@@ -83,17 +86,18 @@ const identityVerifier =
     : undefined;
 
 const app = await buildApp({
-  authExchange: identityVerifier && process.env.ORBIT_AUTH_SECRET && process.env.ORBIT_AUTH_ISSUER
-    ? {
-        database,
-        identityVerifier,
-        tokenIssuer: new OrbitAccessTokenIssuer({
-          secret: process.env.ORBIT_AUTH_SECRET,
-          issuer: process.env.ORBIT_AUTH_ISSUER,
-          audience: "orbit-api",
-        }),
-      }
-    : undefined,
+  authExchange:
+    identityVerifier && process.env.ORBIT_AUTH_SECRET && process.env.ORBIT_AUTH_ISSUER
+      ? {
+          database,
+          identityVerifier,
+          tokenIssuer: new OrbitAccessTokenIssuer({
+            secret: process.env.ORBIT_AUTH_SECRET,
+            issuer: process.env.ORBIT_AUTH_ISSUER,
+            audience: "orbit-api",
+          }),
+        }
+      : undefined,
   auth,
   projectManagement: auth
     ? { auth, db: database, authorization: new ProjectAuthorizationService(database) }

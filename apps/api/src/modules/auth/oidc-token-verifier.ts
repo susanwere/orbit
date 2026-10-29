@@ -64,8 +64,7 @@ export class OidcTokenVerifier {
         typeof jwtClaims.iat !== "number" ||
         !Number.isInteger(jwtClaims.iat) ||
         jwtClaims.iat > now + 30 ||
-        (jwtClaims.nbf !== undefined &&
-          (typeof jwtClaims.nbf !== "number" || jwtClaims.nbf > now))
+        (jwtClaims.nbf !== undefined && (typeof jwtClaims.nbf !== "number" || jwtClaims.nbf > now))
       ) {
         return unauthenticated();
       }

@@ -12,7 +12,9 @@ describe("OIDC identity exchange", () => {
     const { privateKey, publicKey } = generateKeyPairSync("rsa", { modulusLength: 2048 });
     const signingKey = publicKey.export({ format: "jwk" });
     const now = 1_800_000_000;
-    const jwtHeader = Buffer.from(JSON.stringify({ alg: "RS256", kid: "test-key" })).toString("base64url");
+    const jwtHeader = Buffer.from(JSON.stringify({ alg: "RS256", kid: "test-key" })).toString(
+      "base64url",
+    );
     const jwtClaims = Buffer.from(
       JSON.stringify({
         iss: "https://trusted.example",
@@ -29,12 +31,14 @@ describe("OIDC identity exchange", () => {
     ).toString("base64url");
 
     const identityToken = `${jwtHeader}.${jwtClaims}.${signature}`;
-    const fetchImplementation = vi.fn<typeof fetch>().mockResolvedValue(
-      new Response(
-        JSON.stringify({ keys: [{ ...signingKey, kid: "test-key", alg: "RS256", use: "sig" }] }),
-        { status: 200 },
-      ),
-    );
+    const fetchImplementation = vi
+      .fn<typeof fetch>()
+      .mockResolvedValue(
+        new Response(
+          JSON.stringify({ keys: [{ ...signingKey, kid: "test-key", alg: "RS256", use: "sig" }] }),
+          { status: 200 },
+        ),
+      );
     const identityVerifier = new OidcTokenVerifier({
       issuer: "https://trusted.example",
       audience: "orbit-web",

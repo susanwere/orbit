@@ -1,5 +1,8 @@
 import cors from "@fastify/cors";
-import { registerAuthExchangeRoutes, type AuthExchangeOptions } from "./modules/auth/auth-exchange-routes.js";
+import {
+  registerAuthExchangeRoutes,
+  type AuthExchangeOptions,
+} from "./modules/auth/auth-exchange-routes.js";
 import {
   registerProjectManagementRoutes,
   type ProjectManagementOptions,
