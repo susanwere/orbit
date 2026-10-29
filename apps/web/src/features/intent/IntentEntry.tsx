@@ -3,6 +3,7 @@ import { PlanReview } from "../planning/PlanReview.js";
 import type { CreatedProject, ConnectedRepository } from "../projects/project-api.js";
 import type { ProjectIntentApi, ProjectPlan, StoredIntent } from "./intent-api.js";
 import "./intent-entry.css";
+import { PlanReview } from "../planning/PlanReview.js";
 
 interface IntentEntryProps {
   readonly project: CreatedProject;
@@ -16,6 +17,7 @@ export function IntentEntry({ project, api, onBack }: IntentEntryProps) {
   const [statement, setStatement] = useState("");
   const [intent, setIntent] = useState<StoredIntent | null>(null);
   const [plan, setPlan] = useState<ProjectPlan | null>(null);
+  const [reviewing, setReviewing] = useState(false);
   const [repositories, setRepositories] = useState<readonly ConnectedRepository[]>([]);
   const [phase, setPhase] = useState<Phase>("loading");
   const [error, setError] = useState<string | null>(null);
@@ -111,6 +113,18 @@ export function IntentEntry({ project, api, onBack }: IntentEntryProps) {
   }
 
   const proposed = plan?.status === "READY_FOR_REVIEW" || plan?.status === "APPROVED";
+  if (reviewing && plan && proposed) {
+    return (
+      <PlanReview
+        project={project}
+        originalIntent={intent}
+        plan={plan}
+        api={api}
+        onBack={() => setReviewing(false)}
+        onUpdated={setPlan}
+      />
+    );
+  }
   if (reviewOpen && plan && proposed) {
     return <PlanReview project={project} originalIntent={intent} plan={plan} api={api} onBack={() => setReviewOpen(false)} onUpdated={setPlan} />;
   }
@@ -225,6 +239,9 @@ export function IntentEntry({ project, api, onBack }: IntentEntryProps) {
                 : "Muse Spark returned a proposal. The Plan Review experience is the next step; no work has started."}
             </p>
             <button type="button" className="cta-primary" onClick={() => setReviewOpen(true)}>
+              {plan.status === "APPROVED" ? "View approved plan" : "Review proposed plan"}
+            </button>
+            <button type="button" onClick={() => setReviewing(true)} className="cta-primary">
               {plan.status === "APPROVED" ? "View approved plan" : "Review proposed plan"}
             </button>
           </div>
