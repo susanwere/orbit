@@ -1,3 +1,4 @@
+import "./project-creation.css";
 import { useState, type FormEvent } from "react";
 import type { CreatedProject, ProjectCreationApi } from "./project-api.js";
 import { ProjectApiError } from "./project-api.js";
