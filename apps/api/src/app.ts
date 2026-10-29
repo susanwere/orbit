@@ -1,4 +1,5 @@
 import cors from "@fastify/cors";
+import { registerProjectManagementRoutes, type ProjectManagementOptions } from "./modules/projects/project-management-routes.js";
 import {registerOperationsRoutes,type OperationsOptions} from "./modules/operations/operations-routes.js";
 import {registerHumanGateRoutes} from "./modules/execution/human-gate-routes.js";
 import type {HumanGateService} from "./modules/execution/human-gate-service.js";
@@ -19,6 +20,7 @@ import { registerWhyProvenanceRoutes, type WhyProvenanceRouteOptions } from "./m
 import { registerProjectEventRoutes, type EventRouteOptions } from "./modules/events/project-event-route.js";
 
 export interface AppOptions {
+  readonly projectManagement?: ProjectManagementOptions;
   readonly operations?: OperationsOptions;
   readonly humanGates?: {auth:AuthVerifier;service:HumanGateService};
   readonly agentSessions?: {auth:AuthVerifier;service:AgentSessionService};
@@ -68,6 +70,7 @@ export async function buildApp(options: AppOptions = {}) {
     service: "orbit-api",
   }));
 
+  if (options.projectManagement) await app.register(registerProjectManagementRoutes, options.projectManagement);
   if(options.operations)await app.register(registerOperationsRoutes,options.operations);
   if (options.humanGates) await app.register(registerHumanGateRoutes, options.humanGates);
   if (options.agentSessions) await app.register(registerAgentSessionRoutes, options.agentSessions);

@@ -70,6 +70,7 @@ const decisionReview = new DecisionReviewService(
 
 const app = await buildApp({
   auth,
+  projectManagement: auth ? {auth,db:database,authorization:new ProjectAuthorizationService(database)} : undefined,
   operations:auth?{auth,db:database,authorization:new ProjectAuthorizationService(database)}:undefined,
   humanGates: auth ? {auth,service:new HumanGateService(database,
     new ProjectAuthorizationService(database))}:undefined,
