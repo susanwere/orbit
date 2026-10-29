@@ -1,8 +1,4 @@
-import {
-  DomainError,
-  type ContextChangeProposal,
-  type DecisionProposal,
-} from "@orbit/domain";
+import { DomainError, type ContextChangeProposal, type DecisionProposal } from "@orbit/domain";
 import type { SqlDatabase } from "@orbit/db";
 
 interface DecisionProposalRow extends Record<string, unknown> {
@@ -38,7 +34,7 @@ interface ChangeRow extends Record<string, unknown> {
   updated_at: Date | string;
 }
 
-const iso = (value: Date | string) => value instanceof Date ? value.toISOString() : value;
+const iso = (value: Date | string) => (value instanceof Date ? value.toISOString() : value);
 
 function mapDecision(row: DecisionProposalRow): DecisionProposal {
   return {
@@ -109,10 +105,7 @@ export class DecisionReviewRepository {
     );
     const changeRow = changeResult.rows[0];
     if (!changeRow) {
-      throw new DomainError(
-        "invalid_state",
-        "Decision proposal has no Context Change Proposal.",
-      );
+      throw new DomainError("invalid_state", "Decision proposal has no Context Change Proposal.");
     }
 
     return {
@@ -146,10 +139,7 @@ export class DecisionReviewRepository {
 
     const row = result.rows[0];
     if (!row) {
-      throw new DomainError(
-        "invalid_state",
-        "Decision proposal is not available for editing.",
-      );
+      throw new DomainError("invalid_state", "Decision proposal is not available for editing.");
     }
     return mapDecision(row);
   }
@@ -161,45 +151,71 @@ export class DecisionReviewRepository {
     fields: { readonly title?: string; readonly rationale?: string; readonly updatedAt: string },
   ): Promise<DecisionReviewBundle> {
     return this.database.transaction(async (tx) => {
-      const projectId=previous.decisionProposal.projectId;
-      const proposalId=previous.decisionProposal.id;
-      await tx.query("SELECT pg_advisory_xact_lock(hashtext($1))",[projectId]);
-      const head=await tx.query<{current_context_version_id:string}>(`
+      const projectId = previous.decisionProposal.projectId;
+      const proposalId = previous.decisionProposal.id;
+      await tx.query("SELECT pg_advisory_xact_lock(hashtext($1))", [projectId]);
+      const head = await tx.query<{ current_context_version_id: string }>(
+        `
         SELECT current_context_version_id FROM project_context_heads
-        WHERE project_id=$1 FOR UPDATE`,[projectId]);
-      if(head.rows[0]?.current_context_version_id!==next.baseContextVersionId)
-        throw new DomainError("stale_context_version","Context advanced during editing.");
-      const decision=await tx.query<DecisionProposalRow>(`
+        WHERE project_id=$1 FOR UPDATE`,
+        [projectId],
+      );
+      if (head.rows[0]?.current_context_version_id !== next.baseContextVersionId)
+        throw new DomainError("stale_context_version", "Context advanced during editing.");
+      const decision = await tx.query<DecisionProposalRow>(
+        `
         SELECT * FROM decision_proposals WHERE project_id=$1 AND id=$2 FOR UPDATE`,
-        [projectId,proposalId]);
-      if(decision.rows[0]?.status!=="READY_FOR_REVIEW")
-        throw new DomainError("invalid_state","Proposal is no longer reviewable.");
-      const revision=await tx.query<ChangeRow>(`
+        [projectId, proposalId],
+      );
+      if (decision.rows[0]?.status !== "READY_FOR_REVIEW")
+        throw new DomainError("invalid_state", "Proposal is no longer reviewable.");
+      const revision = await tx.query<ChangeRow>(
+        `
         SELECT * FROM context_change_proposals
         WHERE project_id=$1 AND decision_proposal_id=$2
-        ORDER BY revision DESC LIMIT 1 FOR UPDATE`,[projectId,proposalId]);
-      if(revision.rows[0]?.id!==previous.contextChangeProposal.id ||
-        revision.rows[0]?.revision!==previous.contextChangeProposal.revision ||
-        revision.rows[0]?.status!=="READY_FOR_REVIEW")
-        throw new DomainError("stale_context_version","Review revision was updated concurrently.");
-      const updated=await tx.query<DecisionProposalRow>(`
+        ORDER BY revision DESC LIMIT 1 FOR UPDATE`,
+        [projectId, proposalId],
+      );
+      if (
+        revision.rows[0]?.id !== previous.contextChangeProposal.id ||
+        revision.rows[0]?.revision !== previous.contextChangeProposal.revision ||
+        revision.rows[0]?.status !== "READY_FOR_REVIEW"
+      )
+        throw new DomainError("stale_context_version", "Review revision was updated concurrently.");
+      const updated = await tx.query<DecisionProposalRow>(
+        `
         UPDATE decision_proposals SET title=COALESCE($3,title),
           rationale=COALESCE($4,rationale),updated_at=$5
         WHERE project_id=$1 AND id=$2 RETURNING *`,
-        [projectId,proposalId,fields.title??null,fields.rationale??null,fields.updatedAt]);
-      const change=await tx.query<ChangeRow>(`
+        [projectId, proposalId, fields.title ?? null, fields.rationale ?? null, fields.updatedAt],
+      );
+      const change = await tx.query<ChangeRow>(
+        `
         INSERT INTO context_change_proposals(
           id,organization_id,project_id,decision_proposal_id,
           base_context_version_id,revision,operations,resulting_context_preview,
           status,created_at,updated_at)
         VALUES($1,$2,$3,$4,$5,$6,$7::jsonb,$8::jsonb,$9,$10,$11) RETURNING *`,
-        [next.id,next.organizationId,next.projectId,next.decisionProposalId,
-          next.baseContextVersionId,next.revision,JSON.stringify(next.operations),
-          JSON.stringify(next.resultingContextPreview),next.status,next.createdAt,next.updatedAt]);
-      if(!updated.rows[0]||!change.rows[0])
-        throw new DomainError("invalid_state","Could not save atomic review revision.");
-      return {decisionProposal:mapDecision(updated.rows[0]),
-        contextChangeProposal:mapChange(change.rows[0])};
+        [
+          next.id,
+          next.organizationId,
+          next.projectId,
+          next.decisionProposalId,
+          next.baseContextVersionId,
+          next.revision,
+          JSON.stringify(next.operations),
+          JSON.stringify(next.resultingContextPreview),
+          next.status,
+          next.createdAt,
+          next.updatedAt,
+        ],
+      );
+      if (!updated.rows[0] || !change.rows[0])
+        throw new DomainError("invalid_state", "Could not save atomic review revision.");
+      return {
+        decisionProposal: mapDecision(updated.rows[0]),
+        contextChangeProposal: mapChange(change.rows[0]),
+      };
     });
   }
 
@@ -253,10 +269,17 @@ export class DecisionReviewRepository {
         ) VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb, $8::jsonb, $9, $10, $11)
         RETURNING *`,
         [
-          next.id, next.organizationId, next.projectId, next.decisionProposalId,
-          next.baseContextVersionId, next.revision,
-          JSON.stringify(next.operations), JSON.stringify(next.resultingContextPreview),
-          next.status, next.createdAt, next.updatedAt,
+          next.id,
+          next.organizationId,
+          next.projectId,
+          next.decisionProposalId,
+          next.baseContextVersionId,
+          next.revision,
+          JSON.stringify(next.operations),
+          JSON.stringify(next.resultingContextPreview),
+          next.status,
+          next.createdAt,
+          next.updatedAt,
         ],
       );
       const updatedDecision = await transaction.query<DecisionProposalRow>(
@@ -304,10 +327,7 @@ export class DecisionReviewRepository {
         [projectId, contextChangeProposalId, updatedAt],
       );
       if (change.rowCount !== 1) {
-        throw new DomainError(
-          "invalid_state",
-          "Context Change Proposal cannot be rejected.",
-        );
+        throw new DomainError("invalid_state", "Context Change Proposal cannot be rejected.");
       }
     });
   }

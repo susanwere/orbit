@@ -1,9 +1,5 @@
 import { DomainError } from "./errors.js";
-import {
-  exceedsClassification,
-  type AgentDefinition,
-  type Principal,
-} from "./types.js";
+import { exceedsClassification, type AgentDefinition, type Principal } from "./types.js";
 import type { ContextSnapshot } from "./execution-context.js";
 
 /** Non-overridable agent safety rules, enforced outside any model reasoning. */
@@ -26,10 +22,7 @@ export function assertCanManageAgents(actor: Principal): void {
   }
 }
 
-export function assertCanStartSession(
-  definition: AgentDefinition,
-  organizationId: string,
-): void {
+export function assertCanStartSession(definition: AgentDefinition, organizationId: string): void {
   if (definition.organizationId !== organizationId) {
     throw new DomainError("forbidden", "Agent definition belongs to another organization.");
   }
@@ -46,10 +39,7 @@ export function assertSnapshotWithinEnvelope(
   snapshot: ContextSnapshot,
 ): void {
   if (snapshot.organizationId !== definition.organizationId) {
-    throw new DomainError(
-      "scope_exceeded",
-      "Context snapshot belongs to another organization.",
-    );
+    throw new DomainError("scope_exceeded", "Context snapshot belongs to another organization.");
   }
 
   if (snapshot.authorizationBasis.agentDefinitionId !== definition.id) {

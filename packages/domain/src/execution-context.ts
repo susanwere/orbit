@@ -64,10 +64,7 @@ export interface AgentSession {
   readonly createdAt: string;
 }
 
-const AGENT_SESSION_TRANSITIONS: Record<
-  AgentSessionState,
-  readonly AgentSessionState[]
-> = {
+const AGENT_SESSION_TRANSITIONS: Record<AgentSessionState, readonly AgentSessionState[]> = {
   CREATED: ["AUTHORIZED", "TERMINATED"],
   AUTHORIZED: ["RUNNING", "TERMINATED"],
   RUNNING: ["WAITING", "COMPLETED", "FAILED", "TERMINATED"],

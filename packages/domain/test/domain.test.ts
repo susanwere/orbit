@@ -78,12 +78,8 @@ function snapshot(overrides: Partial<ContextSnapshot> = {}): ContextSnapshot {
 
 describe("decision and context lifecycle", () => {
   it("requires proposals to become reviewable before approval", () => {
-    expect(transitionDecisionProposal("DETECTED", "READY_FOR_REVIEW")).toBe(
-      "READY_FOR_REVIEW",
-    );
-    expect(() => transitionDecisionProposal("DETECTED", "APPROVED")).toThrow(
-      DomainError,
-    );
+    expect(transitionDecisionProposal("DETECTED", "READY_FOR_REVIEW")).toBe("READY_FOR_REVIEW");
+    expect(() => transitionDecisionProposal("DETECTED", "APPROVED")).toThrow(DomainError);
   });
 
   it("allows authoritative decisions only to become superseded", () => {
@@ -92,12 +88,10 @@ describe("decision and context lifecycle", () => {
   });
 
   it("requires context proposals to pass through APPLYING before APPLIED", () => {
-    expect(
-      transitionContextChangeProposal("READY_FOR_REVIEW", "APPLYING"),
-    ).toBe("APPLYING");
-    expect(() =>
-      transitionContextChangeProposal("READY_FOR_REVIEW", "APPLIED"),
-    ).toThrow(DomainError);
+    expect(transitionContextChangeProposal("READY_FOR_REVIEW", "APPLYING")).toBe("APPLYING");
+    expect(() => transitionContextChangeProposal("READY_FOR_REVIEW", "APPLIED")).toThrow(
+      DomainError,
+    );
   });
 
   it("keeps original intent separate from derived current intent", () => {
@@ -186,9 +180,7 @@ describe("context snapshots and agent sessions", () => {
   it("enforces the agent session lifecycle", () => {
     expect(transitionAgentSession("CREATED", "AUTHORIZED")).toBe("AUTHORIZED");
     expect(transitionAgentSession("AUTHORIZED", "RUNNING")).toBe("RUNNING");
-    expect(() => transitionAgentSession("CREATED", "COMPLETED")).toThrow(
-      DomainError,
-    );
+    expect(() => transitionAgentSession("CREATED", "COMPLETED")).toThrow(DomainError);
   });
 });
 

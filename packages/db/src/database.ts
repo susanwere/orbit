@@ -34,9 +34,7 @@ export class PgDatabase implements SqlDatabase {
     };
   }
 
-  async transaction<T>(
-    work: (transaction: SqlExecutor) => Promise<T>,
-  ): Promise<T> {
+  async transaction<T>(work: (transaction: SqlExecutor) => Promise<T>): Promise<T> {
     const client = await this.pool.connect();
 
     const transaction: SqlExecutor = {

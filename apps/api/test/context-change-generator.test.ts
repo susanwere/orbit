@@ -5,12 +5,8 @@ import {
   type ContextVersion,
   type ProjectContext,
 } from "@orbit/domain";
-import {
-  applyContextChangeOperations,
-} from "../src/modules/context/context-mutation.js";
-import {
-  generateContextChangeProposal,
-} from "../src/modules/context/context-change-generator.js";
+import { applyContextChangeOperations } from "../src/modules/context/context-mutation.js";
+import { generateContextChangeProposal } from "../src/modules/context/context-change-generator.js";
 
 const now = "2026-10-28T10:00:00.000Z";
 
@@ -117,11 +113,7 @@ describe("Context Change Proposal generation", () => {
     };
 
     try {
-      applyContextChangeOperations(
-        baseContext(),
-        [operation],
-        ["/constraints/-"],
-      );
+      applyContextChangeOperations(baseContext(), [operation], ["/constraints/-"]);
       throw new Error("Expected path policy rejection.");
     } catch (error) {
       expect(error).toBeInstanceOf(DomainError);

@@ -17,11 +17,7 @@ export interface Principal {
   readonly role?: OrganizationRole;
 }
 
-export type DataClassification =
-  | "PUBLIC"
-  | "INTERNAL"
-  | "CONFIDENTIAL"
-  | "RESTRICTED";
+export type DataClassification = "PUBLIC" | "INTERNAL" | "CONFIDENTIAL" | "RESTRICTED";
 
 const CLASSIFICATION_ORDER: Record<DataClassification, number> = {
   PUBLIC: 0,
@@ -37,11 +33,7 @@ export function exceedsClassification(
   return CLASSIFICATION_ORDER[value] > CLASSIFICATION_ORDER[maximum];
 }
 
-export type AgentDefinitionStatus =
-  | "draft"
-  | "approved"
-  | "suspended"
-  | "retired";
+export type AgentDefinitionStatus = "draft" | "approved" | "suspended" | "retired";
 
 export interface AgentDefinition {
   readonly id: Id;

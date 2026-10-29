@@ -1,8 +1,6 @@
 import { execFileSync } from "node:child_process";
 
-const base = process.env.GITHUB_BASE_REF
-  ? `origin/${process.env.GITHUB_BASE_REF}`
-  : "HEAD^";
+const base = process.env.GITHUB_BASE_REF ? `origin/${process.env.GITHUB_BASE_REF}` : "HEAD^";
 
 const changedFiles = execFileSync(
   "git",

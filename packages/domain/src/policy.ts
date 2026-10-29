@@ -25,9 +25,7 @@ const RESTRICTIVENESS: Record<PolicyResult, number> = {
  * one. When policies conflict, the most restrictive result wins.
  */
 export function evaluatePolicies(input: PolicyEvaluationInput): PolicyEvaluationOutcome {
-  const matching = input.policies.filter(
-    (p) => p.active && p.triggerAction === input.action,
-  );
+  const matching = input.policies.filter((p) => p.active && p.triggerAction === input.action);
 
   const evaluations = matching.map((policy) => ({
     policyId: policy.id,

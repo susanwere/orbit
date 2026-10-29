@@ -1,10 +1,6 @@
 import { describe, expect, it } from "vitest";
-import type {
-  ProjectContextPreview,
-} from "@orbit/domain";
-import {
-  materializeApprovedContext,
-} from "../src/modules/decisions/postgres-decision-promotion.js";
+import type { ProjectContextPreview } from "@orbit/domain";
+import { materializeApprovedContext } from "../src/modules/decisions/postgres-decision-promotion.js";
 
 const now = "2026-10-28T10:00:00.000Z";
 
@@ -33,11 +29,7 @@ describe("Decision promotion context materialization", () => {
       attributes: {},
     };
 
-    const context = materializeApprovedContext(
-      preview,
-      "dp_1",
-      "decision_1",
-    );
+    const context = materializeApprovedContext(preview, "dp_1", "decision_1");
 
     expect(context.constraints[0]).toMatchObject({
       sourceDecisionId: "decision_existing",
@@ -69,14 +61,11 @@ describe("Decision promotion context materialization", () => {
       attributes: {},
     };
 
-    expect(() =>
-      materializeApprovedContext(preview, "dp_1", "decision_1"),
-    ).toThrowError(
+    expect(() => materializeApprovedContext(preview, "dp_1", "decision_1")).toThrowError(
       expect.objectContaining({ code: "invalid_context_preview" }),
     );
   });
 });
-
 
 import type { SqlDatabase, SqlExecutor, SqlQueryResult } from "@orbit/db";
 import {
@@ -110,9 +99,7 @@ class PromotionDatabase implements SqlDatabase {
     throw new Error("Promotion queries must run inside a transaction.");
   }
 
-  async transaction<T>(
-    work: (transaction: SqlExecutor) => Promise<T>,
-  ): Promise<T> {
+  async transaction<T>(work: (transaction: SqlExecutor) => Promise<T>): Promise<T> {
     const executor: SqlExecutor = {
       query: async <Row extends Record<string, unknown>>(
         text: string,
@@ -287,11 +274,8 @@ describe("PostgresDecisionPromotion transaction boundary", () => {
     const publisher = new RecordingPublisher();
     publisher.shouldFail = true;
     const publishErrors: unknown[] = [];
-    const promoter = new PostgresDecisionPromotion(
-      database,
-      publisher,
-      ids,
-      (error) => publishErrors.push(error),
+    const promoter = new PostgresDecisionPromotion(database, publisher, ids, (error) =>
+      publishErrors.push(error),
     );
 
     const output = await promoter.promote({

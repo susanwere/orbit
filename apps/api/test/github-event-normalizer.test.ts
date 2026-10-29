@@ -209,9 +209,7 @@ describe("GitHub event normalization", () => {
       },
     };
 
-    expect(normalizeGitHubWebhook(envelope)?.id).toBe(
-      normalizeGitHubWebhook(envelope)?.id,
-    );
+    expect(normalizeGitHubWebhook(envelope)?.id).toBe(normalizeGitHubWebhook(envelope)?.id);
   });
 
   it("ignores unsupported GitHub events and actions", () => {

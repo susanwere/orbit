@@ -37,9 +37,13 @@ export function verifyEventToken(
   }
   const { sub, exp, aud } = claims as Record<string, unknown>;
   if (
-    typeof sub !== "string" || !sub.trim() || sub.length > 256 ||
-    typeof exp !== "number" || !Number.isInteger(exp) ||
-    exp <= nowSeconds || exp > nowSeconds + 3600 ||
+    typeof sub !== "string" ||
+    !sub.trim() ||
+    sub.length > 256 ||
+    typeof exp !== "number" ||
+    !Number.isInteger(exp) ||
+    exp <= nowSeconds ||
+    exp > nowSeconds + 3600 ||
     aud !== audience
   ) {
     throw new DomainError("unauthenticated", "Expired or invalid bearer token claims.");

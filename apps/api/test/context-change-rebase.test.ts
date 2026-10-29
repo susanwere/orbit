@@ -11,26 +11,57 @@ const context = (): ProjectContext => ({
   attributes: {},
 });
 const version = (id: string, n: number, content = context()): ContextVersion => ({
-  id, organizationId: "org_1", projectId: "project_1",
-  versionNumber: n, content, contentHash: "a".repeat(64), createdAt: at,
+  id,
+  organizationId: "org_1",
+  projectId: "project_1",
+  versionNumber: n,
+  content,
+  contentHash: "a".repeat(64),
+  createdAt: at,
 });
 const previous: ContextChangeProposal = {
-  id: "ccp_1", organizationId: "org_1", projectId: "project_1",
-  decisionProposalId: "dp_1", baseContextVersionId: "v3", revision: 1,
-  operations: [{ op: "add", path: "/constraints/-", value: {
-    id: "constraint_dp_1", key: "decision.dp_1",
-    statement: "Use Load More", sourceDecisionProposalId: "dp_1", createdAt: at,
-  }}],
-  resultingContextPreview: { ...context(), constraints: [{
-    id: "constraint_dp_1", key: "decision.dp_1",
-    statement: "Use Load More", sourceDecisionProposalId: "dp_1", createdAt: at,
-  }] },
-  status: "READY_FOR_REVIEW", createdAt: at, updatedAt: at,
+  id: "ccp_1",
+  organizationId: "org_1",
+  projectId: "project_1",
+  decisionProposalId: "dp_1",
+  baseContextVersionId: "v3",
+  revision: 1,
+  operations: [
+    {
+      op: "add",
+      path: "/constraints/-",
+      value: {
+        id: "constraint_dp_1",
+        key: "decision.dp_1",
+        statement: "Use Load More",
+        sourceDecisionProposalId: "dp_1",
+        createdAt: at,
+      },
+    },
+  ],
+  resultingContextPreview: {
+    ...context(),
+    constraints: [
+      {
+        id: "constraint_dp_1",
+        key: "decision.dp_1",
+        statement: "Use Load More",
+        sourceDecisionProposalId: "dp_1",
+        createdAt: at,
+      },
+    ],
+  },
+  status: "READY_FOR_REVIEW",
+  createdAt: at,
+  updatedAt: at,
 };
 const rebase = (proposal = previous, current = version("v4", 4)) =>
   rebaseContextChangeProposal({
-    previous: proposal, previousBase: version("v3", 3), current,
-    id: "ccp_2", createdAt: at,
+    previous: proposal,
+    previousBase: version("v3", 3),
+    current,
+    id: "ccp_2",
+    createdAt: at,
   });
 
 describe("stale Context Change Proposal rebase", () => {
@@ -49,10 +80,15 @@ describe("stale Context Change Proposal rebase", () => {
   it("rejects duplicate constraint keys", () => {
     const current = version("v4", 4, {
       ...context(),
-      constraints: [{
-        id: "existing", key: "decision.dp_1", statement: "Existing",
-        sourceDecisionId: "d_1", createdAt: at,
-      }],
+      constraints: [
+        {
+          id: "existing",
+          key: "decision.dp_1",
+          statement: "Existing",
+          sourceDecisionId: "d_1",
+          createdAt: at,
+        },
+      ],
     });
     expect(() => rebase(previous, current)).toThrowError(
       expect.objectContaining({ code: "stale_context_version" }),
@@ -61,11 +97,18 @@ describe("stale Context Change Proposal rebase", () => {
 
   it("refuses non-append edits when the base changed", () => {
     const edited: ContextChangeProposal = {
-      ...previous, operations: [{ op: "replace", path: "/currentIntent", value: "Updated" }],
+      ...previous,
+      operations: [{ op: "replace", path: "/currentIntent", value: "Updated" }],
     };
-    expect(() => rebase(edited, version("v4", 4, {
-      ...context(), currentIntent: "Other approved change",
-    }))).toThrowError(expect.objectContaining({ code: "stale_context_version" }));
+    expect(() =>
+      rebase(
+        edited,
+        version("v4", 4, {
+          ...context(),
+          currentIntent: "Other approved change",
+        }),
+      ),
+    ).toThrowError(expect.objectContaining({ code: "stale_context_version" }));
   });
 
   it("does not rebase proposals that were already applied", () => {

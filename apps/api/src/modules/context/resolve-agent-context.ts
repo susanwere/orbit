@@ -21,7 +21,10 @@ export interface ResolveSnapshotInput {
 }
 const classification = "INTERNAL" as const;
 const matches = (mission: string, values: readonly string[]) => {
-  const tokens = mission.toLowerCase().split(/[^a-z0-9]+/).filter((word) => word.length > 2);
+  const tokens = mission
+    .toLowerCase()
+    .split(/[^a-z0-9]+/)
+    .filter((word) => word.length > 2);
   return values.some((v) => tokens.some((token) => v.toLowerCase().includes(token)));
 };
 const inScope = (path: string, scopes: readonly string[]) =>
@@ -51,30 +54,43 @@ export function resolveContextSnapshot(input: ResolveSnapshotInput): ContextSnap
     }
   };
 
-  add("/currentIntent", {
-    contextItemId: `intent:${version.content.originalIntentId}`,
-    title: "Current project intent",
-    classification,
-    excerpt: version.content.currentIntent,
-  }, true);
+  add(
+    "/currentIntent",
+    {
+      contextItemId: `intent:${version.content.originalIntentId}`,
+      title: "Current project intent",
+      classification,
+      excerpt: version.content.currentIntent,
+    },
+    true,
+  );
 
-  const active = new Map(input.activeDecisions.filter((decision) =>
-    decision.status === "ACTIVE" &&
-    decision.organizationId === version.organizationId &&
-    decision.projectId === version.projectId
-  ).map((decision) => [decision.id, decision]));
+  const active = new Map(
+    input.activeDecisions
+      .filter(
+        (decision) =>
+          decision.status === "ACTIVE" &&
+          decision.organizationId === version.organizationId &&
+          decision.projectId === version.projectId,
+      )
+      .map((decision) => [decision.id, decision]),
+  );
 
   version.content.constraints.forEach((constraint, index) => {
     const decision = active.get(constraint.sourceDecisionId);
     const path = `/constraints/${index}`;
     const relevant = !!decision && matches(mission, [...decision.scope, constraint.statement]);
-    add(path, {
-      contextItemId: constraint.id,
-      title: constraint.key,
-      classification,
-      excerpt: constraint.statement,
-      sourceRef: decision ? `decision:${decision.id}` : undefined,
-    }, relevant);
+    add(
+      path,
+      {
+        contextItemId: constraint.id,
+        title: constraint.key,
+        classification,
+        excerpt: constraint.statement,
+        sourceRef: decision ? `decision:${decision.id}` : undefined,
+      },
+      relevant,
+    );
     if (relevant && authorized && inScope(path, agent.allowedContextScopes) && decision) {
       includedConstraintIds.push(constraint.id);
       includedDecisionIds.add(decision.id);
@@ -85,14 +101,19 @@ export function resolveContextSnapshot(input: ResolveSnapshotInput): ContextSnap
   for (const key of Object.keys(version.content.attributes).sort()) {
     const path = `/attributes/${key.replace(/~/g, "~0").replace(/\//g, "~1")}`;
     const item = version.content.attributes[key];
-    const safePrimitive = typeof item === "string" || typeof item === "number" || typeof item === "boolean";
+    const safePrimitive =
+      typeof item === "string" || typeof item === "number" || typeof item === "boolean";
     const explicit = agent.allowedContextScopes.includes(path);
-    add(path, {
-      contextItemId: `attribute:${key}`,
-      title: key,
-      classification,
-      excerpt: safePrimitive ? String(item) : "[structured attribute omitted]",
-    }, explicit && safePrimitive && matches(mission, [key]));
+    add(
+      path,
+      {
+        contextItemId: `attribute:${key}`,
+        title: key,
+        classification,
+        excerpt: safePrimitive ? String(item) : "[structured attribute omitted]",
+      },
+      explicit && safePrimitive && matches(mission, [key]),
+    );
   }
 
   const snapshot: ContextSnapshot = {

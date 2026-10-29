@@ -1,19 +1,11 @@
 import { describe, expect, it } from "vitest";
-import {
-  DomainError,
-  type ProjectContext,
-  type ProjectContextHead,
-} from "@orbit/domain";
+import { DomainError, type ProjectContext, type ProjectContextHead } from "@orbit/domain";
 import { hashProjectContext } from "../src/modules/context/canonical-context.js";
 import {
   ContextVersionRepository,
   buildNextContextVersion,
 } from "../src/modules/context/context-version-repository.js";
-import type {
-  SqlDatabase,
-  SqlExecutor,
-  SqlQueryResult,
-} from "@orbit/db";
+import type { SqlDatabase, SqlExecutor, SqlQueryResult } from "@orbit/db";
 
 const createdAt = new Date(0).toISOString();
 
@@ -130,9 +122,7 @@ class HistoryDatabase implements SqlDatabase {
     };
   }
 
-  async transaction<T>(
-    work: (transaction: SqlExecutor) => Promise<T>,
-  ): Promise<T> {
+  async transaction<T>(work: (transaction: SqlExecutor) => Promise<T>): Promise<T> {
     return work(this);
   }
 }

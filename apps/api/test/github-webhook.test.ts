@@ -29,16 +29,12 @@ class MemoryWebhookInbox implements WebhookInboxStore {
 describe("GitHub webhook signature verification", () => {
   it("accepts a valid SHA-256 signature", () => {
     const body = Buffer.from('{"action":"opened"}');
-    expect(
-      verifyGitHubWebhookSignature(body, signature(body.toString("utf8")), secret),
-    ).toBe(true);
+    expect(verifyGitHubWebhookSignature(body, signature(body.toString("utf8")), secret)).toBe(true);
   });
 
   it("rejects forged and malformed signatures", () => {
     const body = Buffer.from('{"action":"opened"}');
-    expect(
-      verifyGitHubWebhookSignature(body, `sha256=${"0".repeat(64)}`, secret),
-    ).toBe(false);
+    expect(verifyGitHubWebhookSignature(body, `sha256=${"0".repeat(64)}`, secret)).toBe(false);
     expect(verifyGitHubWebhookSignature(body, "sha256=nope", secret)).toBe(false);
     expect(verifyGitHubWebhookSignature(body, undefined, secret)).toBe(false);
   });

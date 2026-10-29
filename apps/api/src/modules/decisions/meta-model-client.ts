@@ -62,10 +62,7 @@ export class MetaModelApiClient implements StructuredJsonClient {
     });
 
     if (!response.ok) {
-      throw new DomainError(
-        "model_api_error",
-        `Meta Model API returned HTTP ${response.status}.`,
-      );
+      throw new DomainError("model_api_error", `Meta Model API returned HTTP ${response.status}.`);
     }
 
     const body: unknown = await response.json();

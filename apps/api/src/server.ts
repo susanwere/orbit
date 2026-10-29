@@ -1,5 +1,5 @@
 import { PgDatabase } from "@orbit/db";
-import {HumanGateService} from "./modules/execution/human-gate-service.js";
+import { HumanGateService } from "./modules/execution/human-gate-service.js";
 import { AgentSessionService } from "./modules/agents/agent-session-service.js";
 import { AgentContextSnapshotService } from "./modules/context/agent-context-snapshot-service.js";
 import { ProjectAuthorizationService } from "./modules/projects/project-authorization.js";
@@ -24,62 +24,80 @@ import { WhyProvenanceQuery } from "./modules/provenance/why-provenance-query.js
 
 const port = Number(process.env.PORT ?? 4000);
 const host = process.env.HOST ?? "0.0.0.0";
-const databaseUrl =
-  process.env.DATABASE_URL ?? "postgres://orbit:orbit@localhost:5433/orbit";
+const databaseUrl = process.env.DATABASE_URL ?? "postgres://orbit:orbit@localhost:5433/orbit";
 
 const database = new PgDatabase(databaseUrl);
 const githubWebhookSecret = process.env.GITHUB_WEBHOOK_SECRET;
 const organizationId = process.env.ORBIT_ORGANIZATION_ID;
 const projectId = process.env.ORBIT_PROJECT_ID;
 const webhookWorker = new GithubWebhookWorker(database);
-const effectsWorker = new DomainEffectsWorker(database,new PostgresExecutionImpactService(database));
-const analysisWorker = process.env.MODEL_API_KEY && process.env.ORBIT_SYSTEM_PRINCIPAL_ID
-  ? new DecisionAnalysisWorker(
-      database,
-      new DecisionAnalysisService(
+const effectsWorker = new DomainEffectsWorker(
+  database,
+  new PostgresExecutionImpactService(database),
+);
+const analysisWorker =
+  process.env.MODEL_API_KEY && process.env.ORBIT_SYSTEM_PRINCIPAL_ID
+    ? new DecisionAnalysisWorker(
         database,
-        new MuseDecisionDetector(new MetaModelApiClient({
-          apiKey: process.env.MODEL_API_KEY,
-          baseUrl: process.env.MODEL_API_BASE_URL,
-        })),
-        process.env.ORBIT_SYSTEM_PRINCIPAL_ID,
-      ),
-    )
-  : undefined;
+        new DecisionAnalysisService(
+          database,
+          new MuseDecisionDetector(
+            new MetaModelApiClient({
+              apiKey: process.env.MODEL_API_KEY,
+              baseUrl: process.env.MODEL_API_BASE_URL,
+            }),
+          ),
+          process.env.ORBIT_SYSTEM_PRINCIPAL_ID,
+        ),
+      )
+    : undefined;
 
-const auth = process.env.ORBIT_AUTH_SECRET && process.env.ORBIT_AUTH_ISSUER
-  ? new HmacJwtAuthVerifier({
-      secret: process.env.ORBIT_AUTH_SECRET,
-      issuer: process.env.ORBIT_AUTH_ISSUER,
-      audience: "orbit-api",
-    })
-  : undefined;
+const auth =
+  process.env.ORBIT_AUTH_SECRET && process.env.ORBIT_AUTH_ISSUER
+    ? new HmacJwtAuthVerifier({
+        secret: process.env.ORBIT_AUTH_SECRET,
+        issuer: process.env.ORBIT_AUTH_ISSUER,
+        audience: "orbit-api",
+      })
+    : undefined;
 
 const decisionReview = new DecisionReviewService(
   new ProjectAuthorizationService(database),
   new DecisionReviewRepository(database),
   new ContextVersionRepository(database),
   new ContextChangeProposalRepository(database),
-  new PostgresDecisionPromotion(
-    database,
-    new NoopDomainEventPublisher(),
-    undefined,
-    () => console.error("Post-commit event handling failed."),
+  new PostgresDecisionPromotion(database, new NoopDomainEventPublisher(), undefined, () =>
+    console.error("Post-commit event handling failed."),
   ),
 );
 
 const app = await buildApp({
   auth,
-  projectManagement: auth ? {auth,db:database,authorization:new ProjectAuthorizationService(database)} : undefined,
-  operations:auth?{auth,db:database,authorization:new ProjectAuthorizationService(database)}:undefined,
-  humanGates: auth ? {auth,service:new HumanGateService(database,
-    new ProjectAuthorizationService(database))}:undefined,
-  agentSessions:auth?{auth,service:new AgentSessionService(database,
-    new ProjectAuthorizationService(database),
-    new AgentContextSnapshotService(database,new ProjectAuthorizationService(database)))}:undefined,
-  projectReads: auth ? {auth,db:database,authorization:new ProjectAuthorizationService(database)} : undefined,
-  notifications: auth ? { auth, db:database,
-    authorization:new ProjectAuthorizationService(database) } : undefined,
+  projectManagement: auth
+    ? { auth, db: database, authorization: new ProjectAuthorizationService(database) }
+    : undefined,
+  operations: auth
+    ? { auth, db: database, authorization: new ProjectAuthorizationService(database) }
+    : undefined,
+  humanGates: auth
+    ? { auth, service: new HumanGateService(database, new ProjectAuthorizationService(database)) }
+    : undefined,
+  agentSessions: auth
+    ? {
+        auth,
+        service: new AgentSessionService(
+          database,
+          new ProjectAuthorizationService(database),
+          new AgentContextSnapshotService(database, new ProjectAuthorizationService(database)),
+        ),
+      }
+    : undefined,
+  projectReads: auth
+    ? { auth, db: database, authorization: new ProjectAuthorizationService(database) }
+    : undefined,
+  notifications: auth
+    ? { auth, db: database, authorization: new ProjectAuthorizationService(database) }
+    : undefined,
   whyProvenance: auth
     ? {
         query: new WhyProvenanceQuery(database, new ProjectAuthorizationService(database)),
@@ -101,7 +119,9 @@ const app = await buildApp({
           organizationId,
           projectId,
           inbox: new PostgresWebhookInboxStore(database),
-          onAccepted: async () => { await webhookWorker.processBatch(); },
+          onAccepted: async () => {
+            await webhookWorker.processBatch();
+          },
         }
       : undefined,
 });

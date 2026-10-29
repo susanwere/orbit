@@ -30,10 +30,7 @@ export interface OrbitEvent {
   readonly correlationId: string;
   readonly causationId: string;
   readonly actor: OrbitEventActor;
-  readonly entityType:
-    | "pull_request"
-    | "pull_request_review"
-    | "pull_request_comment";
+  readonly entityType: "pull_request" | "pull_request_review" | "pull_request_comment";
   readonly entityId: string;
   readonly payload: Readonly<Record<string, JsonValue>>;
   readonly sourceArtifact: OrbitEventSourceArtifact;

@@ -1,8 +1,4 @@
-import type {
-  Decision,
-  OrbitEvent,
-  ProjectContext,
-} from "@orbit/domain";
+import type { Decision, OrbitEvent, ProjectContext } from "@orbit/domain";
 
 export interface DecisionDetectionInput {
   readonly event: OrbitEvent;
@@ -27,10 +23,7 @@ export type DecisionDetectionResult =
   | {
       readonly kind: "none";
       readonly confidence: number;
-      readonly reason:
-        | "no_source_text"
-        | "no_decision"
-        | "low_confidence";
+      readonly reason: "no_source_text" | "no_decision" | "low_confidence";
     };
 
 export interface DecisionDetector {

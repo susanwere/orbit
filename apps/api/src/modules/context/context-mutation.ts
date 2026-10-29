@@ -22,27 +22,18 @@ function parsePointer(path: string): string[] {
     );
   }
 
-  const segments = path
-    .slice(1)
-    .split("/")
-    .map(decodePointerSegment);
+  const segments = path.slice(1).split("/").map(decodePointerSegment);
 
   if (segments.length === 0 || segments[0] === "") {
     throw new DomainError("invalid_context_path", "Context root cannot be mutated.");
   }
 
   if (segments.some((segment) => UNSAFE_POINTER_SEGMENTS.has(segment))) {
-    throw new DomainError(
-      "invalid_context_path",
-      `Unsafe context mutation path: ${path}`,
-    );
+    throw new DomainError("invalid_context_path", `Unsafe context mutation path: ${path}`);
   }
 
   if (IMMUTABLE_ROOTS.has(segments[0]!)) {
-    throw new DomainError(
-      "immutable_context_path",
-      `Context path /${segments[0]} is immutable.`,
-    );
+    throw new DomainError("immutable_context_path", `Context path /${segments[0]} is immutable.`);
   }
 
   return segments;

@@ -29,9 +29,7 @@ export interface ProposedContextConstraint {
   readonly createdAt: string;
 }
 
-export type ContextConstraintPreview =
-  | ContextConstraint
-  | ProposedContextConstraint;
+export type ContextConstraintPreview = ContextConstraint | ProposedContextConstraint;
 
 export interface ProjectContext {
   readonly projectId: Id;
