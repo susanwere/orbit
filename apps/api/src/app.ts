@@ -106,6 +106,7 @@ export async function buildApp(options: AppOptions = {}) {
   if (options.authExchange) await app.register(registerAuthExchangeRoutes, options.authExchange);
   if (options.originalIntent)
     await app.register(registerOriginalIntentRoutes, options.originalIntent);
+  if (options.planning) await app.register(registerPlanningRoutes, options.planning);
   if (options.projectManagement)
     await app.register(registerProjectManagementRoutes, options.projectManagement);
   if (options.operations) await app.register(registerOperationsRoutes, options.operations);
