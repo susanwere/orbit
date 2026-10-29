@@ -26,18 +26,6 @@ export function AuthenticatedProjectApp({
   );
 
   useEffect(() => {
-    const intentApi = useMemo(
-      () =>
-        createIntentApi(apiBaseUrl, () => sessionStore.getAuthorizationHeader(), fetch, {
-          onUnauthorized: (failedAuthorizationHeader) => {
-            if (sessionStore.getAuthorizationHeader() === failedAuthorizationHeader) {
-              sessionStore.setSession(null);
-            }
-          },
-        }),
-      [apiBaseUrl, sessionStore],
-    );
-
     if (!authenticatedSession) {
       return;
     }
@@ -63,6 +51,18 @@ export function AuthenticatedProjectApp({
       createProjectApi(apiBaseUrl, () => sessionStore.getAuthorizationHeader(), fetch, {
         onUnauthorized: (failedAuthorizationHeader) => {
           // Do not sign out a replacement account after a stale request fails.
+          if (sessionStore.getAuthorizationHeader() === failedAuthorizationHeader) {
+            sessionStore.setSession(null);
+          }
+        },
+      }),
+    [apiBaseUrl, sessionStore],
+  );
+
+  const intentApi = useMemo(
+    () =>
+      createIntentApi(apiBaseUrl, () => sessionStore.getAuthorizationHeader(), fetch, {
+        onUnauthorized: (failedAuthorizationHeader) => {
           if (sessionStore.getAuthorizationHeader() === failedAuthorizationHeader) {
             sessionStore.setSession(null);
           }
