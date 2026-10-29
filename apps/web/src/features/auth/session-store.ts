@@ -19,9 +19,7 @@ export interface SessionStore {
 }
 
 /** In-memory session state; signing out removes the token from memory. */
-export function createSessionStore(
-  currentTime: () => number = Date.now,
-): SessionStore {
+export function createSessionStore(currentTime: () => number = Date.now): SessionStore {
   let activeSession: AuthenticatedSession | null = null;
   const listeners = new Set<SessionListener>();
 
@@ -35,10 +33,7 @@ export function createSessionStore(
   }
 
   function updateSession(nextSession: AuthenticatedSession | null): void {
-    activeSession =
-      nextSession && nextSession.expiresAt > currentTime()
-        ? nextSession
-        : null;
+    activeSession = nextSession && nextSession.expiresAt > currentTime() ? nextSession : null;
 
     listeners.forEach((listener) => listener(activeSession));
   }
