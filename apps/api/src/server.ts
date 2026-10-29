@@ -1,4 +1,5 @@
 import { PgDatabase } from "@orbit/db";
+import type { OriginalIntentOptions } from "./modules/intent/original-intent-routes.js";
 import { HumanGateService } from "./modules/execution/human-gate-service.js";
 import { AgentSessionService } from "./modules/agents/agent-session-service.js";
 import { AgentContextSnapshotService } from "./modules/context/agent-context-snapshot-service.js";
@@ -85,7 +86,12 @@ const identityVerifier =
       })
     : undefined;
 
+const originalIntent: OriginalIntentOptions | undefined = auth
+  ? { auth, db: database, authorization: new ProjectAuthorizationService(database) }
+  : undefined;
+
 const app = await buildApp({
+  originalIntent,
   authExchange:
     identityVerifier && process.env.ORBIT_AUTH_SECRET && process.env.ORBIT_AUTH_ISSUER
       ? {

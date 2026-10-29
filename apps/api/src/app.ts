@@ -1,5 +1,9 @@
 import cors from "@fastify/cors";
 import {
+  registerOriginalIntentRoutes,
+  type OriginalIntentOptions,
+} from "./modules/intent/original-intent-routes.js";
+import {
   registerAuthExchangeRoutes,
   type AuthExchangeOptions,
 } from "./modules/auth/auth-exchange-routes.js";
@@ -43,6 +47,7 @@ import {
 
 export interface AppOptions {
   readonly authExchange?: AuthExchangeOptions;
+  readonly originalIntent?: OriginalIntentOptions;
   readonly projectManagement?: ProjectManagementOptions;
   readonly operations?: OperationsOptions;
   readonly humanGates?: { auth: AuthVerifier; service: HumanGateService };
@@ -94,6 +99,8 @@ export async function buildApp(options: AppOptions = {}) {
   }));
 
   if (options.authExchange) await app.register(registerAuthExchangeRoutes, options.authExchange);
+  if (options.originalIntent)
+    await app.register(registerOriginalIntentRoutes, options.originalIntent);
   if (options.projectManagement)
     await app.register(registerProjectManagementRoutes, options.projectManagement);
   if (options.operations) await app.register(registerOperationsRoutes, options.operations);
