@@ -29,7 +29,11 @@ export async function registerOriginalIntentRoutes(
     "/projects/:projectId/intent",
     async (request) => {
       const principal = auth.verify(request.headers.authorization);
-      const access = await authorization.authorize(principal.id, request.params.projectId, "read");
+      const access = await authorization.authorize(
+        principal.id,
+        request.params.projectId,
+        "read",
+      );
       const result = await db.query<IntentRow>(
         "SELECT id,organization_id,project_id,statement,created_by_principal_id,created_at FROM intents WHERE organization_id=$1 AND project_id=$2",
         [access.organizationId, access.projectId],
@@ -42,10 +46,21 @@ export async function registerOriginalIntentRoutes(
     "/projects/:projectId/intent",
     async (request, reply) => {
       const principal = auth.verify(request.headers.authorization);
-      const access = await authorization.authorize(principal.id, request.params.projectId, "review");
+      const access = await authorization.authorize(
+        principal.id,
+        request.params.projectId,
+        "review",
+      );
       const statement = request.body?.statement;
-      if (typeof statement !== "string" || !statement.trim() || statement.length > 10_000) {
-        throw new DomainError("validation", "Original intent must contain 1-10000 characters.");
+      if (
+        typeof statement !== "string" ||
+        !statement.trim() ||
+        statement.length > 10_000
+      ) {
+        throw new DomainError(
+          "validation",
+          "Original intent must contain 1-10000 characters.",
+        );
       }
       const id = randomUUID();
       const result = await db.query<IntentRow>(
