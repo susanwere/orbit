@@ -30,7 +30,11 @@ describe("original intent API", () => {
         query: async (sql: string, params: unknown[]) => {
           queries.push({ sql, params });
           if (sql.startsWith("SELECT")) {
-            return { rows: stored.filter((x) => x.organization_id === params[0] && x.project_id === params[1]) };
+            return {
+              rows: stored.filter(
+                (x) => x.organization_id === params[0] && x.project_id === params[1],
+              ),
+            };
           }
           if (stored.length) return { rows: [] };
           const row = {
@@ -52,7 +56,9 @@ describe("original intent API", () => {
   it("requires authentication and rejects unauthorized projects", async () => {
     const { originalIntent } = fixture();
     const app = await buildApp({ originalIntent: originalIntent as never });
-    expect((await app.inject({ method: "GET", url: "/projects/allowed/intent" })).statusCode).toBe(401);
+    expect((await app.inject({ method: "GET", url: "/projects/allowed/intent" })).statusCode).toBe(
+      401,
+    );
     expect((await app.inject({ method: "POST", url: "/projects/other/intent", headers: { authorization: "Bearer valid" }, payload: { statement: "Build a UI" } })).statusCode).toBe(403);
     await app.close();
   });
@@ -61,10 +67,20 @@ describe("original intent API", () => {
     const { originalIntent, queries } = fixture();
     const app = await buildApp({ originalIntent: originalIntent as never });
     const headers = { authorization: "Bearer valid" };
-    const first = await app.inject({ method: "POST", url: "/projects/allowed/intent", headers, payload: { statement: "  Build a recorder  " } });
+        const first = await app.inject({
+      method: "POST",
+      url: "/projects/allowed/intent",
+      headers,
+      payload: { statement: "  Build a recorder  " },
+    });
     expect(first.statusCode).toBe(201);
     expect(first.json().intent.statement).toBe("Build a recorder");
-    const again = await app.inject({ method: "POST", url: "/projects/allowed/intent", headers, payload: { statement: "Overwrite" } });
+        const again = await app.inject({
+      method: "POST",
+      url: "/projects/allowed/intent",
+      headers,
+      payload: { statement: "Overwrite" },
+    });
     expect(again.statusCode).toBe(409);
     const read = await app.inject({ method: "GET", url: "/projects/allowed/intent", headers });
     expect(read.json().intent.statement).toBe("Build a recorder");
