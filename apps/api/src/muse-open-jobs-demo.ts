@@ -7,17 +7,10 @@ import { spawn } from "node:child_process";
 import { access, readFile, readdir } from "node:fs/promises";
 import { resolve, join } from "node:path";
 import { MuseCodeCliExecutor, LocalMuseProcessRunner } from "./modules/execution/muse-code-executor.js";
+import { assertOpenJobsProject } from "./modules/execution/muse-open-jobs-contract.js";
 
 const PORT = 4173;
 const URL = `http://127.0.0.1:${PORT}`;
-
-export function assertOpenJobsProject(
-  project: { dependencies?: Record<string, string>; devDependencies?: Record<string, string>; scripts?: Record<string, string> },
-) {
-  const all = { ...project.dependencies, ...project.devDependencies };
-  if (!all.react || !all.vite || !project.scripts?.build)
-    throw new Error("Muse output must be a React/Vite app with a build script.");
-}
 
 function run(command: string, args: string[], cwd: string): Promise<void> {
   return new Promise((accept, reject) => {
