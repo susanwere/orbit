@@ -44,6 +44,9 @@ export class HumanGateService {
     )
       throw new DomainError("validation", "Invalid gate resolution.");
     return this.db.transaction(async (tx) => {
+      await tx.query("SELECT pg_advisory_xact_lock(hashtextextended($1, 0))", [
+        `orbit:steps:${actor.organizationId}:${input.projectId}`,
+      ]);
       const result = await tx.query<GateRow>(
         `SELECT * FROM human_gates
         WHERE project_id=$1 AND id=$2 AND organization_id=$3 FOR UPDATE`,
@@ -71,6 +74,18 @@ export class HumanGateService {
       );
       if (!session.rows[0])
         throw new DomainError("invalid_state", "Execution is not waiting for review.");
+      // Keep persisted workflow-step state consistent with the human-gated
+      // session. Never retry a terminal job or replay Muse automatically.
+      await tx.query(
+        `UPDATE workflow_step_executions
+         SET state=CASE
+           WHEN $3='approve' AND state='WAITING' THEN 'RUNNING'
+           WHEN $3='reject' AND state IN ('WAITING','RUNNING') THEN 'CANCELED'
+           ELSE state END
+         WHERE project_id=$1 AND organization_id=$4 AND agent_session_id=$2
+           AND state IN ('WAITING','RUNNING')`,
+        [input.projectId, gate.agent_session_id, input.action, actor.organizationId],
+      );
       const next =
         input.action === "approve"
           ? "APPROVED"
