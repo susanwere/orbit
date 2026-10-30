@@ -6,6 +6,7 @@ import type { ProjectAuthorizationService } from "../projects/project-authorizat
 import type { StepSessionBindingService } from "./step-session-binding-service.js";
 import type { WorkflowStepExecutionService } from "./workflow-step-execution-service.js";
 import type { ApprovedStepMaterializer } from "./approved-step-materializer.js";
+import type { GithubCiEvidenceService } from "./github-ci-evidence-service.js";
 
 export interface WorkflowStepRouteOptions {
   readonly auth: AuthVerifier;
@@ -14,6 +15,7 @@ export interface WorkflowStepRouteOptions {
   readonly materializer: ApprovedStepMaterializer;
   readonly execution: WorkflowStepExecutionService;
   readonly binding: StepSessionBindingService;
+  readonly evidence?: GithubCiEvidenceService;
 }
 
 /** Exposes human-controlled plan preparation and authoritative step reads.
@@ -81,6 +83,32 @@ export async function registerWorkflowStepRoutes(
       }),
     };
   });
+  if (options.evidence) {
+    app.post<{
+      Params: { projectId: string; stepId: string };
+      Body: { repository?: string; runId?: number; pullNumber?: number };
+    }>("/projects/:projectId/execution/steps/:stepId/verify-github-ci", async (request) => {
+      const principal = options.auth.verify(request.headers.authorization);
+      const body = request.body;
+      if (
+        typeof body?.repository !== "string" ||
+        typeof body.runId !== "number" ||
+        typeof body.pullNumber !== "number"
+      ) {
+        throw new DomainError("validation", "Repository, CI run ID and PR number are required.");
+      }
+      return {
+        step: await options.evidence!.verify({
+          projectId: request.params.projectId,
+          stepId: request.params.stepId,
+          principalId: principal.id,
+          repository: body.repository,
+          runId: body.runId,
+          pullNumber: body.pullNumber,
+        }),
+      };
+    });
+  }
   app.get<{ Params: { projectId: string } }>(
     "/projects/:projectId/execution/steps",
     async (request) => {
