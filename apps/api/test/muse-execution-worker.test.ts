@@ -132,7 +132,9 @@ describe("isolated Muse execution worker", () => {
   it("does not alter session or step after lease ownership expires", async () => {
     process.env.ORBIT_MUSE_ISOLATED_WORKER = "true";
     const h = harness(1, {}, false);
-    await h.worker.runNext("/tmp/checkout");
+    await expect(h.worker.runNext("/tmp/checkout")).resolves.toEqual({
+      jobId: "job", status: "LEASE_LOST",
+    });
     expect(h.statements.some((sql) => sql.includes("lease_expires_at > now()"))).toBe(true);
     expect(h.statements.some((sql) => sql.includes("UPDATE agent_sessions SET state='FAILED'"))).toBe(false);
     expect(h.statements.some((sql) => sql.includes("UPDATE workflow_step_executions SET state='FAILED'"))).toBe(false);
