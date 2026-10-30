@@ -9,8 +9,8 @@
   flex-wrap: wrap;
   gap: 1rem;
   align-items: center;
-  padding: .75rem 1.2rem;
-  font-size: .72rem;
+  padding: 0.75rem 1.2rem;
+  font-size: 0.72rem;
   color: #a9bce7;
   border-bottom: 1px solid #27334b;
   background: #0e131d;
@@ -18,7 +18,7 @@
 .workgraph-legend strong {
   margin-left: auto;
   color: #c0d1f7;
-  font-size: .72rem;
+  font-size: 0.72rem;
 }
 .workgraph-scene {
   position: relative;
@@ -48,7 +48,7 @@
 }
 .workgraph-node span {
   font-size: 10px;
-  letter-spacing: .09em;
+  letter-spacing: 0.09em;
   color: #a5bbec;
 }
 .workgraph-node strong {
@@ -84,9 +84,9 @@
   display: flex;
   justify-content: space-between;
   gap: 1rem;
-  padding: .75rem 1rem;
+  padding: 0.75rem 1rem;
   color: #a7b3c8;
-  font-size: .75rem;
+  font-size: 0.75rem;
   border-top: 1px solid #29344b;
 }
 .workgraph-footer details {
@@ -116,7 +116,7 @@
   background: transparent;
   border: 0;
   text-align: left;
-  padding: .6rem;
+  padding: 0.6rem;
   width: 100%;
   cursor: pointer;
 }
@@ -128,7 +128,7 @@
     height: 540px
   }
   .workgraph-legend {
-    gap: .6rem
+    gap: 0.6rem
   }
   .workgraph-footer {
     flex-wrap: wrap
