@@ -523,6 +523,7 @@ export function PlanReview({ project, originalIntent, plan, api, onBack, onUpdat
                           </button>
                         ))}
                       </div>
+                      </div>
                       <p className="orbit-detail-muted">
                         These are proposed steps, not actual execution statuses. Later steps are not
                         executable until their prerequisites have completed.
