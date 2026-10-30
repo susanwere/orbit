@@ -36,12 +36,6 @@ jobs:
         run: npm ci
       - name: Check source formatting
         run: npm run format:check
-      - name: Diagnostic delivery auth formatter
-        if: failure()
-        run: |
-          echo ORBIT_DELIVERY_BEGIN
-          ./node_modules/.bin/prettier apps/api/src/modules/execution/muse-github-delivery.ts
-          echo ORBIT_DELIVERY_END
       - name: Build workspace dependencies
         run: npm run build -w @orbit/domain && npm run build -w @orbit/db
       - name: Typecheck
