@@ -87,47 +87,70 @@ describe("scoped agent session creation", () => {
   });
 });
 
-describe("agent session start authorization", () => {
-  it("requires an approved tenant-scoped plan and a matching authorized session", async () => {
+describe("atomic session and step start", () => {
+  const make = (stepEligible = true, stepUpdate = true) => {
     const statements: string[] = [];
-    const parameters: unknown[][] = [];
-    const svc = new AgentSessionService(
-      {
-        query: async (sql: string, values: unknown[]) => {
-          statements.push(sql);
-          parameters.push(values);
+    const queries: unknown[][] = [];
+    const tx = {
+      query: async (sql: string, args: unknown[]) => {
+        statements.push(sql);
+        queries.push(args);
+        if (sql.includes("pg_advisory_xact_lock")) return { rows: [] };
+        if (sql.includes("FROM workflow_step_executions step"))
+          return { rows: stepEligible ? [{ step_id: "step" }] : [] };
+        if (sql.includes("UPDATE agent_sessions"))
           return { rows: [{ id: "session", state: "RUNNING" }] };
-        },
+        if (sql.includes("UPDATE workflow_step_executions"))
+          return { rows: stepUpdate ? [{ id: "step" }] : [] };
+        throw new Error("Unexpected SQL");
+      },
+    };
+    const service = new AgentSessionService(
+      {
+        transaction: async (fn: (connection: { query: typeof tx.query }) => Promise<unknown>) =>
+          fn(tx),
       } as never,
       { authorize: async () => ({ organizationId: "org", role: "member" }) } as never,
       {} as never,
     );
-    const result = await svc.start("project", "owner", "session");
-    expect(result).toMatchObject({ state: "RUNNING" });
-    expect(statements[0]).toContain("p.status='APPROVED'");
-    expect(statements[0]).toContain("p.organization_id=agent_sessions.organization_id");
-    expect(statements[0]).toContain("organization_id=$5");
-    expect(parameters[0]).toEqual(["project", "session", "owner", "member", "org"]);
+    return { service, statements, queries };
+  };
+
+  it("starts exactly one eligible linked step and session in a transaction", async () => {
+    const h = make();
+    await expect(h.service.start("project", "owner", "session")).resolves.toMatchObject({
+      state: "RUNNING",
+      workflowStepId: "step",
+    });
+    expect(h.statements[1]).toContain("plan.status='APPROVED'");
+    expect(h.statements[1]).toContain("prerequisite.state <> 'COMPLETED'");
+    expect(h.statements[1]).toContain("step.approved_by_principal_id IS NOT NULL");
+    expect(h.statements[1]).toContain("gate.status='OPEN'");
+    expect(h.queries[1]).toEqual(["session", "project", "org", "owner", "member"]);
+    expect(h.statements.some((q) => q.includes("UPDATE workflow_step_executions"))).toBe(true);
   });
 
-  it("does not start a session if the guarded database update matches no rows", async () => {
-    const svc = new AgentSessionService(
-      { query: async () => ({ rows: [] }) } as never,
-      { authorize: async () => ({ organizationId: "org", role: "member" }) } as never,
-      {} as never,
-    );
-    await expect(svc.start("project", "owner", "session")).rejects.toMatchObject({
+  it("rejects a blocked or unassigned step before any state update", async () => {
+    const h = make(false);
+    await expect(h.service.start("project", "owner", "session")).rejects.toMatchObject({
+      code: "invalid_state",
+    });
+    expect(h.statements.some((q) => q.trimStart().startsWith("UPDATE"))).toBe(false);
+  });
+
+  it("rolls back if the step transition fails", async () => {
+    const h = make(true, false);
+    await expect(h.service.start("project", "owner", "session")).rejects.toMatchObject({
       code: "invalid_state",
     });
   });
 
-  it("does not touch the database if project authorization fails", async () => {
-    let queried = false;
-    const svc = new AgentSessionService(
+  it("denies unauthorized principals before a transaction", async () => {
+    let transacted = false;
+    const service = new AgentSessionService(
       {
-        query: async () => {
-          queried = true;
-          return { rows: [] };
+        transaction: async () => {
+          transacted = true;
         },
       } as never,
       {
@@ -137,9 +160,9 @@ describe("agent session start authorization", () => {
       } as never,
       {} as never,
     );
-    await expect(svc.start("project", "outsider", "session")).rejects.toMatchObject({
+    await expect(service.start("project", "outsider", "session")).rejects.toMatchObject({
       code: "forbidden",
     });
-    expect(queried).toBe(false);
+    expect(transacted).toBe(false);
   });
 });
