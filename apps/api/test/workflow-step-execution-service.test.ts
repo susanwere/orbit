@@ -5,10 +5,12 @@ function harness({
   state = "BLOCKED",
   approved = true,
   prerequisites = 0,
+  openGates = 0,
 }: {
   state?: string;
   approved?: boolean;
   prerequisites?: number;
+  openGates?: number;
 } = {}) {
   const statements: string[] = [];
   let updates = 0;
@@ -35,6 +37,9 @@ function harness({
     }
     if (sql.includes("FROM workflow_step_prerequisites")) {
       return { rows: Array.from({ length: prerequisites }, (_, index) => ({ id: String(index) })) };
+    }
+    if (sql.includes("FROM human_gates gate")) {
+      return { rows: Array.from({ length: openGates }, (_, index) => ({ id: String(index) })) };
     }
     if (sql.includes("UPDATE workflow_step_executions")) {
       updates++;
@@ -78,6 +83,13 @@ describe("authoritative step execution", () => {
     const h = harness({ prerequisites: 1 });
     await expect(h.service.start(input)).rejects.toMatchObject({ code: "invalid_state" });
     expect(h.updates).toBe(0);
+  });
+
+  it("blocks an unresolved session human gate even after step approval", async () => {
+    const h = harness({ openGates: 1 });
+    await expect(h.service.start(input)).rejects.toMatchObject({ code: "invalid_state" });
+    expect(h.updates).toBe(0);
+    expect(h.statements.some((sql) => sql.includes("gate.status='OPEN'"))).toBe(true);
   });
 
   it("rejects duplicate execution attempts", async () => {
