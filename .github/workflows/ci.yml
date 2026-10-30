@@ -36,6 +36,15 @@ jobs:
         run: npm ci
       - name: Check source formatting
         run: npm run format:check
+      - name: Diagnostic formatted dispatch source
+        if: failure()
+        run: |
+          echo ORBIT_ROUTE_BEGIN
+          ./node_modules/.bin/prettier apps/api/src/modules/agents/agent-session-routes.ts
+          echo ORBIT_ROUTE_END
+          echo ORBIT_SERVER_BEGIN
+          ./node_modules/.bin/prettier apps/api/src/server.ts
+          echo ORBIT_SERVER_END
       - name: Build workspace dependencies
         run: npm run build -w @orbit/domain && npm run build -w @orbit/db
       - name: Typecheck
