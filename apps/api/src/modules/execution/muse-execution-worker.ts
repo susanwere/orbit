@@ -107,7 +107,7 @@ export class MuseExecutionWorker {
       if (!candidate) return null;
       await tx.query(
         `UPDATE muse_execution_jobs SET status='RUNNING',started_at=now(),
-         attempts=attempts+1 WHERE id=$1 AND project_id=$2 AND status='QUEUED'`,
+         attempts=attempts+1,lease_expires_at=now()+interval '20 minutes' WHERE id=$1 AND project_id=$2 AND status='QUEUED'`,
         [candidate.id, candidate.project_id],
       );
       return candidate;
@@ -151,7 +151,7 @@ export class MuseExecutionWorker {
     await this.db.transaction(async (tx) => {
       await tx.query(
         `UPDATE muse_execution_jobs
-         SET status=$3,exit_code=$4,event_count=$5,failure_reason=$6,finished_at=now()
+         SET status=$3,exit_code=$4,event_count=$5,failure_reason=$6,finished_at=now(),lease_expires_at=NULL
          WHERE id=$1 AND project_id=$2 AND status='RUNNING'`,
         [
           job.id,
