@@ -4,6 +4,7 @@ import type { PlanningRouteOptions } from "./modules/planning/planning-routes.js
 import type { OriginalIntentOptions } from "./modules/intent/original-intent-routes.js";
 import { StepSessionBindingService } from "./modules/execution/step-session-binding-service.js";
 import { WorkflowStepExecutionService } from "./modules/execution/workflow-step-execution-service.js";
+import { MuseExecutionJobService } from "./modules/execution/muse-execution-worker.js";
 import { ApprovedStepMaterializer } from "./modules/execution/approved-step-materializer.js";
 import { HumanGateService } from "./modules/execution/human-gate-service.js";
 import { AgentSessionService } from "./modules/agents/agent-session-service.js";
@@ -155,6 +156,10 @@ const app = await buildApp({
   agentSessions: auth
     ? {
         auth,
+        museJobs: new MuseExecutionJobService(
+          database,
+          new ProjectAuthorizationService(database),
+        ),
         service: new AgentSessionService(
           database,
           new ProjectAuthorizationService(database),
