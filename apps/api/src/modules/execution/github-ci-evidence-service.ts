@@ -55,13 +55,16 @@ export class GithubCiEvidenceService {
     const load = async <T>(suffix: string): Promise<T> => {
       const response = await this.fetchImpl(base + suffix, {
         headers: {
-          Authorization: `Bearer ${this.githubToken}`,
+          Authorization: `***
           Accept: "application/vnd.github+json",
           "X-GitHub-Api-Version": "2022-11-28",
         },
       });
       if (!response.ok) {
-        throw new DomainError("invalid_state", "GitHub evidence could not be independently verified.");
+        throw new DomainError(
+          "invalid_state",
+          "GitHub evidence could not be independently verified.",
+        );
       }
       return (await response.json()) as T;
     };
@@ -127,7 +130,10 @@ export class GithubCiEvidenceService {
       );
       const ready = eligible.rows[0];
       if (!ready) {
-        throw new DomainError("invalid_state", "Execution is not eligible for CI-backed completion.");
+        throw new DomainError(
+          "invalid_state",
+          "Execution is not eligible for CI-backed completion.",
+        );
       }
       await tx.query(
         `INSERT INTO evidence
