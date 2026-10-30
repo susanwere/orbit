@@ -1,0 +1,28 @@
+name: Temporary ORB68 format
+on:
+  push:
+    branches: [feat/orb-80-step-session-binding-route]
+permissions:
+  contents: write
+jobs:
+  format:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/orb-80-step-session-binding-route
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npx prettier --write apps/api/src/modules/execution/workflow-step-routes.ts apps/api/src/server.ts apps/api/test/workflow-step-routes.test.ts
+      - name: Commit formatting
+        run: |
+          if ! git diff --quiet -- apps/api/src/modules/execution/workflow-step-routes.ts apps/api/src/server.ts apps/api/test/workflow-step-routes.test.ts; then
+            git config user.name 'github-actions[bot]'
+            git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+            git add apps/api/src/modules/execution/workflow-step-routes.ts apps/api/src/server.ts apps/api/test/workflow-step-routes.test.ts
+            git commit -m 'style(ORB-80): format session binding API'
+            git push origin HEAD:feat/orb-80-step-session-binding-route
+          fi
