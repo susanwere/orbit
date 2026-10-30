@@ -19,12 +19,18 @@ provider "aws" {
   }
 }
 
-variable "aws_region" { type = string
-default = "eu-central-1" }
-variable "environment" { type = string
-default = "staging" }
-variable "name_prefix" { type = string
-default = "orbit-muse" }
+variable "aws_region" {
+  type = string
+  default = "eu-central-1"
+}
+variable "environment" {
+  type = string
+  default = "staging"
+}
+variable "name_prefix" {
+  type = string
+  default = "orbit-muse"
+}
 variable "vpc_id" { type = string }
 variable "private_subnet_ids" {
   type = list(string)
@@ -82,8 +88,10 @@ resource "aws_cloudwatch_log_group" "worker" {
 }
 resource "aws_ecs_cluster" "worker" {
   name = "${var.name_prefix}-${var.environment}"
-  setting { name = "containerInsights"
-value = "enabled" }
+  setting {
+    name = "containerInsights"
+    value = "enabled"
+  }
 }
 resource "aws_security_group" "worker" {
   name_prefix = "${var.name_prefix}-${var.environment}-"
@@ -102,8 +110,10 @@ resource "aws_security_group" "worker" {
 data "aws_iam_policy_document" "assume_tasks" {
   statement {
     actions = ["sts:AssumeRole"]
-    principals { type = "Service"
-identifiers = ["ecs-tasks.amazonaws.com"] }
+    principals {
+      type = "Service"
+      identifiers = ["ecs-tasks.amazonaws.com"]
+    }
   }
 }
 resource "aws_iam_role" "execution" {
@@ -139,8 +149,10 @@ resource "aws_ecs_task_definition" "worker" {
   execution_role_arn       = aws_iam_role.execution.arn
   task_role_arn            = aws_iam_role.task.arn
   ephemeral_storage { size_in_gib = 21 }
-  runtime_platform { operating_system_family = "LINUX"
-cpu_architecture = "X86_64" }
+  runtime_platform {
+    operating_system_family = "LINUX"
+    cpu_architecture = "X86_64"
+  }
   container_definitions = jsonencode([{
     name      = "muse-worker"
     image     = var.worker_image
