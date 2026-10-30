@@ -106,7 +106,7 @@ describe("atomic session and step start", () => {
       },
     };
     const service = new AgentSessionService(
-      { transaction: async (fn: (tx: typeof tx) => Promise<unknown>) => fn(tx) } as never,
+      { transaction: async (fn: (connection: { query: typeof tx.query }) => Promise<unknown>) => fn(tx) } as never,
       { authorize: async () => ({ organizationId: "org", role: "member" }) } as never,
       {} as never,
     );
