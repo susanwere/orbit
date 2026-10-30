@@ -222,7 +222,7 @@ export function PlanReview({ project, originalIntent, plan, api, onBack, onUpdat
           </span>
         </header>
         {selectedItem && graph ? (
-          <section className="orbit-detail-page" aria-label="Work item configuration">
+          <section className={`orbit-detail-page ${selectedWorkflow === null && activeTab !== "workflows" ? "" : "orbit-detail-page--canvas"}`} aria-label="Work item configuration">
             <button
               type="button"
               className="orbit-detail-back"
@@ -365,10 +365,13 @@ export function PlanReview({ project, originalIntent, plan, api, onBack, onUpdat
                   </div>
                 )}
                 {activeTab === "workflows" && (
-                  <div className="orbit-detail-card">
+                  <div className="orbit-detail-card orbit-detail-card--canvas">
                     <h3>How we'll get there</h3>
                     <p>Open a workflow to explore its steps.</p>
-                    <div className="orbit-nested-graph" aria-label="Workflows in this work item">
+                    <div className="orbit-nested-stage" aria-label="Workflows in this work item">
+                      <div className="orbit-nested-stage-head"><span>WORKFLOW GRAPH</span><strong>{selectedItem.workflows.length} workflows</strong></div>
+                      <div className="orbit-nested-stage-legend"><span>● Workflow</span><span>Open a node to explore its steps</span></div>
+                      <div className="orbit-nested-graph">
                       {selectedItem.workflows.map((workflow, index) => (
                         <button
                           className="orbit-nested-node"
@@ -390,6 +393,7 @@ export function PlanReview({ project, originalIntent, plan, api, onBack, onUpdat
                           <span>Explore →</span>
                         </button>
                       ))}
+                      </div>
                     </div>
                   </div>
                 )}
@@ -471,7 +475,7 @@ export function PlanReview({ project, originalIntent, plan, api, onBack, onUpdat
                       </p>
                     </div>
                   ) : (
-                    <div className="orbit-detail-card">
+                    <div className="orbit-detail-card orbit-detail-card--canvas">
                       <h3>{currentWorkflow.name}</h3>
                       <p>
                         Explore the steps in this workflow. Downstream steps await verified
@@ -493,7 +497,10 @@ export function PlanReview({ project, originalIntent, plan, api, onBack, onUpdat
                           />
                         </>
                       )}
-                      <div className="orbit-nested-graph" aria-label="Workflow steps">
+                      <div className="orbit-nested-stage" aria-label="Workflow steps">
+                      <div className="orbit-nested-stage-head"><span>STEP GRAPH</span><strong>{currentWorkflow.steps.length} steps</strong></div>
+                      <div className="orbit-nested-stage-legend"><span>● Step</span><span>◆ Human approval</span><span>Browse future steps without executing them</span></div>
+                      <div className="orbit-nested-graph">
                         {currentWorkflow.steps.map((step, index) => (
                           <button
                             key={index}
