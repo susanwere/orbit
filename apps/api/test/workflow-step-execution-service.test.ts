@@ -211,3 +211,59 @@ describe("evidence-backed step completion", () => {
     ).rejects.toMatchObject({ code: "invalid_state" });
   });
 });
+
+describe("human-authorized failed step retry", () => {
+  const input = { projectId: "project", principalId: "reviewer", stepId: "step" };
+
+  it("preserves prior attempt evidence and requires fresh session binding and approval", async () => {
+    const statements: string[] = [];
+    const service = new WorkflowStepExecutionService(
+      {
+        transaction: async (fn: (tx: unknown) => Promise<unknown>) =>
+          fn({
+            query: async (sql: string) => {
+              statements.push(sql);
+              if (sql.includes("SELECT agent_session_id FROM workflow_step_executions"))
+                return { rows: [{ agent_session_id: "old-session" }] };
+              if (sql.includes("UPDATE workflow_step_executions step"))
+                return { rows: [{ id: "step", state: "BLOCKED", agent_session_id: null }] };
+              return { rows: [] };
+            },
+          }),
+      } as never,
+      { authorize: async () => ({ organizationId: "org" }) } as never,
+    );
+    await expect(service.authorizeRetry(input)).resolves.toMatchObject({
+      state: "BLOCKED",
+      agent_session_id: null,
+    });
+    const update = statements.find((sql) => sql.includes("UPDATE workflow_step_executions step"));
+    expect(update).toContain("step.state='FAILED'");
+    expect(update).toContain("job.status IN ('QUEUED','RUNNING','TURN_FINISHED')");
+    expect(update).toContain("gate.status='OPEN'");
+    expect(update).toContain("approved_by_principal_id=NULL");
+    expect(statements.some((sql) => sql.includes("'execution.step.retry_authorized'"))).toBe(true);
+    expect(statements.some((sql) => sql.includes("UPDATE muse_execution_jobs"))).toBe(false);
+  });
+
+  it("fails closed for any non-failed step or unsafe retry", async () => {
+    for (const pastFailure of [false, true]) {
+      const service = new WorkflowStepExecutionService(
+        {
+          transaction: async (fn: (tx: unknown) => Promise<unknown>) =>
+            fn({
+              query: async (sql: string) => {
+                if (sql.includes("SELECT agent_session_id FROM workflow_step_executions"))
+                  return { rows: pastFailure ? [{ agent_session_id: "session" }] : [] };
+                return { rows: [] };
+              },
+            }),
+        } as never,
+        { authorize: async () => ({ organizationId: "org" }) } as never,
+      );
+      await expect(service.authorizeRetry(input)).rejects.toMatchObject({
+        code: "invalid_state",
+      });
+    }
+  });
+});

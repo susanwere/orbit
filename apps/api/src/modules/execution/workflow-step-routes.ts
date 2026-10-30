@@ -65,6 +65,22 @@ export async function registerWorkflowStepRoutes(
       };
     },
   );
+  app.post<{
+    Params: { projectId: string; stepId: string };
+    Body: { acknowledgeFailedAttempt?: boolean };
+  }>("/projects/:projectId/execution/steps/:stepId/authorize-retry", async (request) => {
+    const principal = options.auth.verify(request.headers.authorization);
+    if (request.body?.acknowledgeFailedAttempt !== true) {
+      throw new DomainError("validation", "Explicit failed-attempt acknowledgment is required.");
+    }
+    return {
+      step: await options.execution.authorizeRetry({
+        projectId: request.params.projectId,
+        stepId: request.params.stepId,
+        principalId: principal.id,
+      }),
+    };
+  });
   app.get<{ Params: { projectId: string } }>(
     "/projects/:projectId/execution/steps",
     async (request) => {

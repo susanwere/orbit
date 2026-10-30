@@ -34,6 +34,7 @@ function fixture(authorized = true) {
       binding: { bind: async () => ({ id: "step", agent_session_id: "session" }) } as never,
       execution: {
         approve: async () => ({ id: "step", approved_by_principal_id: "human" }),
+        authorizeRetry: async () => ({ id: "step", state: "BLOCKED", agent_session_id: null }),
       } as never,
       materializer: {
         materialize: async (projectId: string, principalId: string) => {
@@ -97,6 +98,28 @@ describe("workflow step routes", () => {
     expect(response.json().step.approved_by_principal_id).toBe("human");
     await app.close();
   });
+  it("requires explicit human acknowledgment before resetting a failed step", async () => {
+    const f = fixture();
+    const app = await f.app;
+    const url = "/projects/project/execution/steps/step/authorize-retry";
+    const missing = await app.inject({
+      method: "POST",
+      url,
+      headers: { authorization: "Bearer token" },
+      payload: {},
+    });
+    expect(missing.statusCode).toBe(400);
+    const authorized = await app.inject({
+      method: "POST",
+      url,
+      headers: { authorization: "Bearer token" },
+      payload: { acknowledgeFailedAttempt: true },
+    });
+    expect(authorized.statusCode).toBe(200);
+    expect(authorized.json().step.state).toBe("BLOCKED");
+    await app.close();
+  });
+
   it("prepares approved plan records only through authenticated service", async () => {
     const f = fixture();
     const app = await f.app;
