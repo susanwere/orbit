@@ -116,7 +116,8 @@ describe("atomic session and step start", () => {
   it("starts exactly one eligible linked step and session in a transaction", async () => {
     const h = make();
     await expect(h.service.start("project", "owner", "session")).resolves.toMatchObject({
-      state: "RUNNING", workflowStepId: "step",
+      state: "RUNNING",
+      workflowStepId: "step",
     });
     expect(h.statements[1]).toContain("plan.status='APPROVED'");
     expect(h.statements[1]).toContain("prerequisite.state <> 'COMPLETED'");
@@ -144,8 +145,16 @@ describe("atomic session and step start", () => {
   it("denies unauthorized principals before a transaction", async () => {
     let transacted = false;
     const service = new AgentSessionService(
-      { transaction: async () => { transacted = true; } } as never,
-      { authorize: async () => { throw new DomainError("forbidden", "Denied"); } } as never,
+      {
+        transaction: async () => {
+          transacted = true;
+        },
+      } as never,
+      {
+        authorize: async () => {
+          throw new DomainError("forbidden", "Denied");
+        },
+      } as never,
       {} as never,
     );
     await expect(service.start("project", "outsider", "session")).rejects.toMatchObject({
