@@ -86,3 +86,52 @@ describe("scoped agent session creation", () => {
     ).rejects.toMatchObject({ code: "forbidden" });
   });
 });
+
+
+describe("agent session start authorization", () => {
+  it("requires an approved tenant-scoped plan and a matching authorized session", async () => {
+    const statements: string[] = [];
+    const parameters: unknown[][] = [];
+    const svc = new AgentSessionService(
+      {
+        query: async (sql: string, values: unknown[]) => {
+          statements.push(sql);
+          parameters.push(values);
+          return { rows: [{ id: "session", state: "RUNNING" }] };
+        },
+      } as never,
+      { authorize: async () => ({ organizationId: "org", role: "member" }) } as never,
+      {} as never,
+    );
+    const result = await svc.start("project", "owner", "session");
+    expect(result).toMatchObject({ state: "RUNNING" });
+    expect(statements[0]).toContain("p.status='APPROVED'");
+    expect(statements[0]).toContain("p.organization_id=agent_sessions.organization_id");
+    expect(statements[0]).toContain("organization_id=$5");
+    expect(parameters[0]).toEqual(["project", "session", "owner", "member", "org"]);
+  });
+
+  it("does not start a session if the guarded database update matches no rows", async () => {
+    const svc = new AgentSessionService(
+      { query: async () => ({ rows: [] }) } as never,
+      { authorize: async () => ({ organizationId: "org", role: "member" }) } as never,
+      {} as never,
+    );
+    await expect(svc.start("project", "owner", "session")).rejects.toMatchObject({
+      code: "invalid_state",
+    });
+  });
+
+  it("does not touch the database if project authorization fails", async () => {
+    let queried = false;
+    const svc = new AgentSessionService(
+      { query: async () => { queried = true; return { rows: [] }; } } as never,
+      { authorize: async () => { throw new DomainError("forbidden", "Denied"); } } as never,
+      {} as never,
+    );
+    await expect(svc.start("project", "outsider", "session")).rejects.toMatchObject({
+      code: "forbidden",
+    });
+    expect(queried).toBe(false);
+  });
+});
