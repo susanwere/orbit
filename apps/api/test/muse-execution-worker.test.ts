@@ -52,8 +52,12 @@ describe("isolated Muse execution worker", () => {
     workflow_step_id: "step",
     status: "QUEUED",
     mission: "Implement a React component",
+    allowed_repositories: ["org/repo"],
+    allowed_paths: ["src/**"],
+    network_policy: "none",
+    network_allowlist: [],
   };
-  const harness = (exitCode: number) => {
+  const harness = (exitCode: number, overrides: Record<string, unknown> = {}) => {
     const statements: string[] = [];
     let invoked = 0;
     const worker = new MuseExecutionWorker(
@@ -62,7 +66,7 @@ describe("isolated Muse execution worker", () => {
           fn({
             query: async (sql: string) => {
               statements.push(sql);
-              if (sql.includes("FROM muse_execution_jobs job")) return { rows: [job] };
+              if (sql.includes("FROM muse_execution_jobs job")) return { rows: [{ ...job, ...overrides }] };
               return { rows: [] };
             },
           }),
@@ -87,6 +91,22 @@ describe("isolated Muse execution worker", () => {
       },
     };
   };
+  it("rejects missing grants and network-enabled contracts without invoking Muse", async () => {
+    process.env.ORBIT_MUSE_ISOLATED_WORKER = "true";
+    for (const overrides of [
+      { allowed_paths: [] },
+      { allowed_repositories: [] },
+      { network_policy: "allowlist" },
+      { network_allowlist: ["example.com"] },
+    ]) {
+      const h = harness(0, overrides);
+      await expect(h.worker.runNext("/tmp/checkout")).resolves.toMatchObject({
+        status: "FAILED",
+      });
+      expect(h.invoked).toBe(0);
+    }
+  });
+
   it("refuses to execute outside an isolated worker", async () => {
     const h = harness(0);
     await expect(h.worker.runNext("/tmp/checkout")).rejects.toThrow("isolated");
