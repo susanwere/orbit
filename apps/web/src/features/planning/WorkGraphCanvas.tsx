@@ -150,7 +150,10 @@ export function WorkGraphCanvas({ items, intent, approved, onSelect }: Props) {
             return (
               <Line
                 key={index}
-                points={[[start.x, start.y, -1], [end.x, end.y, -1]]}
+                points={[
+                  [start.x, start.y, -1],
+                  [end.x, end.y, -1],
+                ]}
                 color={edge.dependency ? "#8cadff" : "#536c96"}
                 lineWidth={edge.dependency ? 2 : 1.5}
               />
@@ -169,7 +172,9 @@ export function WorkGraphCanvas({ items, intent, approved, onSelect }: Props) {
                 className={`workgraph-node workgraph-node--${node.kind} ${selected === node.id ? "is-selected" : ""}`}
                 aria-pressed={selected === node.id}
                 onClick={() => choose(node)}
-                title={node.target ? "Show this work item's configuration" : "Original project intent"}
+                title={
+                  node.target ? "Show this work item's configuration" : "Original project intent"
+                }
               >
                 <span>{node.kind === "gate" ? "◆ HUMAN GATE" : node.kind.toUpperCase()}</span>
                 <strong>{node.title}</strong>
