@@ -88,6 +88,14 @@ describe.skipIf(!databaseUrl)("workflow step ordering and concurrency (PostgreSQ
     expect(result.rows[0]?.state).toBe("RUNNING");
   });
 
+  it("does not unblock downstream execution when prerequisite fails", async () => {
+    await db.query(
+      "UPDATE workflow_step_executions SET state='FAILED' WHERE id=$1",
+      [prerequisite],
+    );
+    await expect(start(dependent)).rejects.toMatchObject({ code: "invalid_state" });
+  });
+
   it("permits a dependent step only after persisted prerequisite completion", async () => {
     // This test isolates prerequisite ordering. The production completion API
     // separately requires a completed session and passing evidence.
@@ -95,6 +103,14 @@ describe.skipIf(!databaseUrl)("workflow step ordering and concurrency (PostgreSQ
       "UPDATE workflow_step_executions SET state='COMPLETED',completed_at=now() WHERE id=$1",
       [prerequisite],
     );
+    await db.query(
+      "UPDATE workflow_step_executions SET approval_required=true WHERE id=$1",
+      [dependent],
+    );
+    await expect(start(dependent)).rejects.toMatchObject({ code: "invalid_state" });
+    await expect(
+      execution.approve({ projectId: project, principalId: principal, stepId: dependent }),
+    ).resolves.toMatchObject({ approved_by_principal_id: principal });
     await expect(start(dependent)).resolves.toMatchObject({ state: "RUNNING" });
   });
 });
