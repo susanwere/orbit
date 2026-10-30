@@ -6,11 +6,15 @@ function harness({
   approved = true,
   prerequisites = 0,
   openGates = 0,
+  boundSession: boundSession = null,
+  sessionAuthorized = true,
 }: {
   state?: string;
   approved?: boolean;
   prerequisites?: number;
   openGates?: number;
+  boundSession?: string | null;
+  sessionAuthorized?: boolean;
 } = {}) {
   const statements: string[] = [];
   let updates = 0;
@@ -31,12 +35,16 @@ function harness({
             state,
             approval_required: true,
             approved_by_principal_id: approved ? "reviewer" : null,
+            agent_session_id: boundSession,
           },
         ],
       };
     }
     if (sql.includes("FROM workflow_step_prerequisites")) {
       return { rows: Array.from({ length: prerequisites }, (_, index) => ({ id: String(index) })) };
+    }
+    if (sql.includes("JOIN agent_sessions s ON s.id=step.agent_session_id")) {
+      return { rows: sessionAuthorized ? [{ id: "session" }] : [] };
     }
     if (sql.includes("FROM human_gates gate")) {
       return { rows: Array.from({ length: openGates }, (_, index) => ({ id: String(index) })) };
@@ -81,6 +89,12 @@ describe("authoritative step execution", () => {
 
   it("blocks incomplete prerequisites without changing state", async () => {
     const h = harness({ prerequisites: 1 });
+    await expect(h.service.start(input)).rejects.toMatchObject({ code: "invalid_state" });
+    expect(h.updates).toBe(0);
+  });
+
+  it("rejects a bound session that lost authorization before start", async () => {
+    const h = harness({ boundSession: "session", sessionAuthorized: false });
     await expect(h.service.start(input)).rejects.toMatchObject({ code: "invalid_state" });
     expect(h.updates).toBe(0);
   });
