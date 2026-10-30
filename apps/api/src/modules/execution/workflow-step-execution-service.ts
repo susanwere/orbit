@@ -50,7 +50,10 @@ export class WorkflowStepExecutionService {
         [input.stepId, input.projectId, actor.organizationId],
       );
       if (!updated.rows[0]) {
-        throw new DomainError("invalid_state", "Step needs a completed linked session and passing evidence.");
+        throw new DomainError(
+          "invalid_state",
+          "Step needs a completed linked session and passing evidence.",
+        );
       }
       return updated.rows[0];
     });
