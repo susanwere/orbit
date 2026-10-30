@@ -1,0 +1,9 @@
+# Example only. Replace with values from your AWS staging account.
+aws_region           = "eu-central-1"
+environment          = "staging"
+name_prefix          = "orbit-muse"
+vpc_id               = "vpc-REPLACE"
+private_subnet_ids   = ["subnet-REPLACE"]
+worker_image         = "123456789012.dkr.ecr.eu-central-1.amazonaws.com/orbit-muse-staging@sha256:REPLACE_WITH_64_HEX_CHARACTERS"
+meta_api_key_secret_arn = "arn:aws:secretsmanager:eu-central-1:123456789012:secret:orbit/meta-key-REPLACE"
+job_api_endpoint     = "https://jobs.example.com/muse"
