@@ -192,6 +192,8 @@ describe("evidence-backed step completion", () => {
     ).resolves.toMatchObject({ state: "COMPLETED" });
     expect(statements[1]).toContain("session.state='COMPLETED'");
     expect(statements[1]).toContain("e.result='PASSED'");
+    expect(statements[1]).toContain("gate.status='OPEN'");
+    expect(statements[1]).toContain("NOT EXISTS");
     expect(statements[1]).toContain("e.scope_type='workflow_step'");
     expect(statements[1]).toContain("s.agent_session_id IS NOT NULL");
   });
