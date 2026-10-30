@@ -175,3 +175,7 @@
     flex-wrap: wrap;
   }
 }
+
+.project-dashboard-home { background: transparent; border: 0; text-align: left; padding: 0; font: inherit; cursor: pointer; }
+.project-dashboard-home-link { border: 0; text-align: left; cursor: pointer; padding: .75rem; color: #c0c9db; background: transparent; border-radius: 9px; font: inherit; }
+.project-dashboard-home-link:hover, .project-dashboard-home-link:focus-visible { background: #252d40; color: #aec4ff; }
