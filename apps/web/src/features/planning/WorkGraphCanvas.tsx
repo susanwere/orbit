@@ -43,7 +43,10 @@ export function projectPlanGraph(
     if (!item) return 0;
     const nextSeen = new Set(seen);
     nextSeen.add(key);
-    const result = Math.max(0, ...item.dependsOn.filter((dep) => keys.has(dep)).map((dep) => depth(dep, nextSeen) + 1));
+    const result = Math.max(
+      0,
+      ...item.dependsOn.filter((dep) => keys.has(dep)).map((dep) => depth(dep, nextSeen) + 1),
+    );
     depths.set(key, result);
     return result;
   }
@@ -124,11 +127,18 @@ export function WorkGraphCanvas({ items, intent, approved, onSelect }: Props) {
   return (
     <div className="workgraph-root">
       <div className="workgraph-legend" aria-label="Workflow graph legend">
-        <span>● Intent</span><span>● Work item</span><span>● Workflow</span><span>◆ Approval gate</span>
+        <span>● Intent</span>
+        <span>● Work item</span>
+        <span>● Workflow</span>
+        <span>◆ Approval gate</span>
         <strong>{approved ? "Approved plan" : "Proposed only · not running"}</strong>
       </div>
       <div className="workgraph-scene" aria-label="Connected plan graph">
-        <Canvas orthographic camera={{ position: [0, 0, 30], zoom: 65 }} gl={{ alpha: true, antialias: true }}>
+        <Canvas
+          orthographic
+          camera={{ position: [0, 0, 30], zoom: 65 }}
+          gl={{ alpha: true, antialias: true }}
+        >
           <ambientLight intensity={1.1} />
           {graph.edges.map((edge, index) => {
             const start = positions.get(edge.from);
@@ -137,14 +147,23 @@ export function WorkGraphCanvas({ items, intent, approved, onSelect }: Props) {
             return (
               <Line
                 key={index}
-                points={[[start.x, start.y, -1], [end.x, end.y, -1]]}
+                points={[
+                  [start.x, start.y, -1],
+                  [end.x, end.y, -1],
+                ]}
                 color={edge.dependency ? "#8cadff" : "#536c96"}
                 lineWidth={edge.dependency ? 2 : 1.5}
               />
             );
           })}
           {graph.nodes.map((node) => (
-            <Html key={node.id} position={[node.x, node.y, 0]} center transform={false} zIndexRange={[15, 5]}>
+            <Html
+              key={node.id}
+              position={[node.x, node.y, 0]}
+              center
+              transform={false}
+              zIndexRange={[15, 5]}
+            >
               <button
                 type="button"
                 className={`workgraph-node workgraph-node--${node.kind} ${selected === node.id ? "is-selected" : ""}`}
@@ -158,7 +177,14 @@ export function WorkGraphCanvas({ items, intent, approved, onSelect }: Props) {
               </button>
             </Html>
           ))}
-          <MapControls enableRotate={false} enableDamping dampingFactor={0.12} minZoom={20} maxZoom={120} screenSpacePanning />
+          <MapControls
+            enableRotate={false}
+            enableDamping
+            dampingFactor={0.12}
+            minZoom={20}
+            maxZoom={120}
+            screenSpacePanning
+          />
         </Canvas>
       </div>
       <div className="workgraph-footer">
@@ -168,7 +194,9 @@ export function WorkGraphCanvas({ items, intent, approved, onSelect }: Props) {
           <ul>
             {graph.nodes.map((node) => (
               <li key={node.id}>
-                <button type="button" onClick={() => choose(node)}>{node.title} · {node.kind}</button>
+                <button type="button" onClick={() => choose(node)}>
+                  {node.title} · {node.kind}
+                </button>
               </li>
             ))}
           </ul>
