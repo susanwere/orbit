@@ -12,6 +12,10 @@ interface JobRow extends Record<string, unknown> {
   workflow_step_id: string;
   status: string;
   mission: string;
+  allowed_repositories: unknown;
+  allowed_paths: unknown;
+  network_policy: string;
+  network_allowlist: unknown;
 }
 
 /** A durable queue boundary. Never execute the CLI from an HTTP request. */
@@ -83,7 +87,8 @@ export class MuseExecutionWorker {
     const job = await this.db.transaction(async (tx) => {
       const claim = await tx.query<JobRow>(
         `SELECT job.id,job.organization_id,job.project_id,job.agent_session_id,
-            job.workflow_step_id,job.status,s.mission
+            job.workflow_step_id,job.status,s.mission,c.allowed_repositories,
+            c.allowed_paths,c.network_policy,c.network_allowlist
          FROM muse_execution_jobs job
          JOIN agent_sessions s ON s.id=job.agent_session_id AND s.project_id=job.project_id
            AND s.organization_id=job.organization_id
@@ -111,7 +116,25 @@ export class MuseExecutionWorker {
 
     let result: EngineeringExecutionResult | null = null;
     let failure = "";
+    // This is a fail-closed policy check, NOT an OS sandbox. A production
+    // provisioner must independently enforce these grants on its mounted checkout.
+    const repositories = job.allowed_repositories;
+    const paths = job.allowed_paths;
+    const validStrings = (value: unknown): value is string[] =>
+      Array.isArray(value) &&
+      value.length > 0 &&
+      value.every((entry) => typeof entry === "string" && entry.length > 0);
+    if (
+      !validStrings(repositories) ||
+      !validStrings(paths) ||
+      job.network_policy !== "none" ||
+      !Array.isArray(job.network_allowlist) ||
+      job.network_allowlist.length > 0
+    ) {
+      failure = "Execution contract requires explicit, offline repository and path grants.";
+    }
     try {
+      if (failure) throw new Error(failure);
       result = await this.executor.execute({
         mission: job.mission,
         workspace,
@@ -122,7 +145,7 @@ export class MuseExecutionWorker {
       if (result.outputTruncated) failure = "Muse Code output exceeded capture limits.";
     } catch {
       // Never persist provider stderr or secrets into user-visible error fields.
-      failure = "Muse Code process failed or timed out.";
+      failure ||= "Muse Code process failed or timed out.";
     }
     const state = failure ? "FAILED" : "TURN_FINISHED";
     await this.db.transaction(async (tx) => {
