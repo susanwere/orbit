@@ -142,10 +142,7 @@ const app = await buildApp({
           database,
           new ProjectAuthorizationService(database),
         ),
-        binding: new StepSessionBindingService(
-          database,
-          new ProjectAuthorizationService(database),
-        ),
+        binding: new StepSessionBindingService(database, new ProjectAuthorizationService(database)),
         materializer: new ApprovedStepMaterializer(
           database,
           new ProjectAuthorizationService(database),

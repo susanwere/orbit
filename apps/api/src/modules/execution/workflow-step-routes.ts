@@ -42,12 +42,14 @@ export async function registerWorkflowStepRoutes(
       if (typeof sessionId !== "string" || !sessionId.trim() || sessionId.length > 200) {
         throw new DomainError("validation", "A valid sessionId is required.");
       }
-      return { step: await options.binding.bind({
-        projectId: request.params.projectId,
-        stepId: request.params.stepId,
-        sessionId,
-        principalId: principal.id,
-      }) };
+      return {
+        step: await options.binding.bind({
+          projectId: request.params.projectId,
+          stepId: request.params.stepId,
+          sessionId,
+          principalId: principal.id,
+        }),
+      };
     },
   );
   app.post<{ Params: { projectId: string; stepId: string } }>(
