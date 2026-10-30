@@ -68,8 +68,7 @@ describe("isolated Muse execution worker", () => {
               statements.push(sql);
               if (sql.includes("FROM muse_execution_jobs job"))
                 return { rows: [{ ...job, ...overrides }] };
-              if (sql.includes("SET status=$3"))
-                return { rows: leaseWon ? [{ id: "job" }] : [] };
+              if (sql.includes("SET status=$3")) return { rows: leaseWon ? [{ id: "job" }] : [] };
               return { rows: [] };
             },
           }),
