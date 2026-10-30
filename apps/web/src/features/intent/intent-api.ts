@@ -18,6 +18,16 @@ export interface ProjectPlan {
   readonly content: unknown;
 }
 
+export interface WorkflowExecutionStep {
+  readonly id: string;
+  readonly work_item_key: string;
+  readonly workflow_index: number;
+  readonly step_index: number;
+  readonly state: string;
+  readonly blocker_reason: string | null;
+  readonly agent_session_id: string | null;
+}
+
 export interface ProjectIntentApi {
   getIntent(projectId: string): Promise<StoredIntent | null>;
   submitIntent(projectId: string, statement: string): Promise<StoredIntent>;
@@ -26,6 +36,7 @@ export interface ProjectIntentApi {
   updatePlan(projectId: string, expectedRevision: number, content: unknown): Promise<ProjectPlan>;
   approvePlan(projectId: string, expectedRevision: number): Promise<ProjectPlan>;
   getRepositories(projectId: string): Promise<readonly ConnectedRepository[]>;
+  getExecutionSteps(projectId: string): Promise<readonly WorkflowExecutionStep[]>;
 }
 
 export interface ProjectIntentApiOptions {
@@ -94,6 +105,8 @@ export function createIntentApi(
           expectedRevision,
         })
       ).plan,
+    getExecutionSteps: async (id) =>
+      (await request<{ steps: WorkflowExecutionStep[] }>(`${path(id)}/execution/steps`)).steps,
     getRepositories: async (id) =>
       (await request<{ repositories: ConnectedRepository[] }>(`${path(id)}/repositories`))
         .repositories,
