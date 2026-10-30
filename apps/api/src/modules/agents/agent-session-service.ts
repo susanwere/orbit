@@ -145,7 +145,10 @@ export class AgentSessionService {
       [projectId, sessionId, principalId, actor.role, actor.organizationId],
     );
     if (!result.rows[0])
-      throw new DomainError("invalid_state", "Session cannot start without an approved project plan and valid authorization.");
+      throw new DomainError(
+        "invalid_state",
+        "Session cannot start without an approved project plan and valid authorization.",
+      );
     return result.rows[0];
   }
 }

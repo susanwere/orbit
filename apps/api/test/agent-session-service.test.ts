@@ -87,7 +87,6 @@ describe("scoped agent session creation", () => {
   });
 });
 
-
 describe("agent session start authorization", () => {
   it("requires an approved tenant-scoped plan and a matching authorized session", async () => {
     const statements: string[] = [];
@@ -125,8 +124,17 @@ describe("agent session start authorization", () => {
   it("does not touch the database if project authorization fails", async () => {
     let queried = false;
     const svc = new AgentSessionService(
-      { query: async () => { queried = true; return { rows: [] }; } } as never,
-      { authorize: async () => { throw new DomainError("forbidden", "Denied"); } } as never,
+      {
+        query: async () => {
+          queried = true;
+          return { rows: [] };
+        },
+      } as never,
+      {
+        authorize: async () => {
+          throw new DomainError("forbidden", "Denied");
+        },
+      } as never,
       {} as never,
     );
     await expect(svc.start("project", "outsider", "session")).rejects.toMatchObject({
