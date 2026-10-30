@@ -34,7 +34,9 @@ export function ProjectDashboard({ api, onOpen, onCreate }: Props) {
         setLoading(false);
       },
     );
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [api, reload]);
 
   async function more() {
@@ -54,7 +56,9 @@ export function ProjectDashboard({ api, onOpen, onCreate }: Props) {
       setLoadingMore(false);
     }
   }
-  const matches = projects.filter((project) => project.name.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase()));
+  const matches = projects.filter((project) =>
+    project.name.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase()),
+  );
   return (
     <main className="project-dashboard">
       <aside className="project-dashboard-sidebar" aria-label="Workspace navigation">
@@ -69,32 +73,77 @@ export function ProjectDashboard({ api, onOpen, onCreate }: Props) {
             <h1 id="project-dashboard-heading">Projects</h1>
             <p>Pick up where you left off or start something new.</p>
           </div>
-          <button className="project-dashboard-create" type="button" onClick={onCreate}>+ New project</button>
+          <button className="project-dashboard-create" type="button" onClick={onCreate}>
+            + New project
+          </button>
         </header>
-        <label className="project-dashboard-search-label" htmlFor="project-search">Search projects</label>
-        <input id="project-search" className="project-dashboard-search" placeholder="Search by project name…" value={query} onChange={(event) => setQuery(event.target.value)} />
+        <label className="project-dashboard-search-label" htmlFor="project-search">
+          Search projects
+        </label>
+        <input
+          id="project-search"
+          className="project-dashboard-search"
+          placeholder="Search by project name…"
+          value={query}
+          onChange={(event) => setQuery(event.target.value)}
+        />
         {loading ? <p role="status">Loading projects…</p> : null}
-        {error ? <div role="alert" className="project-dashboard-error">{error} <button type="button" onClick={() => setReload((n) => n + 1)}>Retry</button></div> : null}
+        {error ? (
+          <div role="alert" className="project-dashboard-error">
+            {error}{" "}
+            <button type="button" onClick={() => setReload((n) => n + 1)}>
+              Retry
+            </button>
+          </div>
+        ) : null}
         {!loading && !error && projects.length === 0 ? (
           <div className="project-dashboard-empty">
             <h2>No projects yet</h2>
-            <p>Create your first project and Orbit will help turn your intent into a reviewable plan.</p>
-            <button type="button" onClick={onCreate}>Create project</button>
+            <p>
+              Create your first project and Orbit will help turn your intent into a reviewable plan.
+            </p>
+            <button type="button" onClick={onCreate}>
+              Create project
+            </button>
           </div>
         ) : null}
-        {!loading && matches.length === 0 && projects.length > 0 ? <p role="status">No matching projects in the loaded results.</p> : null}
+        {!loading && matches.length === 0 && projects.length > 0 ? (
+          <p role="status">No matching projects in the loaded results.</p>
+        ) : null}
         <div className="project-dashboard-grid">
           {matches.map((project) => (
-            <button type="button" className="project-dashboard-card" key={project.id} onClick={() => onOpen(project)}>
-              <span className="project-dashboard-card-icon" aria-hidden="true">◈</span>
+            <button
+              type="button"
+              className="project-dashboard-card"
+              key={project.id}
+              onClick={() => onOpen(project)}
+            >
+              <span className="project-dashboard-card-icon" aria-hidden="true">
+                ◈
+              </span>
               <strong>{project.name}</strong>
               <small>Created {new Date(project.created_at).toLocaleDateString()}</small>
               <span className="project-dashboard-card-link">Open project →</span>
             </button>
           ))}
         </div>
-        {cursor && !loading ? <button className="project-dashboard-more" type="button" disabled={loadingMore} onClick={() => { void more(); }}>{loadingMore ? "Loading…" : "Load more projects"}</button> : null}
-        {cursor && query ? <p className="project-dashboard-note">Search currently covers loaded projects. Load more to expand results.</p> : null}
+        {cursor && !loading ? (
+          <button
+            className="project-dashboard-more"
+            type="button"
+            disabled={loadingMore}
+            onClick={() => {
+              void more();
+            }}
+          >
+            {loadingMore ? "Loading…" : "Load more projects"}
+          </button>
+        ) : null}
+        {cursor && query ? (
+          <p className="project-dashboard-note">
+            Search currently covers loaded projects. Load more to expand results.
+          </p>
+        ) : null}
       </section>
     </main>
   );

@@ -14,7 +14,9 @@ interface AppProps {
 }
 
 export function App({ projectApi, intentApi }: AppProps) {
-  const [page, setPage] = useState<"landing" | "dashboard" | "create" | "universe" | "project">(projectApi ? "dashboard" : "landing");
+  const [page, setPage] = useState<"landing" | "dashboard" | "create" | "universe" | "project">(
+    projectApi ? "dashboard" : "landing",
+  );
   const [activeProject, setActiveProject] = useState<CreatedProject | null>(null);
 
   if (page === "project" && activeProject && intentApi) {
@@ -24,7 +26,16 @@ export function App({ projectApi, intentApi }: AppProps) {
   }
 
   if (page === "dashboard" && projectApi) {
-    return <ProjectDashboard api={projectApi} onCreate={() => setPage("create")} onOpen={(project) => { setActiveProject(project); setPage("project"); }} />;
+    return (
+      <ProjectDashboard
+        api={projectApi}
+        onCreate={() => setPage("create")}
+        onOpen={(project) => {
+          setActiveProject(project);
+          setPage("project");
+        }}
+      />
+    );
   }
 
   if (page === "universe") return <Universe onExit={() => setPage("landing")} />;

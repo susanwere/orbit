@@ -100,9 +100,14 @@ export function createProjectApi(
       throw new ProjectApiError(response.status, "Could not load projects. Please retry.");
     }
     const payload: unknown = await response.json();
-    if (!payload || typeof payload !== "object" || !("projects" in payload) ||
-        !Array.isArray(payload.projects) || !("nextCursor" in payload) ||
-        !(payload.nextCursor === null || typeof payload.nextCursor === "string")) {
+    if (
+      !payload ||
+      typeof payload !== "object" ||
+      !("projects" in payload) ||
+      !Array.isArray(payload.projects) ||
+      !("nextCursor" in payload) ||
+      !(payload.nextCursor === null || typeof payload.nextCursor === "string")
+    ) {
       throw new ProjectApiError(0, "Invalid project list response.");
     }
     return payload as ProjectPage;
