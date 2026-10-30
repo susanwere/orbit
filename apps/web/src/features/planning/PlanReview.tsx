@@ -107,7 +107,8 @@ export function PlanReview({ project, originalIntent, plan, api, onBack, onUpdat
     setEditing(false);
   };
 
-  const currentWorkflow = selectedWorkflow === null ? null : selectedItem?.workflows[selectedWorkflow];
+  const currentWorkflow =
+    selectedWorkflow === null ? null : selectedItem?.workflows[selectedWorkflow];
   const currentStep = selectedStep === null ? null : currentWorkflow?.steps[selectedStep];
   const change = (next: WorkGraph) => {
     setGraph(next);
@@ -225,23 +226,56 @@ export function PlanReview({ project, originalIntent, plan, api, onBack, onUpdat
             <button
               type="button"
               className="orbit-detail-back"
-              onClick={() => { setSelectedItemKey(null); setSelectedWorkflow(null); setSelectedStep(null); setEditing(false); }}
+              onClick={() => {
+                setSelectedItemKey(null);
+                setSelectedWorkflow(null);
+                setSelectedStep(null);
+                setEditing(false);
+              }}
             >
               ← Back to workflow canvas
             </button>
             <div className="orbit-detail-heading">
               <div>
                 <span className="orbit-detail-eyebrow">WORK ITEM / {selectedItem.key}</span>
-                <h2>{selectedStep !== null && currentStep ? currentStep.title : currentWorkflow ? currentWorkflow.name : selectedItem.title}</h2>
-                <p>{selectedStep !== null ? "Step details" : currentWorkflow ? "Workflow steps and checkpoints" : selectedItem.description}</p>
+                <h2>
+                  {selectedStep !== null && currentStep
+                    ? currentStep.title
+                    : currentWorkflow
+                      ? currentWorkflow.name
+                      : selectedItem.title}
+                </h2>
+                <p>
+                  {selectedStep !== null
+                    ? "Step details"
+                    : currentWorkflow
+                      ? "Workflow steps and checkpoints"
+                      : selectedItem.description}
+                </p>
               </div>
               <div className="orbit-detail-heading-actions">
-                {!approved && <button type="button" className="orbit-detail-back" onClick={() => setEditing((value) => !value)}>{editing ? "Done editing" : "✎ Edit"}</button>}
+                {!approved && (
+                  <button
+                    type="button"
+                    className="orbit-detail-back"
+                    onClick={() => setEditing((value) => !value)}
+                  >
+                    {editing ? "Done editing" : "✎ Edit"}
+                  </button>
+                )}
                 <span className="orbit-detail-tag">{approved ? "Approved" : "Proposed"}</span>
               </div>
             </div>
             {selectedWorkflow !== null && (
-              <button className="orbit-detail-back" type="button" onClick={() => { setSelectedWorkflow(null); setSelectedStep(null); setEditing(false); }}>
+              <button
+                className="orbit-detail-back"
+                type="button"
+                onClick={() => {
+                  setSelectedWorkflow(null);
+                  setSelectedStep(null);
+                  setEditing(false);
+                }}
+              >
                 ← All workflows
               </button>
             )}
@@ -249,34 +283,85 @@ export function PlanReview({ project, originalIntent, plan, api, onBack, onUpdat
               <div className="orbit-detail-content">
                 <div className="orbit-detail-tabs" role="tablist" aria-label="Work item sections">
                   {(["overview", "workflows", "dependencies"] as const).map((tab) => (
-                    <button key={tab} type="button" role="tab" aria-selected={activeTab === tab} className={activeTab === tab ? "is-active" : ""} onClick={() => setActiveTab(tab)}>
-                      {tab === "workflows" ? `Workflows (${selectedItem.workflows.length})` : tab === "overview" ? "Overview" : "Dependencies"}
+                    <button
+                      key={tab}
+                      type="button"
+                      role="tab"
+                      aria-selected={activeTab === tab}
+                      className={activeTab === tab ? "is-active" : ""}
+                      onClick={() => setActiveTab(tab)}
+                    >
+                      {tab === "workflows"
+                        ? `Workflows (${selectedItem.workflows.length})`
+                        : tab === "overview"
+                          ? "Overview"
+                          : "Dependencies"}
                     </button>
                   ))}
                 </div>
                 {activeTab === "overview" && (
                   <div className="orbit-detail-card">
                     <h3>About this work</h3>
-                    {editing ? <>
-                      <label htmlFor="item-title">Title</label>
-                      <input id="item-title" disabled={!canEdit} value={selectedItem.title} onChange={(event) => editItem(selectedIndex, { title: event.target.value })} />
-                      <label htmlFor="item-description">Description</label>
-                      <textarea id="item-description" disabled={!canEdit} rows={4} value={selectedItem.description} onChange={(event) => editItem(selectedIndex, { description: event.target.value })} />
-                    </> : <p>{selectedItem.description}</p>}
-                    <p className="orbit-detail-muted">{selectedItem.workflows.length} workflows · {selectedItem.dependsOn.length} dependencies</p>
+                    {editing ? (
+                      <>
+                        <label htmlFor="item-title">Title</label>
+                        <input
+                          id="item-title"
+                          disabled={!canEdit}
+                          value={selectedItem.title}
+                          onChange={(event) =>
+                            editItem(selectedIndex, { title: event.target.value })
+                          }
+                        />
+                        <label htmlFor="item-description">Description</label>
+                        <textarea
+                          id="item-description"
+                          disabled={!canEdit}
+                          rows={4}
+                          value={selectedItem.description}
+                          onChange={(event) =>
+                            editItem(selectedIndex, { description: event.target.value })
+                          }
+                        />
+                      </>
+                    ) : (
+                      <p>{selectedItem.description}</p>
+                    )}
+                    <p className="orbit-detail-muted">
+                      {selectedItem.workflows.length} workflows · {selectedItem.dependsOn.length}{" "}
+                      dependencies
+                    </p>
                   </div>
                 )}
                 {activeTab === "dependencies" && (
                   <div className="orbit-detail-card">
                     <h3>Depends on</h3>
-                    {graph.workItems.filter((item) => item.key !== selectedItem.key).map((item) => (
-                      <label className="orbit-dependency-choice" key={item.key}>
-                        <input type="checkbox" disabled={!canEdit || !editing} checked={selectedItem.dependsOn.includes(item.key)}
-                          onChange={(event) => editItem(selectedIndex, { dependsOn: event.target.checked ? [...selectedItem.dependsOn, item.key] : selectedItem.dependsOn.filter((key) => key !== item.key) })} />
-                        <span><strong>{item.title}</strong><small>{item.key}</small></span>
-                      </label>
-                    ))}
-                    <p className="orbit-detail-muted">Dependencies determine what must finish before execution can begin. Editing the plan does not execute work.</p>
+                    {graph.workItems
+                      .filter((item) => item.key !== selectedItem.key)
+                      .map((item) => (
+                        <label className="orbit-dependency-choice" key={item.key}>
+                          <input
+                            type="checkbox"
+                            disabled={!canEdit || !editing}
+                            checked={selectedItem.dependsOn.includes(item.key)}
+                            onChange={(event) =>
+                              editItem(selectedIndex, {
+                                dependsOn: event.target.checked
+                                  ? [...selectedItem.dependsOn, item.key]
+                                  : selectedItem.dependsOn.filter((key) => key !== item.key),
+                              })
+                            }
+                          />
+                          <span>
+                            <strong>{item.title}</strong>
+                            <small>{item.key}</small>
+                          </span>
+                        </label>
+                      ))}
+                    <p className="orbit-detail-muted">
+                      Dependencies determine what must finish before execution can begin. Editing
+                      the plan does not execute work.
+                    </p>
                   </div>
                 )}
                 {activeTab === "workflows" && (
@@ -285,10 +370,23 @@ export function PlanReview({ project, originalIntent, plan, api, onBack, onUpdat
                     <p>Open a workflow to explore its steps.</p>
                     <div className="orbit-nested-graph" aria-label="Workflows in this work item">
                       {selectedItem.workflows.map((workflow, index) => (
-                        <button className="orbit-nested-node" type="button" key={index} onClick={() => { setSelectedWorkflow(index); setSelectedStep(null); setEditing(false); }}>
+                        <button
+                          className="orbit-nested-node"
+                          type="button"
+                          key={index}
+                          onClick={() => {
+                            setSelectedWorkflow(index);
+                            setSelectedStep(null);
+                            setEditing(false);
+                          }}
+                        >
                           <span>WORKFLOW {index + 1}</span>
                           <strong>{workflow.name}</strong>
-                          <small>{workflow.steps.length} steps · {workflow.steps.filter((step) => step.requiresApproval).length} approval gates</small>
+                          <small>
+                            {workflow.steps.length} steps ·{" "}
+                            {workflow.steps.filter((step) => step.requiresApproval).length} approval
+                            gates
+                          </small>
                           <span>Explore →</span>
                         </button>
                       ))}
@@ -296,60 +394,136 @@ export function PlanReview({ project, originalIntent, plan, api, onBack, onUpdat
                   </div>
                 )}
               </div>
-            ) : currentWorkflow && (
-              <div className="orbit-detail-content">
-                {selectedStep !== null && currentStep ? (
-                  <div className="orbit-detail-card">
-                    <button className="orbit-detail-back" type="button" onClick={() => { setSelectedStep(null); setEditing(false); }}>← All steps</button>
-                    <h3>{currentStep.title}</h3>
-                    <p>{currentStep.requiresApproval ? "Human approval required" : "No additional approval gate"} · {currentStep.executor}</p>
-                    {editing && <>
-                      <label htmlFor="step-title">What needs to happen?</label>
-                      <input id="step-title" value={currentStep.title} disabled={!canEdit} onChange={(event) => {
-                        const next = structuredClone(graph);
-                        next.workItems[selectedIndex]!.workflows[selectedWorkflow]!.steps[selectedStep]!.title = event.target.value;
-                        change(next);
-                      }} />
-                      <label htmlFor="step-executor">Who handles this?</label>
-                      <select id="step-executor" value={currentStep.executor} disabled={!canEdit} onChange={(event) => {
-                        const next = structuredClone(graph);
-                        next.workItems[selectedIndex]!.workflows[selectedWorkflow]!.steps[selectedStep]!.executor = event.target.value as Executor;
-                        change(next);
-                      }}><option value="human">Human</option><option value="agent">Agent (proposed)</option><option value="system">System</option></select>
-                      <label className="orbit-approval-choice"><input type="checkbox" checked={currentStep.requiresApproval} disabled={!canEdit} onChange={(event) => {
-                        const next = structuredClone(graph);
-                        next.workItems[selectedIndex]!.workflows[selectedWorkflow]!.steps[selectedStep]!.requiresApproval = event.target.checked;
-                        change(next);
-                      }} />Requires human approval</label>
-                    </>}
-                    <p className="orbit-detail-muted">Execution is not available from this planning view. Prerequisite completion must be verified by the execution service.</p>
-                  </div>
-                ) : (
-                  <div className="orbit-detail-card">
-                    <h3>{currentWorkflow.name}</h3>
-                    <p>Explore the steps in this workflow. Downstream steps await verified completion of earlier steps.</p>
-                    {editing && <>
-                      <label htmlFor="workflow-name">Workflow name</label>
-                      <input id="workflow-name" disabled={!canEdit} value={currentWorkflow.name} onChange={(event) => {
-                        const next = structuredClone(graph);
-                        next.workItems[selectedIndex]!.workflows[selectedWorkflow]!.name = event.target.value;
-                        change(next);
-                      }} />
-                    </>}
-                    <div className="orbit-nested-graph" aria-label="Workflow steps">
-                      {currentWorkflow.steps.map((step, index) => (
-                        <button key={index} type="button" className="orbit-nested-node" onClick={() => { setSelectedStep(index); setEditing(false); }}>
-                          <span>STEP {index + 1}</span>
-                          <strong>{step.title}</strong>
-                          <small>{step.requiresApproval ? "◆ Human review" : step.executor}</small>
-                          <span>{index === 0 ? "Awaiting authorization" : "Waiting for previous step"} · Explore →</span>
-                        </button>
-                      ))}
+            ) : (
+              currentWorkflow && (
+                <div className="orbit-detail-content">
+                  {selectedStep !== null && currentStep ? (
+                    <div className="orbit-detail-card">
+                      <button
+                        className="orbit-detail-back"
+                        type="button"
+                        onClick={() => {
+                          setSelectedStep(null);
+                          setEditing(false);
+                        }}
+                      >
+                        ← All steps
+                      </button>
+                      <h3>{currentStep.title}</h3>
+                      <p>
+                        {currentStep.requiresApproval
+                          ? "Human approval required"
+                          : "No additional approval gate"}{" "}
+                        · {currentStep.executor}
+                      </p>
+                      {editing && (
+                        <>
+                          <label htmlFor="step-title">What needs to happen?</label>
+                          <input
+                            id="step-title"
+                            value={currentStep.title}
+                            disabled={!canEdit}
+                            onChange={(event) => {
+                              const next = structuredClone(graph);
+                              next.workItems[selectedIndex]!.workflows[selectedWorkflow]!.steps[
+                                selectedStep
+                              ]!.title = event.target.value;
+                              change(next);
+                            }}
+                          />
+                          <label htmlFor="step-executor">Who handles this?</label>
+                          <select
+                            id="step-executor"
+                            value={currentStep.executor}
+                            disabled={!canEdit}
+                            onChange={(event) => {
+                              const next = structuredClone(graph);
+                              next.workItems[selectedIndex]!.workflows[selectedWorkflow]!.steps[
+                                selectedStep
+                              ]!.executor = event.target.value as Executor;
+                              change(next);
+                            }}
+                          >
+                            <option value="human">Human</option>
+                            <option value="agent">Agent (proposed)</option>
+                            <option value="system">System</option>
+                          </select>
+                          <label className="orbit-approval-choice">
+                            <input
+                              type="checkbox"
+                              checked={currentStep.requiresApproval}
+                              disabled={!canEdit}
+                              onChange={(event) => {
+                                const next = structuredClone(graph);
+                                next.workItems[selectedIndex]!.workflows[selectedWorkflow]!.steps[
+                                  selectedStep
+                                ]!.requiresApproval = event.target.checked;
+                                change(next);
+                              }}
+                            />
+                            Requires human approval
+                          </label>
+                        </>
+                      )}
+                      <p className="orbit-detail-muted">
+                        Execution is not available from this planning view. Prerequisite completion
+                        must be verified by the execution service.
+                      </p>
                     </div>
-                    <p className="orbit-detail-muted">These are proposed steps, not actual execution statuses. Later steps are not executable until their prerequisites have completed.</p>
-                  </div>
-                )}
-              </div>
+                  ) : (
+                    <div className="orbit-detail-card">
+                      <h3>{currentWorkflow.name}</h3>
+                      <p>
+                        Explore the steps in this workflow. Downstream steps await verified
+                        completion of earlier steps.
+                      </p>
+                      {editing && (
+                        <>
+                          <label htmlFor="workflow-name">Workflow name</label>
+                          <input
+                            id="workflow-name"
+                            disabled={!canEdit}
+                            value={currentWorkflow.name}
+                            onChange={(event) => {
+                              const next = structuredClone(graph);
+                              next.workItems[selectedIndex]!.workflows[selectedWorkflow]!.name =
+                                event.target.value;
+                              change(next);
+                            }}
+                          />
+                        </>
+                      )}
+                      <div className="orbit-nested-graph" aria-label="Workflow steps">
+                        {currentWorkflow.steps.map((step, index) => (
+                          <button
+                            key={index}
+                            type="button"
+                            className="orbit-nested-node"
+                            onClick={() => {
+                              setSelectedStep(index);
+                              setEditing(false);
+                            }}
+                          >
+                            <span>STEP {index + 1}</span>
+                            <strong>{step.title}</strong>
+                            <small>
+                              {step.requiresApproval ? "◆ Human review" : step.executor}
+                            </small>
+                            <span>
+                              {index === 0 ? "Awaiting authorization" : "Waiting for previous step"}{" "}
+                              · Explore →
+                            </span>
+                          </button>
+                        ))}
+                      </div>
+                      <p className="orbit-detail-muted">
+                        These are proposed steps, not actual execution statuses. Later steps are not
+                        executable until their prerequisites have completed.
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )
             )}
           </section>
         ) : (
