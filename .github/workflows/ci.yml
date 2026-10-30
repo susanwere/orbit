@@ -36,6 +36,12 @@ jobs:
         run: npm ci
       - name: Check source formatting
         run: npm run format:check
+      - name: Diagnostic GitHub CI evidence formatter
+        if: failure()
+        run: |
+          echo ORBIT_EVIDENCE_BEGIN
+          ./node_modules/.bin/prettier apps/api/src/modules/execution/github-ci-evidence-service.ts
+          echo ORBIT_EVIDENCE_END
       - name: Build workspace dependencies
         run: npm run build -w @orbit/domain && npm run build -w @orbit/db
       - name: Typecheck
