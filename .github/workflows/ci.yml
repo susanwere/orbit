@@ -36,15 +36,6 @@ jobs:
         run: npm ci
       - name: Check source formatting
         run: npm run format:check
-      - name: Diagnostic CI merge-ref formatting
-        if: failure()
-        run: |
-          echo ORBIT_SERVICE_BEGIN
-          ./node_modules/.bin/prettier apps/api/src/modules/execution/github-ci-evidence-service.ts
-          echo ORBIT_SERVICE_END
-          echo ORBIT_TEST_BEGIN
-          ./node_modules/.bin/prettier apps/api/test/github-ci-evidence-service.test.ts
-          echo ORBIT_TEST_END
       - name: Build workspace dependencies
         run: npm run build -w @orbit/domain && npm run build -w @orbit/db
       - name: Typecheck
