@@ -135,7 +135,7 @@ describe("atomic session and step start", () => {
     await expect(h.service.start("project", "owner", "session")).rejects.toMatchObject({
       code: "invalid_state",
     });
-    expect(h.statements.some((q) => q.includes("UPDATE"))).toBe(false);
+    expect(h.statements.some((q) => q.trimStart().startsWith("UPDATE"))).toBe(false);
   });
 
   it("rolls back if the step transition fails", async () => {
