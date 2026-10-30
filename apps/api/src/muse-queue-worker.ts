@@ -7,7 +7,10 @@ import { resolve } from "node:path";
 import { PgDatabase } from "@orbit/db";
 import { MuseGithubDeliveryService } from "./modules/execution/muse-github-delivery.js";
 import { MuseExecutionWorker } from "./modules/execution/muse-execution-worker.js";
-import { MuseCodeCliExecutor, LocalMuseProcessRunner } from "./modules/execution/muse-code-executor.js";
+import {
+  MuseCodeCliExecutor,
+  LocalMuseProcessRunner,
+} from "./modules/execution/muse-code-executor.js";
 
 async function main() {
   const workspace = process.env.ORBIT_WORKER_WORKSPACE;
@@ -17,14 +20,22 @@ async function main() {
   if (
     process.env.ORBIT_MUSE_ISOLATED_WORKER !== "true" ||
     process.env.ORBIT_WORKER_SANDBOX_CONFIRMED !== "yes" ||
-    !workspace || resolve(workspace) !== workspace || !url || !token ||
+    !workspace ||
+    resolve(workspace) !== workspace ||
+    !url ||
+    !token ||
     !process.env.META_API_KEY
   ) {
-    throw new Error("Worker requires a provisioned isolated checkout, database and private credentials.");
+    throw new Error(
+      "Worker requires a provisioned isolated checkout, database and private credentials.",
+    );
   }
   const db = new PgDatabase(url);
   try {
-    const worker = new MuseExecutionWorker(db, new MuseCodeCliExecutor(new LocalMuseProcessRunner()));
+    const worker = new MuseExecutionWorker(
+      db,
+      new MuseCodeCliExecutor(new LocalMuseProcessRunner()),
+    );
     const result = await worker.runNext(workspace);
     if (!result) {
       process.stdout.write("No eligible queued Muse execution.\n");
@@ -43,7 +54,10 @@ async function main() {
     if (!projectId) throw new Error("Job has no deliverable project.");
     const delivery = new MuseGithubDeliveryService(db, token);
     const delivered = await delivery.deliver({
-      jobId: result.jobId, projectId, workspace, baseBranch,
+      jobId: result.jobId,
+      projectId,
+      workspace,
+      baseBranch,
     });
     process.stdout.write(
       `Delivered job ${delivered.jobId} as ${delivered.repository} PR #${delivered.pullNumber}. Await independent CI evidence.\n`,
