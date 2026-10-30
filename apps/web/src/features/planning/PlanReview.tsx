@@ -89,11 +89,17 @@ export function PlanReview({ project, originalIntent, plan, api, onBack, onUpdat
   const [status, setStatus] = useState(plan.status);
   const [dirty, setDirty] = useState(false);
   const [selectedItemKey, setSelectedItemKey] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<"overview" | "workflows" | "dependencies">("overview");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const selectedItem = graph?.workItems.find((item) => item.key === selectedItemKey);
   const approved = status === "APPROVED";
   const canEdit = !approved && !busy;
+  const selectedIndex = graph?.workItems.findIndex((item) => item.key === selectedItemKey) ?? -1;
+  const openItem = (key: string) => {
+    setSelectedItemKey(key);
+    setActiveTab("overview");
+  };
 
   const change = (next: WorkGraph) => {
     setGraph(next);
@@ -174,13 +180,9 @@ export function PlanReview({ project, originalIntent, plan, api, onBack, onUpdat
   return (
     <main className="orbit-workspace">
       <aside className="orbit-workspace-nav" aria-label="Project navigation">
-        <a className="orbit-workspace-mark" href="#plan-heading" aria-label="Orbit workspace">
-          ◈
-        </a>
+        <a className="orbit-workspace-mark" href="#plan-heading" aria-label="Orbit workspace">◈</a>
         <span className="orbit-workspace-nav-label">Workspace</span>
-        <button type="button" className="orbit-workspace-nav-action" onClick={onBack}>
-          ← Intent
-        </button>
+        <button type="button" className="orbit-workspace-nav-action" onClick={onBack}>← Intent</button>
         <div className="orbit-workspace-nav-group">
           <span>PROJECT</span>
           <strong>{project.name}</strong>
@@ -190,348 +192,129 @@ export function PlanReview({ project, originalIntent, plan, api, onBack, onUpdat
           <strong>Workflows</strong>
           <small>{graph?.workItems.length ?? 0} work items</small>
         </div>
-        <p className="orbit-workspace-nav-note">
-          Human approval is required before any external execution.
-        </p>
+        <p className="orbit-workspace-nav-note">Approval records human acceptance. Agent execution is separate.</p>
       </aside>
       <div className="orbit-workspace-main">
         <header className="orbit-workspace-toolbar">
           <div>
-            <span className="orbit-workspace-breadcrumb">ORBIT / {project.name}</span>
-            <h1 id="plan-heading">Workflow canvas</h1>
+            <span className="orbit-workspace-breadcrumb">ORBIT / {project.name} / {selectedItem ? selectedItem.key : "WORKFLOW"}</span>
+            <h1 id="plan-heading">{selectedItem ? selectedItem.title : "Workflow canvas"}</h1>
           </div>
-          <span className="orbit-workspace-state">
-            {approved ? "Approved" : dirty ? "Unsaved changes" : "Proposed plan"}
-          </span>
+          <span className="orbit-workspace-state">{approved ? "Approved" : dirty ? "Unsaved changes" : "Proposed plan"}</span>
         </header>
-        <div className="orbit-workspace-layout">
-          <section className="orbit-workspace-stage" aria-label="Plan overview">
-            <div className="orbit-workspace-stage-head">
-              <span>WORK GRAPH</span>
-              <strong>{graph?.workItems.length ?? 0} proposed work items</strong>
-            </div>
-            {graph && (
-              <WorkGraphCanvas
-                items={graph.workItems}
-                intent={originalIntent?.statement ?? "Original intent"}
-                approved={approved}
-                selectedItemKey={selectedItemKey}
-                onSelect={(key) => setSelectedItemKey(key)}
-              />
-            )}
-          </section>
-          <section
-            className="intent-panel plan-panel orbit-workspace-inspector"
-            aria-label="Plan configuration"
-          >
-            <div className="intent-topline">
-              <span className="eyebrow">ORBIT / {project.name} / PROPOSED PLAN</span>
-              <button type="button" onClick={onBack} className="intent-back">
-                Back to intent
-              </button>
-            </div>
-            <p className="intent-overline">PLAN INSPECTOR · HUMAN REVIEW</p>
-            <h2 className="orbit-workspace-inspector-heading">
-              {selectedItem ? selectedItem.title : "Plan overview"}
-            </h2>
-            <p className="intent-description">
-              {selectedItem
-                ? "Configure the selected work item and its proposed workflows."
-                : "Select a canvas node to inspect its configuration. Approval does not start any agents."}
-            </p>
-            {originalIntent && (
-              <details className="plan-original">
-                <summary>Original intent (immutable)</summary>
-                <p>{originalIntent.statement}</p>
-              </details>
-            )}
-            {!graph ? (
-              <div role="alert" className="intent-error">
-                The proposal could not be displayed. No approval was performed.
-                <button
-                  type="button"
-                  onClick={() => {
-                    void latest();
-                  }}
-                  disabled={busy}
-                >
-                  Reload proposal
-                </button>
+        {selectedItem && graph ? (
+          <section className="orbit-detail-page" aria-label="Work item configuration">
+            <button type="button" className="orbit-detail-back" onClick={() => setSelectedItemKey(null)}>← Back to workflow canvas</button>
+            <div className="orbit-detail-heading">
+              <div>
+                <span className="orbit-detail-eyebrow">WORK ITEM / {selectedItem.key}</span>
+                <h2>{selectedItem.title}</h2>
+                <p>Configure this work item and the workflows it contains.</p>
               </div>
-            ) : (
-              <>
-                {!selectedItem && <label htmlFor="plan-summary">Proposed outcome</label>}
-                {!selectedItem && (
-                  <textarea
-                    id="plan-summary"
-                    className="plan-textarea"
-                    rows={3}
-                    maxLength={2000}
-                    value={graph.summary}
-                    disabled={!canEdit}
-                    onChange={(event) => change({ ...graph, summary: event.target.value })}
-                  />
-                )}
-                {selectedItem && (
-                  <button type="button" onClick={() => setSelectedItemKey(null)}>
-                    ← Back to plan overview
-                  </button>
-                )}
-                <h2>{selectedItem ? "Selected work item" : "Work items"}</h2>
-                {!selectedItem && (
-                  <p className="intent-hint">
-                    Select a work item in the canvas to edit only that item. All changes remain
-                    proposals until approved.
-                  </p>
-                )}
-                {selectedItem && (
-                  <div className="plan-work-items">
-                    {graph.workItems
-                      .filter((item) => !selectedItemKey || item.key === selectedItemKey)
-                      .map((item) => {
-                        const index = graph.workItems.findIndex((entry) => entry.key === item.key);
-                        return (
-                          <article className="plan-work-item" key={item.key}>
-                            <div className="plan-item-top">
-                              <strong>{item.key}</strong>
-                              <button
-                                type="button"
-                                disabled={!canEdit || graph.workItems.length <= 1}
-                                onClick={() => {
-                                  const removed = item.key;
-                                  setSelectedItemKey(null);
-                                  change({
-                                    ...graph,
-                                    workItems: graph.workItems
-                                      .filter((entry) => entry.key !== removed)
-                                      .map((entry) => ({
-                                        ...entry,
-                                        dependsOn: entry.dependsOn.filter((key) => key !== removed),
-                                      })),
-                                  });
-                                }}
-                              >
-                                Remove item
-                              </button>
-                            </div>
-                            <label htmlFor={`plan-title-${index}`}>Work item title</label>
-                            <input
-                              id={`plan-title-${index}`}
-                              value={item.title}
-                              maxLength={200}
-                              disabled={!canEdit}
-                              onChange={(event) => editItem(index, { title: event.target.value })}
-                            />
-                            <label htmlFor={`plan-description-${index}`}>Description</label>
-                            <textarea
-                              id={`plan-description-${index}`}
-                              rows={2}
-                              maxLength={1200}
-                              value={item.description}
-                              disabled={!canEdit}
-                              onChange={(event) =>
-                                editItem(index, { description: event.target.value })
-                              }
-                            />
-                            <label htmlFor={`plan-dependencies-${index}`}>
-                              Dependencies (work item keys, comma-separated)
-                            </label>
-                            <input
-                              id={`plan-dependencies-${index}`}
-                              value={item.dependsOn.join(", ")}
-                              disabled={!canEdit}
-                              onChange={(event) =>
-                                editItem(index, {
-                                  dependsOn: event.target.value
-                                    .split(",")
-                                    .map((x) => x.trim())
-                                    .filter(Boolean),
-                                })
-                              }
-                            />
-                            <h3>Workflows</h3>
-                            {item.workflows.map((workflow, wi) => (
-                              <div className="plan-workflow" key={wi}>
-                                <strong>{workflow.name}</strong>
-                                <ol>
-                                  {workflow.steps.map((step, si) => (
-                                    <li key={si}>
-                                      <label htmlFor={`step-title-${index}-${wi}-${si}`}>
-                                        Step
-                                      </label>
-                                      <input
-                                        id={`step-title-${index}-${wi}-${si}`}
-                                        value={step.title}
-                                        disabled={!canEdit}
-                                        maxLength={200}
-                                        onChange={(event) => {
-                                          const next = structuredClone(graph);
-                                          next.workItems[index]!.workflows[wi]!.steps[si]!.title =
-                                            event.target.value;
-                                          change(next);
-                                        }}
-                                      />
-                                      <label htmlFor={`step-executor-${index}-${wi}-${si}`}>
-                                        Executor
-                                      </label>
-                                      <select
-                                        id={`step-executor-${index}-${wi}-${si}`}
-                                        value={step.executor}
-                                        disabled={!canEdit}
-                                        onChange={(event) => {
-                                          const next = structuredClone(graph);
-                                          next.workItems[index]!.workflows[wi]!.steps[
-                                            si
-                                          ]!.executor = event.target.value as Executor;
-                                          change(next);
-                                        }}
-                                      >
-                                        <option value="human">Human</option>
-                                        <option value="agent">Approved agent (proposed)</option>
-                                        <option value="system">System</option>
-                                      </select>
-                                      <label className="plan-checkbox">
-                                        <input
-                                          type="checkbox"
-                                          checked={step.requiresApproval}
-                                          disabled={!canEdit}
-                                          onChange={(event) => {
-                                            const next = structuredClone(graph);
-                                            next.workItems[index]!.workflows[wi]!.steps[
-                                              si
-                                            ]!.requiresApproval = event.target.checked;
-                                            change(next);
-                                          }}
-                                        />
-                                        Requires human approval
-                                      </label>
-                                    </li>
-                                  ))}
-                                </ol>
-                              </div>
-                            ))}
-                          </article>
-                        );
-                      })}
-                  </div>
-                )}
-                <button
-                  type="button"
-                  disabled={!canEdit || graph.workItems.length >= 30}
-                  onClick={() => {
-                    const keys = new Set(graph.workItems.map((item) => item.key));
-                    let i = 1;
-                    while (keys.has(`NEW-${i}`)) i++;
-                    const newKey = `NEW-${i}`;
-                    setSelectedItemKey(newKey);
-                    change({
-                      ...graph,
-                      workItems: [
-                        ...graph.workItems,
-                        {
-                          key: newKey,
-                          title: "New work item",
-                          description: "Describe the work and expected outcome",
-                          dependsOn: [],
-                          workflows: [
-                            {
-                              name: "Implementation",
-                              steps: [
-                                {
-                                  title: "Complete work item",
-                                  executor: "human",
-                                  requiresApproval: true,
-                                },
-                              ],
-                            },
-                          ],
-                        },
-                      ],
-                    });
-                  }}
-                >
-                  Add work item
+              <span className="orbit-detail-tag">{approved ? "Read only · Approved" : "Proposed"}</span>
+            </div>
+            <div className="orbit-detail-tabs" role="tablist" aria-label="Configuration sections">
+              {(["overview", "workflows", "dependencies"] as const).map((tab) => (
+                <button key={tab} type="button" role="tab" aria-selected={activeTab === tab} className={activeTab === tab ? "is-active" : ""} onClick={() => setActiveTab(tab)}>
+                  {tab === "overview" ? "Overview" : tab === "workflows" ? `Workflows (${selectedItem.workflows.length})` : "Dependencies"}
                 </button>
-                {!selectedItem && (
-                  <div className="plan-lists">
-                    {(
-                      [
-                        ["guardrails", "Proposed guardrails"],
-                        ["decisionsToReview", "Decisions requiring review"],
-                        ["assumptions", "Assumptions"],
-                      ] as const
-                    ).map(([key, heading]) => (
-                      <div key={key}>
-                        <label htmlFor={`plan-${key}`}>{heading} (one per line)</label>
-                        <textarea
-                          id={`plan-${key}`}
-                          rows={3}
-                          value={graph[key].join("\n")}
-                          disabled={!canEdit}
-                          onChange={(event) => editList(key, event.target.value)}
-                        />
-                      </div>
-                    ))}
-                  </div>
-                )}
-                <p className="intent-hint">
-                  All work and guardrails above are proposals, not executed or enforced policies.
-                  Approval records human acceptance; execution is a separate controlled step.
-                </p>
-                {error && (
-                  <p role="alert" className="intent-error">
-                    {error}
-                  </p>
-                )}
-                <div className="intent-actions">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      void latest();
-                    }}
-                    disabled={busy}
-                  >
-                    Reload latest
-                  </button>
-                  {!approved && (
-                    <>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          void save();
-                        }}
-                        disabled={busy || !dirty}
-                      >
-                        Save changes
-                      </button>
-                      <button
-                        type="button"
-                        className="cta-primary"
-                        onClick={() => {
-                          void approve();
-                        }}
-                        disabled={busy || dirty}
-                      >
-                        {busy ? "Working…" : "Approve plan"}
-                      </button>
-                    </>
-                  )}
+              ))}
+            </div>
+            <div className="orbit-detail-content">
+              {activeTab === "overview" && (
+                <div className="orbit-detail-card">
+                  <h3>Work item details</h3>
+                  <p>Give this work item a clear outcome and description.</p>
+                  <label htmlFor="item-title">Title</label>
+                  <input id="item-title" value={selectedItem.title} maxLength={200} disabled={!canEdit} onChange={(event) => editItem(selectedIndex, { title: event.target.value })} />
+                  <label htmlFor="item-description">Description</label>
+                  <textarea id="item-description" rows={5} value={selectedItem.description} maxLength={1200} disabled={!canEdit} onChange={(event) => editItem(selectedIndex, { description: event.target.value })} />
+                  <div className="orbit-detail-muted">{selectedItem.workflows.length} workflows · {selectedItem.dependsOn.length} dependencies</div>
                 </div>
-                {dirty && (
-                  <p role="status" className="intent-muted">
-                    Save your edits before approving this plan.
-                  </p>
-                )}
-                {approved && (
-                  <p role="status" className="intent-confirmed">
-                    Plan approved by a human. No agents have started; execution is a separate
-                    authorized workflow.
-                  </p>
-                )}
-              </>
-            )}
+              )}
+              {activeTab === "dependencies" && (
+                <div className="orbit-detail-card">
+                  <h3>Dependencies</h3>
+                  <p>Choose which other work items must be completed first.</p>
+                  <div className="orbit-dependency-choices">
+                    {graph.workItems.filter((item) => item.key !== selectedItem.key).map((item) => (
+                      <label className="orbit-dependency-choice" key={item.key}>
+                        <input type="checkbox" disabled={!canEdit} checked={selectedItem.dependsOn.includes(item.key)}
+                          onChange={(event) => editItem(selectedIndex, { dependsOn: event.target.checked ? [...selectedItem.dependsOn, item.key] : selectedItem.dependsOn.filter((key) => key !== item.key) })} />
+                        <span><strong>{item.title}</strong><small>{item.key}</small></span>
+                      </label>
+                    ))}
+                    {graph.workItems.length <= 1 && <p>No other work items available.</p>}
+                  </div>
+                </div>
+              )}
+              {activeTab === "workflows" && (
+                <div className="orbit-detail-card">
+                  <h3>Workflows</h3>
+                  <p>Each work item can contain multiple workflows, with their own steps and approval requirements.</p>
+                  {selectedItem.workflows.map((workflow, workflowIndex) => (
+                    <details className="orbit-workflow-detail" key={workflowIndex} open={workflowIndex === 0 ? true : undefined}>
+                      <summary><span><strong>{workflow.name}</strong><small>{workflow.steps.length} steps · {workflow.steps.filter((step) => step.requiresApproval).length} approval gates</small></span><span>Configure</span></summary>
+                      <div className="orbit-workflow-fields">
+                        <label htmlFor={`workflow-${workflowIndex}-name`}>Workflow name</label>
+                        <input id={`workflow-${workflowIndex}-name`} disabled={!canEdit} value={workflow.name} onChange={(event) => {
+                          const next = structuredClone(graph);
+                          next.workItems[selectedIndex]!.workflows[workflowIndex]!.name = event.target.value;
+                          change(next);
+                        }} />
+                        {workflow.steps.map((step, stepIndex) => (
+                          <div className="orbit-step-card" key={stepIndex}>
+                            <span className="orbit-detail-eyebrow">STEP {stepIndex + 1}</span>
+                            <label htmlFor={`step-${workflowIndex}-${stepIndex}`}>Step title</label>
+                            <input id={`step-${workflowIndex}-${stepIndex}`} disabled={!canEdit} maxLength={200} value={step.title} onChange={(event) => {
+                              const next = structuredClone(graph);
+                              next.workItems[selectedIndex]!.workflows[workflowIndex]!.steps[stepIndex]!.title = event.target.value;
+                              change(next);
+                            }} />
+                            <label htmlFor={`executor-${workflowIndex}-${stepIndex}`}>Executor</label>
+                            <select id={`executor-${workflowIndex}-${stepIndex}`} disabled={!canEdit} value={step.executor} onChange={(event) => {
+                              const next = structuredClone(graph);
+                              next.workItems[selectedIndex]!.workflows[workflowIndex]!.steps[stepIndex]!.executor = event.target.value as Executor;
+                              change(next);
+                            }}>
+                              <option value="human">Human</option><option value="agent">Agent (proposed)</option><option value="system">System</option>
+                            </select>
+                            <label className="orbit-approval-choice"><input type="checkbox" disabled={!canEdit} checked={step.requiresApproval} onChange={(event) => {
+                              const next = structuredClone(graph);
+                              next.workItems[selectedIndex]!.workflows[workflowIndex]!.steps[stepIndex]!.requiresApproval = event.target.checked;
+                              change(next);
+                            }} />Requires human approval</label>
+                          </div>
+                        ))}
+                      </div>
+                    </details>
+                  ))}
+                </div>
+              )}
+            </div>
           </section>
-        </div>
+        ) : (
+          <section className="orbit-full-canvas" aria-label="Plan overview">
+            <div className="orbit-workspace-stage-head"><span>PROJECT WORK GRAPH</span><strong>{graph?.workItems.length ?? 0} proposed work items</strong></div>
+            {graph ? (
+              <WorkGraphCanvas items={graph.workItems} intent={originalIntent?.statement ?? "Original intent"} approved={approved} selectedItemKey={null} onSelect={(key) => { if (key) openItem(key); }} />
+            ) : <p role="alert" className="intent-error">The proposal could not be displayed. No approval was performed.</p>}
+          </section>
+        )}
+        <footer className="orbit-plan-footer">
+          <div>
+            <strong>{approved ? "Plan approved" : dirty ? "You have unsaved changes" : "Review the proposed plan"}</strong>
+            <small>Human approval does not start agents or execute code.</small>
+            {error && <p role="alert" className="intent-error">{error}</p>}
+          </div>
+          <div className="orbit-plan-footer-actions">
+            <button type="button" disabled={busy} onClick={() => { void latest(); }}>Reload latest</button>
+            {!approved && <>
+              <button type="button" disabled={busy || !dirty} onClick={() => { void save(); }}>Save changes</button>
+              <button type="button" className="cta-primary" disabled={busy || dirty || !graph} onClick={() => { void approve(); }}>Approve plan</button>
+            </>}
+          </div>
+        </footer>
       </div>
     </main>
   );
