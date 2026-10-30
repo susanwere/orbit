@@ -29,6 +29,7 @@ export function App({ projectApi, intentApi }: AppProps) {
     return (
       <ProjectDashboard
         api={projectApi}
+        onHome={() => setPage("landing")}
         onCreate={() => setPage("create")}
         onOpen={(project) => {
           setActiveProject(project);
