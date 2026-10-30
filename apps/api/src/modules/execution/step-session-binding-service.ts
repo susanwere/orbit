@@ -26,7 +26,7 @@ export class StepSessionBindingService {
            AND plan.status='APPROVED' AND plan.revision=step.plan_revision
            AND session.id=$4 AND session.project_id=step.project_id
            AND session.organization_id=step.organization_id AND session.state='AUTHORIZED'
-           AND session.work_item_id=step.work_item_key
+           AND session.work_item_id=('work:' || step.plan_id || ':' || step.work_item_key)
            AND (session.requested_by_principal_id=$5
                 OR session.human_owner_principal_id=$5 OR $6='admin')
          RETURNING step.*`,
