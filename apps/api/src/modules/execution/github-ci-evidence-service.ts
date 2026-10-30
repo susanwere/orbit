@@ -10,6 +10,7 @@ interface GithubRun {
   name?: string;
   head_sha?: string;
   repository?: { full_name?: string };
+  pull_requests?: { number?: number; head?: { sha?: string } }[];
 }
 interface GithubPull {
   number?: number;
@@ -79,8 +80,12 @@ export class GithubCiEvidenceService {
       pull.number !== input.pullNumber ||
       pull.base?.repo?.full_name !== input.repository ||
       !pull.merged_at ||
-      !run.head_sha ||
-      run.head_sha !== pull.head?.sha
+      !pull.head?.sha ||
+      !run.pull_requests?.some(
+        (candidate) =>
+          candidate.number === input.pullNumber &&
+          candidate.head?.sha === pull.head?.sha,
+      )
     ) {
       throw new DomainError("invalid_state", "GitHub PR and successful CI evidence do not match.");
     }
