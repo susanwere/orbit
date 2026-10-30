@@ -37,3 +37,18 @@ This real mode is only suitable for your personally controlled local demo enviro
 
 ## Remaining ORB-72 work
 Connect a job-scoped worker entrypoint to the durable queue and real evidence collector with DB integration tests. Only then can the UI show authoritative status and GitHub/CI provenance. No mock result should ever be stored as PASSED evidence or promoted to a real completed workflow step.
+
+## 4. Real Open Jobs site on your Mac (hackathon walkthrough)
+
+This creates a React/Vite **Open Jobs** website in a disposable EMPTY folder using real Muse Code, builds it, and starts Vite bound to loopback at **http://127.0.0.1:4173**.
+
+```sh
+mkdir -p /tmp/orbit-open-jobs-demo
+export ORBIT_DEMO_REAL_CONFIRMED=yes
+# META_API_KEY must be configured privately on your machine.
+npm run muse:open-jobs -w @orbit/api -- --workspace=/tmp/orbit-open-jobs-demo
+```
+
+The generated site uses sample jobs and requires no production credentials. Keep the terminal open while presenting, then Ctrl+C to stop. Use the Orbit frontend's inspector to open the local URL once preview URL support is added; that wiring is **not yet implemented** in this PR.
+
+**Demo labels:** LOCAL PREVIEW (not cloud deployment), Muse CLI turn (not verified GitHub CI), sample data (not live job feed). The runner rejects nonempty workspaces and validates React, Vite, build and dev scripts. It runs generated npm scripts: only do this in a disposable trusted dev environment with no private keys, user data, sensitive git credentials, or production access. This is not a security sandbox or a proof of agent scopes.
