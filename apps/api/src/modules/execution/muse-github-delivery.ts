@@ -121,7 +121,9 @@ export class MuseGithubDeliveryService {
     const deleted = (await this.git(["ls-files", "--deleted", "-z"], input.workspace))
       .split("\0")
       .filter(Boolean);
-    const stagedBefore = (await this.git(["diff", "--cached", "--name-only", "-z"], input.workspace))
+    const stagedBefore = (
+      await this.git(["diff", "--cached", "--name-only", "-z"], input.workspace)
+    )
       .split("\0")
       .filter(Boolean);
     if (deleted.length || stagedBefore.length)
