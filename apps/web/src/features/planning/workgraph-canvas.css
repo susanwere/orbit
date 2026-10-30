@@ -1,9 +1,9 @@
-.workgraph-root {
+.workgraph-root{
   display:flex;
   flex-direction:column;
   height:calc(100vh - 155px);
   min-height:500px}
-  .workgraph-legend {
+  .workgraph-legend{
     display:flex;
     flex-wrap:wrap;
     gap:1rem;
@@ -13,18 +13,18 @@
     color:#a9bce7;
     border-bottom:1px solid #27334b;
     background:#0e131d}
-    .workgraph-legend strong {
+    .workgraph-legend strong{
       margin-left:auto;
       color:#c0d1f7;
       font-size:.72rem}
-      .workgraph-scene {
+      .workgraph-scene{
         position:relative;
         flex:1;
         min-height:370px;
         overflow:hidden}
-        .workgraph-scene canvas {
+        .workgraph-scene canvas{
           touch-action:none}
-          .workgraph-node {
+          .workgraph-node{
             display:flex;
             flex-direction:column;
             gap:7px;
@@ -40,34 +40,34 @@
             cursor:pointer;
             font:inherit;
             white-space:normal}
-            .workgraph-node span {
+            .workgraph-node span{
               font-size:10px;
               letter-spacing:.09em;
               color:#a5bbec}
-              .workgraph-node strong {
+              .workgraph-node strong{
                 font-size:13px;
                 line-height:1.3}
-                .workgraph-node small {
+                .workgraph-node small{
                   font-size:11px;
                   color:#a6b2c9;
                   line-height:1.25;
                   max-height:2.6em;
                   overflow:hidden}
-                  .workgraph-node--intent {
+                  .workgraph-node--intent{
                     background:#26243f;
                     border-color:#9590d4}
-                    .workgraph-node--workflow {
+                    .workgraph-node--workflow{
                       background:#17263b;
                       border-color:#467eae}
-                      .workgraph-node--gate {
+                      .workgraph-node--gate{
                         background:#302537;
                         border-color:#bd86c8;
                         width:175px}
-                        .workgraph-node:hover,.workgraph-node.is-selected,.workgraph-node:focus-visible {
+                        .workgraph-node:hover,.workgraph-node.is-selected,.workgraph-node:focus-visible{
                           border-color:#b7ceff;
                           outline:2px solid #91adff;
                           outline-offset:3px}
-                          .workgraph-footer {
+                          .workgraph-footer{
                             display:flex;
                             justify-content:space-between;
                             gap:1rem;
@@ -75,11 +75,11 @@
                             color:#a7b3c8;
                             font-size:.75rem;
                             border-top:1px solid #29344b}
-                            .workgraph-footer details {
+                            .workgraph-footer details{
                               position:relative}
-                              .workgraph-footer summary {
+                              .workgraph-footer summary{
                                 cursor:pointer}
-                                .workgraph-footer ul {
+                                .workgraph-footer ul{
                                   list-style:none;
                                   padding:1rem;
                                   margin:0;
@@ -93,7 +93,7 @@
                                   border:1px solid #5771a8;
                                   border-radius:12px;
                                   box-shadow:0 15px 40px #000b}
-                                  .workgraph-footer li button {
+                                  .workgraph-footer li button{
                                     font:inherit;
                                     color:#e5ecff;
                                     background:transparent;
@@ -102,13 +102,13 @@
                                     padding:.6rem;
                                     width:100%;
                                     cursor:pointer}
-                                    .workgraph-footer li button:focus-visible {
+                                    .workgraph-footer li button:focus-visible{
                                       outline:2px solid #a8c2ff}
-                                      @media(max-width:800px) {
-                                        .workgraph-root {
+                                      @media(max-width:800px){
+                                        .workgraph-root{
                                           height:540px}
-                                          .workgraph-legend {
+                                          .workgraph-legend{
                                             gap:.6rem}
-                                            .workgraph-footer {
+                                            .workgraph-footer{
                                               flex-wrap:wrap}
                                             }
