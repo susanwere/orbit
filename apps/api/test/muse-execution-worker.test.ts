@@ -126,6 +126,8 @@ describe("isolated Muse execution worker", () => {
       status: "TURN_FINISHED",
     });
     expect(h.invoked).toBe(1);
+    expect(h.statements.some((sql) => sql.includes("plan.status='APPROVED'"))).toBe(true);
+    expect(h.statements.some((sql) => sql.includes("prior.state <> 'COMPLETED'"))).toBe(true);
     expect(
       h.statements.some((sql) => sql.includes("UPDATE agent_sessions SET state='FAILED'")),
     ).toBe(false);
