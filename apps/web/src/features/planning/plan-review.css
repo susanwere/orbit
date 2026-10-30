@@ -655,3 +655,10 @@
   background: #21385b;
   cursor: pointer;
 }
+
+.orbit-detail-heading-actions{display:flex;gap:1rem;align-items:center}
+.orbit-nested-graph{display:flex;gap:2rem;overflow-x:auto;padding:2.5rem 0}
+.orbit-nested-node{display:flex;flex-direction:column;gap:.8rem;text-align:left;min-width:210px;padding:1.4rem;border:1px solid #638dd0;border-radius:16px;background:#1b2941;color:#edf3ff;font:inherit;cursor:pointer}
+.orbit-nested-node small{color:#afc0dc}
+.orbit-nested-node span{color:#a4bff6;font-size:.75rem}
+.orbit-nested-node:focus-visible{outline:2px solid #9abbff;outline-offset:3px}
