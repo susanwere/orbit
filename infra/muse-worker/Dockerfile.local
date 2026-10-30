@@ -13,7 +13,7 @@ COPY infra/ infra/
 # The official installer installs the native CLI. A version check makes failure explicit.
 # This installer is fetched at build time; pin and verify an artifact before production use.
 RUN curl -fsSL https://dev.meta.ai/install.sh -o /tmp/install-muse.sh \
-  && sh /tmp/install-muse.sh \
+  && bash /tmp/install-muse.sh \
   && rm /tmp/install-muse.sh
 ENV PATH="/root/.local/bin:/root/.muse/bin:/usr/local/bin:${PATH}"
 RUN muse --version
