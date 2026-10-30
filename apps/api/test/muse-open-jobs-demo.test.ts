@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { assertOpenJobsProject } from "../src/muse-open-jobs-demo.js";
+import { assertOpenJobsProject } from "../src/modules/execution/muse-open-jobs-contract.js";
 
 describe("local Open Jobs demo project contract", () => {
   it("accepts a React/Vite project with an explicit build script", () => {
