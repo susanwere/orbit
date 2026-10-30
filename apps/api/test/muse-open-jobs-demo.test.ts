@@ -3,17 +3,21 @@ import { assertOpenJobsProject } from "../src/modules/execution/muse-open-jobs-c
 
 describe("local Open Jobs demo project contract", () => {
   it("accepts a React/Vite project with an explicit build script", () => {
-    expect(() => assertOpenJobsProject({
-      dependencies: { react: "^19.0.0" },
-      devDependencies: { vite: "^6.0.0" },
-      scripts: { build: "vite build" },
-    })).not.toThrow();
+    expect(() =>
+      assertOpenJobsProject({
+        dependencies: { react: "^19.0.0" },
+        devDependencies: { vite: "^6.0.0" },
+        scripts: { build: "vite build" },
+      }),
+    ).not.toThrow();
   });
 
   it("rejects a missing frontend toolchain or build script", () => {
     expect(() => assertOpenJobsProject({ scripts: { build: "echo hello" } })).toThrow();
-    expect(() => assertOpenJobsProject({
-      dependencies: { react: "^19.0.0", vite: "^6.0.0" },
-    })).toThrow();
+    expect(() =>
+      assertOpenJobsProject({
+        dependencies: { react: "^19.0.0", vite: "^6.0.0" },
+      }),
+    ).toThrow();
   });
 });

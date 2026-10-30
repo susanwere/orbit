@@ -6,7 +6,10 @@
 import { spawn } from "node:child_process";
 import { access, readFile, readdir } from "node:fs/promises";
 import { resolve, join } from "node:path";
-import { MuseCodeCliExecutor, LocalMuseProcessRunner } from "./modules/execution/muse-code-executor.js";
+import {
+  MuseCodeCliExecutor,
+  LocalMuseProcessRunner,
+} from "./modules/execution/muse-code-executor.js";
 import { assertOpenJobsProject } from "./modules/execution/muse-open-jobs-contract.js";
 
 const PORT = 4173;
@@ -18,7 +21,9 @@ function run(command: string, args: string[], cwd: string): Promise<void> {
     // Only use a disposable checkout containing no secrets.
     const child = spawn(command, args, { cwd, stdio: "inherit", shell: false });
     child.on("error", reject);
-    child.on("exit", (code) => code === 0 ? accept() : reject(new Error(`${command} exited ${code}`)));
+    child.on("exit", (code) =>
+      code === 0 ? accept() : reject(new Error(`${command} exited ${code}`)),
+    );
   });
 }
 
@@ -44,7 +49,7 @@ async function main() {
       "and accessible job detail cards. Use hard-coded DEMO sample data only.",
       "Add package.json with npm scripts 'dev' and 'build'. Do not access external APIs,",
       "use credentials, push to GitHub or deploy to any external service.",
-      "Ensure npm run build succeeds."
+      "Ensure npm run build succeeds.",
     ].join(" "),
   });
   if (result.exitCode !== 0 || result.outputTruncated)
@@ -59,14 +64,23 @@ async function main() {
   assertOpenJobsProject(project);
   await run("npm", ["install", "--ignore-scripts", "--no-audit", "--no-fund"], workspace);
   await run("npm", ["run", "build"], workspace);
-  process.stdout.write(`LOCAL PREVIEW ONLY: ${URL}\nNot deployed; no GitHub PR or CI is claimed.\n`);
-  const server = spawn("npm",
+  process.stdout.write(
+    `LOCAL PREVIEW ONLY: ${URL}\nNot deployed; no GitHub PR or CI is claimed.\n`,
+  );
+  const server = spawn(
+    "npm",
     ["run", "dev", "--", "--host", "127.0.0.1", "--port", String(PORT), "--strictPort"],
     { cwd: workspace, stdio: "inherit", shell: false },
   );
-  server.on("error", (error) => { process.stderr.write(error.message + "\n"); process.exitCode = 1; });
-  server.on("exit", (code) => { if (code && code !== 0) process.exitCode = 1; });
-  for (const signal of ["SIGINT", "SIGTERM"] as const) process.on(signal, () => server.kill(signal));
+  server.on("error", (error) => {
+    process.stderr.write(error.message + "\n");
+    process.exitCode = 1;
+  });
+  server.on("exit", (code) => {
+    if (code && code !== 0) process.exitCode = 1;
+  });
+  for (const signal of ["SIGINT", "SIGTERM"] as const)
+    process.on(signal, () => server.kill(signal));
 }
 
 main().catch((error: unknown) => {

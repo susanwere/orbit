@@ -15,8 +15,13 @@ describe("local demo executor", () => {
     expect(JSON.stringify(result.events)).not.toMatch(/https:\/\/github.com\/[^\s]+\/pull\/\d+/);
   });
   it("rejects empty missions", async () => {
-    await expect(new SimulatedEngineeringExecutor().execute({
-      mission: " ", workspace: "/tmp/disposable", modelSteps: 10, timeoutMs: 10000,
-    })).rejects.toThrow("mission");
+    await expect(
+      new SimulatedEngineeringExecutor().execute({
+        mission: " ",
+        workspace: "/tmp/disposable",
+        modelSteps: 10,
+        timeoutMs: 10000,
+      }),
+    ).rejects.toThrow("mission");
   });
 });
