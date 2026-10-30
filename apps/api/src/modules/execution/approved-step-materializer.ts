@@ -18,11 +18,13 @@ export class ApprovedStepMaterializer {
   async materialize(projectId: string, principalId: string) {
     const actor = await this.authorization.authorize(principalId, projectId, "review");
     return this.db.transaction(async (tx) => {
-      const approved = await tx.query<{
-        id: string;
-        revision: number;
-        content: unknown;
-      } & Record<string, unknown>>(
+      const approved = await tx.query<
+        {
+          id: string;
+          revision: number;
+          content: unknown;
+        } & Record<string, unknown>
+      >(
         `SELECT id,revision,content FROM plan_proposals
          WHERE project_id=$1 AND organization_id=$2 AND status='APPROVED'
          FOR UPDATE`,
@@ -37,7 +39,10 @@ export class ApprovedStepMaterializer {
         [projectId, actor.organizationId, plan.id],
       );
       if (existing.rows.length) {
-        throw new DomainError("invalid_state", "This plan has already been prepared for execution.");
+        throw new DomainError(
+          "invalid_state",
+          "This plan has already been prepared for execution.",
+        );
       }
 
       const stepId = (key: string, workflow: number, step: number) =>
@@ -77,7 +82,9 @@ export class ApprovedStepMaterializer {
               // Dependencies between work items require every workflow
               // in a predecessor item to finish. Sibling workflows are parallel.
               for (const dependency of item.dependsOn) {
-                const predecessor = graph.workItems.find((candidate) => candidate.key === dependency)!;
+                const predecessor = graph.workItems.find(
+                  (candidate) => candidate.key === dependency,
+                )!;
                 predecessor.workflows.forEach((previousWorkflow, previousIndex) => {
                   prerequisites.push(
                     stepId(dependency, previousIndex, previousWorkflow.steps.length - 1),
