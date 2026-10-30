@@ -133,13 +133,22 @@ export class AgentSessionService {
     const result = await this.db.query<Record<string, unknown>>(
       `UPDATE agent_sessions
       SET state='RUNNING',started_at=now()
-      WHERE project_id=$1 AND id=$2 AND state='AUTHORIZED'
+      WHERE project_id=$1 AND organization_id=$5 AND id=$2 AND state='AUTHORIZED'
         AND (human_owner_principal_id=$3 OR requested_by_principal_id=$3 OR $4='admin')
+        AND EXISTS (
+          SELECT 1 FROM plan_proposals p
+          WHERE p.project_id=agent_sessions.project_id
+            AND p.organization_id=agent_sessions.organization_id
+            AND p.status='APPROVED'
+        )
       RETURNING *`,
-      [projectId, sessionId, principalId, actor.role],
+      [projectId, sessionId, principalId, actor.role, actor.organizationId],
     );
     if (!result.rows[0])
-      throw new DomainError("invalid_state", "Session is not authorized to start.");
+      throw new DomainError(
+        "invalid_state",
+        "Session cannot start without an approved project plan and valid authorization.",
+      );
     return result.rows[0];
   }
 }
