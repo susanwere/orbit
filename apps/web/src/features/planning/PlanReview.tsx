@@ -88,8 +88,10 @@ export function PlanReview({ project, originalIntent, plan, api, onBack, onUpdat
   const [revision, setRevision] = useState(plan.revision);
   const [status, setStatus] = useState(plan.status);
   const [dirty, setDirty] = useState(false);
+  const [selectedItemKey, setSelectedItemKey] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const selectedItem = graph?.workItems.find((item) => item.key === selectedItemKey);
   const approved = status === "APPROVED";
   const canEdit = !approved && !busy;
 
@@ -123,6 +125,9 @@ export function PlanReview({ project, originalIntent, plan, api, onBack, onUpdat
       const latestGraph = readGraph(current.content);
       if (!latestGraph) throw new Error("The plan has an unsupported shape.");
       setGraph(latestGraph);
+      setSelectedItemKey((key) =>
+        latestGraph.workItems.some((item) => item.key === key) ? key : null,
+      );
       setRevision(current.revision);
       setStatus(current.status);
       setDirty(false);
@@ -210,12 +215,8 @@ export function PlanReview({ project, originalIntent, plan, api, onBack, onUpdat
                 items={graph.workItems}
                 intent={originalIntent?.statement ?? "Original intent"}
                 approved={approved}
-                onSelect={(key) => {
-                  const index = graph.workItems.findIndex((item) => item.key === key);
-                  if (index >= 0) {
-                    document.getElementById(`plan-title-${index}`)?.focus();
-                  }
-                }}
+                selectedItemKey={selectedItemKey}
+                onSelect={(key) => setSelectedItemKey(key)}
               />
             )}
           </section>
@@ -230,10 +231,13 @@ export function PlanReview({ project, originalIntent, plan, api, onBack, onUpdat
               </button>
             </div>
             <p className="intent-overline">PLAN INSPECTOR · HUMAN REVIEW</p>
-            <h2 className="orbit-workspace-inspector-heading">Review & configure</h2>
+            <h2 className="orbit-workspace-inspector-heading">
+              {selectedItem ? selectedItem.title : "Plan overview"}
+            </h2>
             <p className="intent-description">
-              Muse Spark suggests the work. You decide what gets approved. No agent runs, repository
-              changes, or external work items are created from this screen.
+              {selectedItem
+                ? "Configure the selected work item and its proposed workflows."
+                : "Select a canvas node to inspect its configuration. Approval does not start any agents."}
             </p>
             {originalIntent && (
               <details className="plan-original">
@@ -256,135 +260,161 @@ export function PlanReview({ project, originalIntent, plan, api, onBack, onUpdat
               </div>
             ) : (
               <>
-                <label htmlFor="plan-summary">Proposed outcome</label>
-                <textarea
-                  id="plan-summary"
-                  className="plan-textarea"
-                  rows={3}
-                  maxLength={2000}
-                  value={graph.summary}
-                  disabled={!canEdit}
-                  onChange={(event) => change({ ...graph, summary: event.target.value })}
-                />
-                <h2>Work items & workflows</h2>
-                <div className="plan-work-items">
-                  {graph.workItems.map((item, index) => (
-                    <article className="plan-work-item" key={item.key}>
-                      <div className="plan-item-top">
-                        <strong>{item.key}</strong>
-                        <button
-                          type="button"
-                          disabled={!canEdit || graph.workItems.length <= 1}
-                          onClick={() => {
-                            const removed = item.key;
-                            change({
-                              ...graph,
-                              workItems: graph.workItems
-                                .filter((entry) => entry.key !== removed)
-                                .map((entry) => ({
-                                  ...entry,
-                                  dependsOn: entry.dependsOn.filter((key) => key !== removed),
-                                })),
-                            });
-                          }}
-                        >
-                          Remove item
-                        </button>
-                      </div>
-                      <label htmlFor={`plan-title-${index}`}>Work item title</label>
-                      <input
-                        id={`plan-title-${index}`}
-                        value={item.title}
-                        maxLength={200}
-                        disabled={!canEdit}
-                        onChange={(event) => editItem(index, { title: event.target.value })}
-                      />
-                      <label htmlFor={`plan-description-${index}`}>Description</label>
-                      <textarea
-                        id={`plan-description-${index}`}
-                        rows={2}
-                        maxLength={1200}
-                        value={item.description}
-                        disabled={!canEdit}
-                        onChange={(event) => editItem(index, { description: event.target.value })}
-                      />
-                      <label htmlFor={`plan-dependencies-${index}`}>
-                        Dependencies (work item keys, comma-separated)
-                      </label>
-                      <input
-                        id={`plan-dependencies-${index}`}
-                        value={item.dependsOn.join(", ")}
-                        disabled={!canEdit}
-                        onChange={(event) =>
-                          editItem(index, {
-                            dependsOn: event.target.value
-                              .split(",")
-                              .map((x) => x.trim())
-                              .filter(Boolean),
-                          })
-                        }
-                      />
-                      <h3>Workflows</h3>
-                      {item.workflows.map((workflow, wi) => (
-                        <div className="plan-workflow" key={wi}>
-                          <strong>{workflow.name}</strong>
-                          <ol>
-                            {workflow.steps.map((step, si) => (
-                              <li key={si}>
-                                <label htmlFor={`step-title-${index}-${wi}-${si}`}>Step</label>
-                                <input
-                                  id={`step-title-${index}-${wi}-${si}`}
-                                  value={step.title}
-                                  disabled={!canEdit}
-                                  maxLength={200}
-                                  onChange={(event) => {
-                                    const next = structuredClone(graph);
-                                    next.workItems[index]!.workflows[wi]!.steps[si]!.title =
-                                      event.target.value;
-                                    change(next);
-                                  }}
-                                />
-                                <label htmlFor={`step-executor-${index}-${wi}-${si}`}>
-                                  Executor
-                                </label>
-                                <select
-                                  id={`step-executor-${index}-${wi}-${si}`}
-                                  value={step.executor}
-                                  disabled={!canEdit}
-                                  onChange={(event) => {
-                                    const next = structuredClone(graph);
-                                    next.workItems[index]!.workflows[wi]!.steps[si]!.executor =
-                                      event.target.value as Executor;
-                                    change(next);
-                                  }}
-                                >
-                                  <option value="human">Human</option>
-                                  <option value="agent">Approved agent (proposed)</option>
-                                  <option value="system">System</option>
-                                </select>
-                                <label className="plan-checkbox">
-                                  <input
-                                    type="checkbox"
-                                    checked={step.requiresApproval}
-                                    disabled={!canEdit}
-                                    onChange={(event) => {
-                                      const next = structuredClone(graph);
-                                      next.workItems[index]!.workflows[wi]!.steps[
-                                        si
-                                      ]!.requiresApproval = event.target.checked;
-                                      change(next);
-                                    }}
-                                  />
-                                  Requires human approval
-                                </label>
-                              </li>
+                {!selectedItem && <label htmlFor="plan-summary">Proposed outcome</label>}
+                {!selectedItem && (
+                  <textarea
+                    id="plan-summary"
+                    className="plan-textarea"
+                    rows={3}
+                    maxLength={2000}
+                    value={graph.summary}
+                    disabled={!canEdit}
+                    onChange={(event) => change({ ...graph, summary: event.target.value })}
+                  />
+                )}
+                {selectedItem && (
+                  <button type="button" onClick={() => setSelectedItemKey(null)}>
+                    ← Back to plan overview
+                  </button>
+                )}
+                <h2>{selectedItem ? "Selected work item" : "Work items"}</h2>
+                {!selectedItem && (
+                  <p className="intent-hint">
+                    Select a work item in the canvas to edit only that item. All changes remain
+                    proposals until approved.
+                  </p>
+                )}
+                {selectedItem && (
+                  <div className="plan-work-items">
+                    {graph.workItems
+                      .filter((item) => !selectedItemKey || item.key === selectedItemKey)
+                      .map((item) => {
+                        const index = graph.workItems.findIndex((entry) => entry.key === item.key);
+                        return (
+                          <article className="plan-work-item" key={item.key}>
+                            <div className="plan-item-top">
+                              <strong>{item.key}</strong>
+                              <button
+                                type="button"
+                                disabled={!canEdit || graph.workItems.length <= 1}
+                                onClick={() => {
+                                  const removed = item.key;
+                                  setSelectedItemKey(null);
+                                  change({
+                                    ...graph,
+                                    workItems: graph.workItems
+                                      .filter((entry) => entry.key !== removed)
+                                      .map((entry) => ({
+                                        ...entry,
+                                        dependsOn: entry.dependsOn.filter((key) => key !== removed),
+                                      })),
+                                  });
+                                }}
+                              >
+                                Remove item
+                              </button>
+                            </div>
+                            <label htmlFor={`plan-title-${index}`}>Work item title</label>
+                            <input
+                              id={`plan-title-${index}`}
+                              value={item.title}
+                              maxLength={200}
+                              disabled={!canEdit}
+                              onChange={(event) => editItem(index, { title: event.target.value })}
+                            />
+                            <label htmlFor={`plan-description-${index}`}>Description</label>
+                            <textarea
+                              id={`plan-description-${index}`}
+                              rows={2}
+                              maxLength={1200}
+                              value={item.description}
+                              disabled={!canEdit}
+                              onChange={(event) =>
+                                editItem(index, { description: event.target.value })
+                              }
+                            />
+                            <label htmlFor={`plan-dependencies-${index}`}>
+                              Dependencies (work item keys, comma-separated)
+                            </label>
+                            <input
+                              id={`plan-dependencies-${index}`}
+                              value={item.dependsOn.join(", ")}
+                              disabled={!canEdit}
+                              onChange={(event) =>
+                                editItem(index, {
+                                  dependsOn: event.target.value
+                                    .split(",")
+                                    .map((x) => x.trim())
+                                    .filter(Boolean),
+                                })
+                              }
+                            />
+                            <h3>Workflows</h3>
+                            {item.workflows.map((workflow, wi) => (
+                              <div className="plan-workflow" key={wi}>
+                                <strong>{workflow.name}</strong>
+                                <ol>
+                                  {workflow.steps.map((step, si) => (
+                                    <li key={si}>
+                                      <label htmlFor={`step-title-${index}-${wi}-${si}`}>
+                                        Step
+                                      </label>
+                                      <input
+                                        id={`step-title-${index}-${wi}-${si}`}
+                                        value={step.title}
+                                        disabled={!canEdit}
+                                        maxLength={200}
+                                        onChange={(event) => {
+                                          const next = structuredClone(graph);
+                                          next.workItems[index]!.workflows[wi]!.steps[si]!.title =
+                                            event.target.value;
+                                          change(next);
+                                        }}
+                                      />
+                                      <label htmlFor={`step-executor-${index}-${wi}-${si}`}>
+                                        Executor
+                                      </label>
+                                      <select
+                                        id={`step-executor-${index}-${wi}-${si}`}
+                                        value={step.executor}
+                                        disabled={!canEdit}
+                                        onChange={(event) => {
+                                          const next = structuredClone(graph);
+                                          next.workItems[index]!.workflows[wi]!.steps[
+                                            si
+                                          ]!.executor = event.target.value as Executor;
+                                          change(next);
+                                        }}
+                                      >
+                                        <option value="human">Human</option>
+                                        <option value="agent">Approved agent (proposed)</option>
+                                        <option value="system">System</option>
+                                      </select>
+                                      <label className="plan-checkbox">
+                                        <input
+                                          type="checkbox"
+                                          checked={step.requiresApproval}
+                                          disabled={!canEdit}
+                                          onChange={(event) => {
+                                            const next = structuredClone(graph);
+                                            next.workItems[index]!.workflows[wi]!.steps[
+                                              si
+                                            ]!.requiresApproval = event.target.checked;
+                                            change(next);
+                                          }}
+                                        />
+                                        Requires human approval
+                                      </label>
+                                    </li>
+                                  ))}
+                                </ol>
+                              </div>
                             ))}
-                          </ol>
-                        </div>
-                      ))}
-                    </article>
-                  ))}
-                </div>
+                          </article>
+                        );
+                      })}
+                  </div>
+                )}
                 <button
                   type="button"
                   disabled={!canEdit || graph.workItems.length >= 30}
@@ -392,12 +422,14 @@ export function PlanReview({ project, originalIntent, plan, api, onBack, onUpdat
                     const keys = new Set(graph.workItems.map((item) => item.key));
                     let i = 1;
                     while (keys.has(`NEW-${i}`)) i++;
+                    const newKey = `NEW-${i}`;
+                    setSelectedItemKey(newKey);
                     change({
                       ...graph,
                       workItems: [
                         ...graph.workItems,
                         {
-                          key: `NEW-${i}`,
+                          key: newKey,
                           title: "New work item",
                           description: "Describe the work and expected outcome",
                           dependsOn: [],
@@ -420,26 +452,28 @@ export function PlanReview({ project, originalIntent, plan, api, onBack, onUpdat
                 >
                   Add work item
                 </button>
-                <div className="plan-lists">
-                  {(
-                    [
-                      ["guardrails", "Proposed guardrails"],
-                      ["decisionsToReview", "Decisions requiring review"],
-                      ["assumptions", "Assumptions"],
-                    ] as const
-                  ).map(([key, heading]) => (
-                    <div key={key}>
-                      <label htmlFor={`plan-${key}`}>{heading} (one per line)</label>
-                      <textarea
-                        id={`plan-${key}`}
-                        rows={3}
-                        value={graph[key].join("\n")}
-                        disabled={!canEdit}
-                        onChange={(event) => editList(key, event.target.value)}
-                      />
-                    </div>
-                  ))}
-                </div>
+                {!selectedItem && (
+                  <div className="plan-lists">
+                    {(
+                      [
+                        ["guardrails", "Proposed guardrails"],
+                        ["decisionsToReview", "Decisions requiring review"],
+                        ["assumptions", "Assumptions"],
+                      ] as const
+                    ).map(([key, heading]) => (
+                      <div key={key}>
+                        <label htmlFor={`plan-${key}`}>{heading} (one per line)</label>
+                        <textarea
+                          id={`plan-${key}`}
+                          rows={3}
+                          value={graph[key].join("\n")}
+                          disabled={!canEdit}
+                          onChange={(event) => editList(key, event.target.value)}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                )}
                 <p className="intent-hint">
                   All work and guardrails above are proposals, not executed or enforced policies.
                   Approval records human acceptance; execution is a separate controlled step.
