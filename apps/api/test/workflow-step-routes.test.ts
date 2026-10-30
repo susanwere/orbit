@@ -31,6 +31,7 @@ function fixture(authorized = true) {
           return { rows: [{ id: "step", state: "BLOCKED" }] };
         },
       } as never,
+      binding: { bind: async () => ({ id: "step", agent_session_id: "session" }) } as never,
       execution: {
         approve: async () => ({ id: "step", approved_by_principal_id: "human" }),
       } as never,
@@ -56,6 +57,34 @@ function fixture(authorized = true) {
 }
 
 describe("workflow step routes", () => {
+  it("binds a scoped session through authenticated route", async () => {
+    const f = fixture();
+    const app = await f.app;
+    const response = await app.inject({
+      method: "POST",
+      url: "/projects/project/execution/steps/step/bind-session",
+      headers: { authorization: "Bearer token" },
+      payload: { sessionId: "session" },
+    });
+    expect(response.statusCode).toBe(200);
+    expect(response.json().step.agent_session_id).toBe("session");
+    await app.close();
+  });
+
+  it("rejects missing session identifier", async () => {
+    const f = fixture();
+    const app = await f.app;
+    const response = await app.inject({
+      method: "POST",
+      url: "/projects/project/execution/steps/step/bind-session",
+      headers: { authorization: "Bearer token" },
+      payload: {},
+    });
+    expect(response.statusCode).toBe(400);
+    expect(response.json().error).toBe("validation");
+    await app.close();
+  });
+
   it("records authenticated explicit step approval", async () => {
     const f = fixture();
     const app = await f.app;

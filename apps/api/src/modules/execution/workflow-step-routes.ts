@@ -1,7 +1,9 @@
+import { DomainError } from "@orbit/domain";
 import type { FastifyInstance } from "fastify";
 import type { AuthVerifier } from "../auth/verified-principal.js";
 import type { SqlDatabase } from "@orbit/db";
 import type { ProjectAuthorizationService } from "../projects/project-authorization.js";
+import type { StepSessionBindingService } from "./step-session-binding-service.js";
 import type { WorkflowStepExecutionService } from "./workflow-step-execution-service.js";
 import type { ApprovedStepMaterializer } from "./approved-step-materializer.js";
 
@@ -11,6 +13,7 @@ export interface WorkflowStepRouteOptions {
   readonly authorization: ProjectAuthorizationService;
   readonly materializer: ApprovedStepMaterializer;
   readonly execution: WorkflowStepExecutionService;
+  readonly binding: StepSessionBindingService;
 }
 
 /** Exposes human-controlled plan preparation and authoritative step reads.
@@ -29,6 +32,24 @@ export async function registerWorkflowStepRoutes(
         principal.id,
       );
       return reply.status(201).send(prepared);
+    },
+  );
+  app.post<{ Params: { projectId: string; stepId: string }; Body: { sessionId?: string } }>(
+    "/projects/:projectId/execution/steps/:stepId/bind-session",
+    async (request) => {
+      const principal = options.auth.verify(request.headers.authorization);
+      const sessionId = request.body?.sessionId;
+      if (typeof sessionId !== "string" || !sessionId.trim() || sessionId.length > 200) {
+        throw new DomainError("validation", "A valid sessionId is required.");
+      }
+      return {
+        step: await options.binding.bind({
+          projectId: request.params.projectId,
+          stepId: request.params.stepId,
+          sessionId,
+          principalId: principal.id,
+        }),
+      };
     },
   );
   app.post<{ Params: { projectId: string; stepId: string } }>(

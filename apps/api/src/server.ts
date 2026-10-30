@@ -2,6 +2,7 @@ import { PgDatabase } from "@orbit/db";
 import { MuseWorkGraphPlanner } from "./modules/planning/muse-work-graph-planner.js";
 import type { PlanningRouteOptions } from "./modules/planning/planning-routes.js";
 import type { OriginalIntentOptions } from "./modules/intent/original-intent-routes.js";
+import { StepSessionBindingService } from "./modules/execution/step-session-binding-service.js";
 import { WorkflowStepExecutionService } from "./modules/execution/workflow-step-execution-service.js";
 import { ApprovedStepMaterializer } from "./modules/execution/approved-step-materializer.js";
 import { HumanGateService } from "./modules/execution/human-gate-service.js";
@@ -141,6 +142,7 @@ const app = await buildApp({
           database,
           new ProjectAuthorizationService(database),
         ),
+        binding: new StepSessionBindingService(database, new ProjectAuthorizationService(database)),
         materializer: new ApprovedStepMaterializer(
           database,
           new ProjectAuthorizationService(database),
