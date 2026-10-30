@@ -83,8 +83,7 @@ export class GithubCiEvidenceService {
       !pull.head?.sha ||
       !run.pull_requests?.some(
         (candidate) =>
-          candidate.number === input.pullNumber &&
-          candidate.head?.sha === pull.head?.sha,
+          candidate.number === input.pullNumber && candidate.head?.sha === pull.head?.sha,
       )
     ) {
       throw new DomainError("invalid_state", "GitHub PR and successful CI evidence do not match.");
