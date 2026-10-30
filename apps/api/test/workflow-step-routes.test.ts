@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { DomainError } from "@orbit/domain";
 import { buildApp } from "../src/app.js";
 
 function fixture(authorized = true) {
@@ -8,7 +9,7 @@ function fixture(authorized = true) {
     workflowSteps: {
       auth: {
         verify: (header: string | undefined) => {
-          if (!header) throw new Error("Missing token");
+          if (!header) throw new DomainError("unauthenticated", "Missing token");
           return { id: "human" };
         },
       } as never,
@@ -74,7 +75,7 @@ describe("workflow step routes", () => {
       method: "POST",
       url: "/projects/project/execution/prepare",
     });
-    expect(result.statusCode).toBe(500);
+    expect(result.statusCode).toBe(401);
     expect(f.materialized).toBe(0);
     await app.close();
   });
