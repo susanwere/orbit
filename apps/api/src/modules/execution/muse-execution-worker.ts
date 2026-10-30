@@ -38,11 +38,25 @@ export class MuseExecutionJobService {
             AND step.organization_id=s.organization_id
        JOIN execution_contracts c
          ON c.id=s.execution_contract_id AND c.project_id=s.project_id
-       WHERE s.project_id=$2 AND s.organization_id=$3 AND s.id=$5
+            AND c.organization_id=s.organization_id
+       JOIN plan_proposals plan
+         ON plan.id=step.plan_id AND plan.project_id=step.project_id
+           AND plan.organization_id=step.organization_id
+       WHERE plan.status='APPROVED' AND plan.revision=step.plan_revision
+         AND s.project_id=$2 AND s.organization_id=$3 AND s.id=$5
          AND s.state='RUNNING' AND step.state='RUNNING'
          AND (s.requested_by_principal_id=$4 OR s.human_owner_principal_id=$4 OR $6='admin')
          AND c.allowed_repositories <> '[]'::jsonb
          AND c.allowed_paths <> '[]'::jsonb
+         AND NOT EXISTS (
+           SELECT 1 FROM workflow_step_prerequisites dep
+           JOIN workflow_step_executions prereq ON prereq.id=dep.prerequisite_step_id
+             AND prereq.project_id=dep.project_id
+             AND prereq.organization_id=dep.organization_id
+           WHERE dep.project_id=step.project_id AND dep.organization_id=step.organization_id
+             AND dep.step_id=step.id
+             AND (prereq.state <> 'COMPLETED' OR prereq.plan_id <> step.plan_id)
+         )
          AND NOT EXISTS (
            SELECT 1 FROM human_gates gate WHERE gate.project_id=s.project_id
              AND gate.organization_id=s.organization_id AND gate.agent_session_id=s.id
