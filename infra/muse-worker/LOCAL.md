@@ -1,38 +1,48 @@
-# Local Muse Code queue worker (ORB-72)
+# Orbit Muse local queue smoke test (ORB-72)
 
-This is a **developer-only smoke-test scaffold**, not a safe multi-tenant executor or a complete automatic integration.
+**Developer-only disposable repository test. Not a production sandbox.**
 
-## Prerequisites
+The execution and GitHub delivery phases run as **separate processes and separate containers**. Muse execution gets META_API_KEY but no GitHub token. Delivery gets a repository-scoped GitHub token but no Muse key. Orbit's database holds only approved jobs and verified state. Neither Compose profile provisions a checkout or dispatches jobs.
 
-- Docker Desktop and the already-running `postgres` service.
-- A disposable, initialized clone of `susanwere/private-test`, with no secrets or unrelated files.
-- An **approved and dispatched** Orbit Muse execution job with an execution contract allowing precisely that repository and its intended changed paths. The worker does **not** create or approve jobs.
-- Private `apps/api/.env.local` with `META_API_KEY` and `ORBIT_WORKER_GITHUB_TOKEN`; never commit them. The GitHub credential must be limited to the disposable repository.
-- Local Compose builds download Muse Code from Meta's official installer. `muse --version` must succeed; there is no pinned installer artifact yet.
+## Build without running
 
-## Build and launch ONE eligible job
-
-Run from the repository root:
-
+From Orbit's root:
 ```sh
-export ORBIT_DISPOSABLE_CHECKOUT=/absolute/path/to/private-test
+export ORBIT_DISPOSABLE_CHECKOUT="$HOME/Desktop/private-test" # adjust to real absolute path
 docker compose -f docker-compose.yml -f infra/muse-worker/compose.local.yml \
   --profile muse-smoke build muse-worker
+```
+
+## Execution, AFTER an approved job is queued
+
+The following runs actual Muse Code. Only use an initialized **disposable** test checkout containing no secrets. The working tree must match the approved Execution Contract. Load the Meta key into your shell privately (do not paste it into chat). Do **not** export the GitHub token in this terminal.
+
+```sh
 docker compose -f docker-compose.yml -f infra/muse-worker/compose.local.yml \
   --profile muse-smoke run --rm muse-worker
 ```
 
-The image receives the **entire** API environment file and the checkout is writable. This is acceptable only for a deliberately disposable, non-sensitive local test. Avoid mounting personal folders, Orbit itself, Docker socket, SSH agent, or cloud credentials. No host ports are published by the worker.
+The CLI result `TURN_FINISHED` is NOT verified success. Find the job ID in the authorized Orbit job records. Run the delivery container **only after confirming the job ID, workspace, and allowed paths**.
 
-The CLI exit is not proof of build success. Inspect the GitHub PR and its actual CI run, then verify with Orbit's authenticated `verify-github-ci` endpoint. Do not mark the job completed on a successful CLI exit alone.
+## Delivery, only after a real Muse turn finished
 
-## Important limitations before calling this safe or production-ready
+Use a separate shell with the restricted GitHub token, and `unset META_API_KEY`. Set the exact job ID:
 
-1. Current CLI process may access all environment variables, including credentials. An untrusted agent must not be given secrets. Separate code-execution and credentialed delivery processes, with a narrowly scoped authenticated broker.
-2. The checkout is writable as a whole. Application-level allowed path checks are NOT the same as a read-only filesystem with allowed-path mounts.
-3. Network egress is not allowlisted. Docker Compose default networking is not a network sandbox.
-4. Installer is downloaded during Docker build and must be pinned and supply-chain verified for production.
-5. Only an already queued approved job can run. This does not automatically create the checkout, dispatch the job or perform authenticated CI verification.
-6. The image is experimental. Validate behavior and OS architecture with a real smoke test before treating it as working.
+```sh
+export ORBIT_WORKER_JOB_ID=musejob_<actual-uuid>
+docker compose -f docker-compose.yml -f infra/muse-worker/compose.delivery.yml \
+  --profile muse-delivery run --rm muse-delivery
+```
 
-A production-style isolated runner requires separated credentials and policy enforcement, immutable image, per-job workspace provisioning, and complete database-backed end-to-end tests.
+The delivery process checks the persisted job, execution contract and modified files before creating a PR. Verify its actual GitHub Actions run via Orbit's authenticated `verify-github-ci` endpoint. Never label a CLI exit, unverified PR, or local build as completed CI.
+
+## Remaining security limitations
+
+- Credentials are separated **between** two processes, but the Muse CLI still receives its Meta API key, and Docker Compose alone does not prevent reading files in its writable checkout.
+- Docker default egress remains unrestricted, despite contract `network_policy=none`. This scaffold is not suitable for untrusted code. A properly network-restricted brokered execution architecture is still required.
+- Delivery inherits only the supplied checkout. The current architecture has no robust separate file-policy mount provisioner, even though GitHub delivery checks changed paths before committing.
+- The GitHub token is exposed to its delivery process, not to the Muse execution container. Do not mount secrets, SSH agents or Docker socket. The delivery container may still execute Git hooks; run against a trusted clean checkout.
+- The Muse installer is fetched during image build and is not pinned or checksum-verified.
+- No automatic checkout, queued-job submission, or complete PostgreSQL→PR→CI E2E test has been performed with this scaffold.
+
+**Do not use for arbitrary third-party repositories, sensitive source, production jobs, or public multi-tenant workloads.**
