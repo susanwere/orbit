@@ -19,6 +19,35 @@ export class WorkflowStepExecutionService {
     private readonly authorization: ProjectAuthorizationService,
   ) {}
 
+  async approve(input: { projectId: string; principalId: string; stepId: string }) {
+    const actor = await this.authorization.authorize(input.principalId, input.projectId, "review");
+    return this.db.transaction(async (tx) => {
+      await tx.query("SELECT pg_advisory_xact_lock(hashtextextended($1, 0))", [
+        `orbit:steps:${actor.organizationId}:${input.projectId}`,
+      ]);
+      const updated = await tx.query<StepRow>(
+        `UPDATE workflow_step_executions s
+         SET approved_by_principal_id=$4, approved_at=now()
+         FROM plan_proposals p
+         WHERE s.id=$1 AND s.project_id=$2 AND s.organization_id=$3
+           AND p.id=s.plan_id AND p.project_id=s.project_id
+           AND p.organization_id=s.organization_id
+           AND p.status='APPROVED' AND p.revision=s.plan_revision
+           AND s.approval_required=true AND s.approved_by_principal_id IS NULL
+           AND s.state IN ('BLOCKED','READY')
+         RETURNING s.*`,
+        [input.stepId, input.projectId, actor.organizationId, input.principalId],
+      );
+      if (!updated.rows[0]) {
+        throw new DomainError(
+          "invalid_state",
+          "Step cannot be approved or has already been reviewed.",
+        );
+      }
+      return updated.rows[0];
+    });
+  }
+
   async start(input: { projectId: string; principalId: string; stepId: string }) {
     const actor = await this.authorization.authorize(input.principalId, input.projectId, "review");
     return this.db.transaction(async (tx) => {

@@ -2,6 +2,7 @@ import type { FastifyInstance } from "fastify";
 import type { AuthVerifier } from "../auth/verified-principal.js";
 import type { SqlDatabase } from "@orbit/db";
 import type { ProjectAuthorizationService } from "../projects/project-authorization.js";
+import type { WorkflowStepExecutionService } from "./workflow-step-execution-service.js";
 import type { ApprovedStepMaterializer } from "./approved-step-materializer.js";
 
 export interface WorkflowStepRouteOptions {
@@ -9,6 +10,7 @@ export interface WorkflowStepRouteOptions {
   readonly db: SqlDatabase;
   readonly authorization: ProjectAuthorizationService;
   readonly materializer: ApprovedStepMaterializer;
+  readonly execution: WorkflowStepExecutionService;
 }
 
 /** Exposes human-controlled plan preparation and authoritative step reads.
@@ -27,6 +29,19 @@ export async function registerWorkflowStepRoutes(
         principal.id,
       );
       return reply.status(201).send(prepared);
+    },
+  );
+  app.post<{ Params: { projectId: string; stepId: string } }>(
+    "/projects/:projectId/execution/steps/:stepId/approve",
+    async (request) => {
+      const principal = options.auth.verify(request.headers.authorization);
+      return {
+        step: await options.execution.approve({
+          projectId: request.params.projectId,
+          stepId: request.params.stepId,
+          principalId: principal.id,
+        }),
+      };
     },
   );
   app.get<{ Params: { projectId: string } }>(
