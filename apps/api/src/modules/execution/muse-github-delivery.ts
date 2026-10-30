@@ -9,12 +9,20 @@ const execFile = promisify(execFileCallback);
 export interface GitCommand {
   (args: string[], cwd: string): Promise<string>;
 }
-const gitCommand: GitCommand = async (args, cwd) => {
+const gitCommand = (token: string): GitCommand => async (args, cwd) => {
   const result = await execFile("git", args, {
     cwd,
     timeout: 120000,
     maxBuffer: 1024 * 1024,
-    env: { PATH: process.env.PATH, HOME: process.env.HOME, GIT_TERMINAL_PROMPT: "0" },
+    env: {
+      PATH: process.env.PATH,
+      HOME: process.env.HOME,
+      GIT_TERMINAL_PROMPT: "0",
+      GIT_CONFIG_COUNT: "1",
+      GIT_CONFIG_KEY_0: "http.https://github.com/.extraheader",
+      GIT_CONFIG_VALUE_0:
+        "AUTHORIZATION: basic " + Buffer.from("x-access-token:" + token).toString("base64"),
+    },
   });
   return result.stdout;
 };
@@ -48,7 +56,7 @@ export class MuseGithubDeliveryService {
   constructor(
     private readonly db: SqlDatabase,
     private readonly token: string,
-    private readonly git: GitCommand = gitCommand,
+    git?: GitCommand,
     private readonly request: typeof fetch = fetch,
   ) {}
 
