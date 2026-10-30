@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX idx_step_execution_agent_session_unique ON workflow_step_executions(project_id,agent_session_id) WHERE agent_session_id IS NOT NULL;
