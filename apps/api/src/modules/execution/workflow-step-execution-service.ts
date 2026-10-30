@@ -41,6 +41,11 @@ export class WorkflowStepExecutionService {
            AND p.id=s.plan_id AND p.project_id=s.project_id
            AND p.organization_id=s.organization_id AND p.status='APPROVED'
            AND p.revision=s.plan_revision
+           AND NOT EXISTS (
+             SELECT 1 FROM human_gates gate
+             WHERE gate.project_id=s.project_id AND gate.organization_id=s.organization_id
+               AND gate.agent_session_id=session.id AND gate.status='OPEN'
+           )
            AND EXISTS (
              SELECT 1 FROM evidence e
              WHERE e.agent_session_id=session.id AND e.project_id=s.project_id
@@ -53,7 +58,7 @@ export class WorkflowStepExecutionService {
       if (!updated.rows[0]) {
         throw new DomainError(
           "invalid_state",
-          "Step needs a completed linked session and passing evidence.",
+          "Step needs a completed linked session, resolved human gates, and passing evidence.",
         );
       }
       return updated.rows[0];
