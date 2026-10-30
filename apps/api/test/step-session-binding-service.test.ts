@@ -31,7 +31,7 @@ describe("step session binding", () => {
     await expect(service.bind(input)).resolves.toMatchObject({ agent_session_id: "session" });
     expect(statements[1]).toContain("plan.status='APPROVED'");
     expect(statements[1]).toContain("session.state='AUTHORIZED'");
-    expect(statements[1]).toContain("session.work_item_id=step.work_item_key");
+    expect(statements[1]).toContain("session.work_item_id=('work:' || step.plan_id || ':' || step.work_item_key)");
     expect(statements[1]).toContain("step.agent_session_id IS NULL");
   });
 
