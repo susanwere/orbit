@@ -129,6 +129,20 @@ export class WorkflowStepExecutionService {
       if (dependencies.rows.length) {
         throw new DomainError("invalid_state", "Step prerequisites are not completed.");
       }
+      // A previously approved step must not bypass a newly opened human gate.
+      // Recheck inside the same project-serialized transaction as step start.
+      const gates = await tx.query<{ id: string } & Record<string, unknown>>(
+        `SELECT gate.id FROM human_gates gate
+         JOIN workflow_step_executions s ON s.agent_session_id=gate.agent_session_id
+           AND s.project_id=gate.project_id AND s.organization_id=gate.organization_id
+         WHERE s.id=$1 AND s.project_id=$2 AND s.organization_id=$3
+           AND gate.status='OPEN'
+         LIMIT 1`,
+        [input.stepId, input.projectId, actor.organizationId],
+      );
+      if (gates.rows.length) {
+        throw new DomainError("invalid_state", "Step has an unresolved human gate.");
+      }
       // This transition authorizes the step only; a separate explicit dispatch
       // must bind an Agent Session and check its Execution Contract.
       const updated = await tx.query<StepRow>(
