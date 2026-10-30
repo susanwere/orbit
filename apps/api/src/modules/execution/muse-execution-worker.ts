@@ -109,7 +109,21 @@ export class MuseExecutionWorker {
          JOIN workflow_step_executions step ON step.id=job.workflow_step_id
            AND step.project_id=job.project_id AND step.agent_session_id=s.id
          JOIN execution_contracts c ON c.id=s.execution_contract_id AND c.project_id=s.project_id
+           AND c.organization_id=s.organization_id
+         JOIN plan_proposals plan ON plan.id=step.plan_id AND plan.project_id=step.project_id
+           AND plan.organization_id=step.organization_id
          WHERE job.status='QUEUED' AND s.state='RUNNING' AND step.state='RUNNING'
+           AND plan.status='APPROVED' AND plan.revision=step.plan_revision
+           AND step.organization_id=job.organization_id
+           AND NOT EXISTS (
+             SELECT 1 FROM workflow_step_prerequisites dependency
+             JOIN workflow_step_executions prior ON prior.id=dependency.prerequisite_step_id
+               AND prior.project_id=dependency.project_id
+               AND prior.organization_id=dependency.organization_id
+             WHERE dependency.step_id=step.id AND dependency.project_id=step.project_id
+               AND dependency.organization_id=step.organization_id
+               AND (prior.state <> 'COMPLETED' OR prior.plan_id <> step.plan_id)
+           )
            AND c.allowed_repositories <> '[]'::jsonb AND c.allowed_paths <> '[]'::jsonb
            AND NOT EXISTS (SELECT 1 FROM human_gates gate
              WHERE gate.agent_session_id=s.id AND gate.project_id=s.project_id
