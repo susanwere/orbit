@@ -65,6 +65,73 @@ export class WorkflowStepExecutionService {
     });
   }
 
+  /**
+   * Reset only a proven FAILED step for a new, explicitly human-authorized attempt.
+   * Preserve previous Agent Sessions, jobs and evidence; never requeue an old job.
+   */
+  async authorizeRetry(input: { projectId: string; principalId: string; stepId: string }) {
+    const actor = await this.authorization.authorize(input.principalId, input.projectId, "review");
+    return this.db.transaction(async (tx) => {
+      await tx.query("SELECT pg_advisory_xact_lock(hashtextextended($1, 0))", [
+        `orbit:steps:${actor.organizationId}:${input.projectId}`,
+      ]);
+      const prior = await tx.query<{ agent_session_id: string | null } & Record<string, unknown>>(
+        `SELECT agent_session_id FROM workflow_step_executions
+         WHERE id=$1 AND project_id=$2 AND organization_id=$3 AND state='FAILED'
+         FOR UPDATE`,
+        [input.stepId, input.projectId, actor.organizationId],
+      );
+      if (!prior.rows[0]) {
+        throw new DomainError("invalid_state", "Only a failed step may be retried.");
+      }
+      const updated = await tx.query<StepRow>(
+        `UPDATE workflow_step_executions step
+         SET state='BLOCKED',agent_session_id=NULL,approved_by_principal_id=NULL,
+             approved_at=NULL,started_at=NULL,completed_at=NULL
+         FROM plan_proposals plan
+         WHERE step.id=$1 AND step.project_id=$2 AND step.organization_id=$3
+           AND step.state='FAILED' AND plan.id=step.plan_id
+           AND plan.project_id=step.project_id AND plan.organization_id=step.organization_id
+           AND plan.status='APPROVED' AND plan.revision=step.plan_revision
+           AND NOT EXISTS (
+             SELECT 1 FROM muse_execution_jobs job
+             WHERE job.project_id=step.project_id AND job.organization_id=step.organization_id
+               AND job.workflow_step_id=step.id
+               AND job.status IN ('QUEUED','RUNNING','TURN_FINISHED')
+           )
+           AND NOT EXISTS (
+             SELECT 1 FROM human_gates gate
+             WHERE gate.project_id=step.project_id AND gate.organization_id=step.organization_id
+               AND gate.agent_session_id=step.agent_session_id AND gate.status='OPEN'
+           )
+         RETURNING step.*`,
+        [input.stepId, input.projectId, actor.organizationId],
+      );
+      if (!updated.rows[0]) {
+        throw new DomainError(
+          "invalid_state",
+          "Retry requires resolved human gates, no active job, and an approved plan.",
+        );
+      }
+      await tx.query(
+        `INSERT INTO events
+         (id,organization_id,project_id,type,occurred_at,actor_type,actor_id,
+          entity_type,entity_id,payload)
+         VALUES(gen_random_uuid()::text,$1,$2,'execution.step.retry_authorized',now(),
+                'human',$3,'workflow_step',$4,
+                jsonb_build_object('previous_agent_session_id',$5::text))`,
+        [
+          actor.organizationId,
+          input.projectId,
+          input.principalId,
+          input.stepId,
+          prior.rows[0].agent_session_id,
+        ],
+      );
+      return updated.rows[0];
+    });
+  }
+
   async approve(input: { projectId: string; principalId: string; stepId: string }) {
     const actor = await this.authorization.authorize(input.principalId, input.projectId, "review");
     return this.db.transaction(async (tx) => {
