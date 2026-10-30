@@ -7,7 +7,7 @@ describe("local Open Jobs demo project contract", () => {
       assertOpenJobsProject({
         dependencies: { react: "^19.0.0" },
         devDependencies: { vite: "^6.0.0" },
-        scripts: { build: "vite build" },
+        scripts: { build: "vite build", dev: "vite" },
       }),
     ).not.toThrow();
   });
