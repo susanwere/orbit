@@ -19,6 +19,46 @@ export class WorkflowStepExecutionService {
     private readonly authorization: ProjectAuthorizationService,
   ) {}
 
+  /**
+   * Terminal completion is only allowed after linked execution succeeded and
+   * a persisted, passing evidence record exists. Never infer success from UI.
+   */
+  async complete(input: { projectId: string; principalId: string; stepId: string }) {
+    const actor = await this.authorization.authorize(input.principalId, input.projectId, "review");
+    return this.db.transaction(async (tx) => {
+      await tx.query("SELECT pg_advisory_xact_lock(hashtextextended($1, 0))", [
+        `orbit:steps:${actor.organizationId}:${input.projectId}`,
+      ]);
+      const updated = await tx.query<StepRow>(
+        `UPDATE workflow_step_executions s
+         SET state='COMPLETED',completed_at=now()
+         FROM agent_sessions session, plan_proposals p
+         WHERE s.id=$1 AND s.project_id=$2 AND s.organization_id=$3
+           AND s.state='RUNNING' AND s.agent_session_id IS NOT NULL
+           AND session.id=s.agent_session_id AND session.project_id=s.project_id
+           AND session.organization_id=s.organization_id AND session.state='COMPLETED'
+           AND p.id=s.plan_id AND p.project_id=s.project_id
+           AND p.organization_id=s.organization_id AND p.status='APPROVED'
+           AND p.revision=s.plan_revision
+           AND EXISTS (
+             SELECT 1 FROM evidence e
+             WHERE e.agent_session_id=session.id AND e.project_id=s.project_id
+               AND e.organization_id=s.organization_id AND e.result='PASSED'
+               AND e.scope_type='workflow_step' AND e.scope_id=s.id
+           )
+         RETURNING s.*`,
+        [input.stepId, input.projectId, actor.organizationId],
+      );
+      if (!updated.rows[0]) {
+        throw new DomainError(
+          "invalid_state",
+          "Step needs a completed linked session and passing evidence.",
+        );
+      }
+      return updated.rows[0];
+    });
+  }
+
   async approve(input: { projectId: string; principalId: string; stepId: string }) {
     const actor = await this.authorization.authorize(input.principalId, input.projectId, "review");
     return this.db.transaction(async (tx) => {
