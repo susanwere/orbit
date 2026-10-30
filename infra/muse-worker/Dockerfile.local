@@ -7,7 +7,9 @@ WORKDIR /orbit
 COPY package*.json ./
 COPY apps/ apps/
 COPY packages/ packages/
-RUN npm ci --ignore-scripts --no-audit --no-fund
+RUN npm ci --ignore-scripts --no-audit --no-fund \
+  && npm run build -w @orbit/domain \
+  && npm run build -w @orbit/db
 COPY docs/ docs/
 COPY infra/ infra/
 # The official installer installs the native CLI. A version check makes failure explicit.
