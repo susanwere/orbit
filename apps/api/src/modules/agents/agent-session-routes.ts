@@ -61,5 +61,4 @@ export async function registerAgentSessionRoutes(
       },
     );
   }
-
 }
