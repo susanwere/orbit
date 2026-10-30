@@ -54,11 +54,45 @@ export async function registerWorkflowStepRoutes(
         "read",
       );
       const result = await options.db.query<Record<string, unknown>>(
-        `SELECT id,plan_id,plan_revision,work_item_key,workflow_index,step_index,
-           state,approval_required,approved_at,agent_session_id,started_at,completed_at
-         FROM workflow_step_executions
-         WHERE project_id=$1 AND organization_id=$2
-         ORDER BY work_item_key,workflow_index,step_index LIMIT 1000`,
+        `SELECT s.id,s.plan_id,s.plan_revision,s.work_item_key,s.workflow_index,
+           s.step_index,s.state,s.approval_required,s.approved_at,
+           s.agent_session_id,s.started_at,s.completed_at,
+           CASE
+             WHEN s.state='COMPLETED' THEN 'completed'
+             WHEN s.state='FAILED' THEN 'failed'
+             WHEN s.state='CANCELED' THEN 'canceled'
+             WHEN s.state='RUNNING' THEN 'running'
+             WHEN s.state='WAITING' THEN 'waiting'
+             WHEN p.status IS DISTINCT FROM 'APPROVED'
+                  OR p.revision IS DISTINCT FROM s.plan_revision THEN 'plan_not_approved'
+             WHEN s.approval_required AND s.approved_by_principal_id IS NULL
+               THEN 'human_approval_required'
+             WHEN EXISTS (
+               SELECT 1 FROM workflow_step_prerequisites edge
+               JOIN workflow_step_executions prerequisite
+                 ON prerequisite.id=edge.prerequisite_step_id
+                AND prerequisite.project_id=edge.project_id
+               WHERE edge.project_id=s.project_id AND edge.step_id=s.id
+                 AND (prerequisite.state <> 'COMPLETED'
+                      OR prerequisite.plan_id <> s.plan_id)
+             ) THEN 'prerequisite_incomplete'
+             WHEN s.agent_session_id IS NULL THEN 'agent_session_required'
+             WHEN EXISTS (
+               SELECT 1 FROM human_gates gate
+               WHERE gate.project_id=s.project_id
+                 AND gate.organization_id=s.organization_id
+                 AND gate.agent_session_id=s.agent_session_id AND gate.status='OPEN'
+             ) THEN 'human_gate_open'
+             WHEN session.state IS DISTINCT FROM 'AUTHORIZED' THEN 'session_not_authorized'
+             ELSE NULL
+           END AS blocker_reason
+         FROM workflow_step_executions s
+         JOIN plan_proposals p ON p.id=s.plan_id AND p.project_id=s.project_id
+           AND p.organization_id=s.organization_id
+         LEFT JOIN agent_sessions session ON session.id=s.agent_session_id
+           AND session.project_id=s.project_id AND session.organization_id=s.organization_id
+         WHERE s.project_id=$1 AND s.organization_id=$2
+         ORDER BY s.work_item_key,s.workflow_index,s.step_index LIMIT 1000`,
         [actor.projectId, actor.organizationId],
       );
       return { steps: result.rows };

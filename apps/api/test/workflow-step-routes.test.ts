@@ -20,7 +20,12 @@ function fixture(authorized = true) {
         },
       } as never,
       db: {
-        query: async (_sql: string, params: unknown[]) => {
+        query: async (sql: string, params: unknown[]) => {
+          expect(sql).toContain("AS blocker_reason");
+          expect(sql).toContain("prerequisite_incomplete");
+          expect(sql).toContain("human_approval_required");
+          expect(sql).toContain("human_gate_open");
+          expect(sql).toContain("agent_session_required");
           queried++;
           expect(params).toEqual(["project", "org"]);
           return { rows: [{ id: "step", state: "BLOCKED" }] };
