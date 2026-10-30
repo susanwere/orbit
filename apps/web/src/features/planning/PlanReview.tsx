@@ -222,7 +222,10 @@ export function PlanReview({ project, originalIntent, plan, api, onBack, onUpdat
           </span>
         </header>
         {selectedItem && graph ? (
-          <section className={`orbit-detail-page ${selectedWorkflow === null && activeTab !== "workflows" ? "" : "orbit-detail-page--canvas"}`} aria-label="Work item configuration">
+          <section
+            className={`orbit-detail-page ${selectedWorkflow === null && activeTab !== "workflows" ? "" : "orbit-detail-page--canvas"}`}
+            aria-label="Work item configuration"
+          >
             <button
               type="button"
               className="orbit-detail-back"
@@ -369,30 +372,36 @@ export function PlanReview({ project, originalIntent, plan, api, onBack, onUpdat
                     <h3>How we'll get there</h3>
                     <p>Open a workflow to explore its steps.</p>
                     <div className="orbit-nested-stage" aria-label="Workflows in this work item">
-                      <div className="orbit-nested-stage-head"><span>WORKFLOW GRAPH</span><strong>{selectedItem.workflows.length} workflows</strong></div>
-                      <div className="orbit-nested-stage-legend"><span>● Workflow</span><span>Open a node to explore its steps</span></div>
+                      <div className="orbit-nested-stage-head">
+                        <span>WORKFLOW GRAPH</span>
+                        <strong>{selectedItem.workflows.length} workflows</strong>
+                      </div>
+                      <div className="orbit-nested-stage-legend">
+                        <span>● Workflow</span>
+                        <span>Open a node to explore its steps</span>
+                      </div>
                       <div className="orbit-nested-graph">
-                      {selectedItem.workflows.map((workflow, index) => (
-                        <button
-                          className="orbit-nested-node"
-                          type="button"
-                          key={index}
-                          onClick={() => {
-                            setSelectedWorkflow(index);
-                            setSelectedStep(null);
-                            setEditing(false);
-                          }}
-                        >
-                          <span>WORKFLOW {index + 1}</span>
-                          <strong>{workflow.name}</strong>
-                          <small>
-                            {workflow.steps.length} steps ·{" "}
-                            {workflow.steps.filter((step) => step.requiresApproval).length} approval
-                            gates
-                          </small>
-                          <span>Explore →</span>
-                        </button>
-                      ))}
+                        {selectedItem.workflows.map((workflow, index) => (
+                          <button
+                            className="orbit-nested-node"
+                            type="button"
+                            key={index}
+                            onClick={() => {
+                              setSelectedWorkflow(index);
+                              setSelectedStep(null);
+                              setEditing(false);
+                            }}
+                          >
+                            <span>WORKFLOW {index + 1}</span>
+                            <strong>{workflow.name}</strong>
+                            <small>
+                              {workflow.steps.length} steps ·{" "}
+                              {workflow.steps.filter((step) => step.requiresApproval).length}{" "}
+                              approval gates
+                            </small>
+                            <span>Explore →</span>
+                          </button>
+                        ))}
                       </div>
                     </div>
                   </div>
@@ -498,31 +507,40 @@ export function PlanReview({ project, originalIntent, plan, api, onBack, onUpdat
                         </>
                       )}
                       <div className="orbit-nested-stage" aria-label="Workflow steps">
-                      <div className="orbit-nested-stage-head"><span>STEP GRAPH</span><strong>{currentWorkflow.steps.length} steps</strong></div>
-                      <div className="orbit-nested-stage-legend"><span>● Step</span><span>◆ Human approval</span><span>Browse future steps without executing them</span></div>
-                      <div className="orbit-nested-graph">
-                        {currentWorkflow.steps.map((step, index) => (
-                          <button
-                            key={index}
-                            type="button"
-                            className="orbit-nested-node"
-                            onClick={() => {
-                              setSelectedStep(index);
-                              setEditing(false);
-                            }}
-                          >
-                            <span>STEP {index + 1}</span>
-                            <strong>{step.title}</strong>
-                            <small>
-                              {step.requiresApproval ? "◆ Human review" : step.executor}
-                            </small>
-                            <span>
-                              {index === 0 ? "Awaiting authorization" : "Waiting for previous step"}{" "}
-                              · Explore →
-                            </span>
-                          </button>
-                        ))}
-                      </div>
+                        <div className="orbit-nested-stage-head">
+                          <span>STEP GRAPH</span>
+                          <strong>{currentWorkflow.steps.length} steps</strong>
+                        </div>
+                        <div className="orbit-nested-stage-legend">
+                          <span>● Step</span>
+                          <span>◆ Human approval</span>
+                          <span>Browse future steps without executing them</span>
+                        </div>
+                        <div className="orbit-nested-graph">
+                          {currentWorkflow.steps.map((step, index) => (
+                            <button
+                              key={index}
+                              type="button"
+                              className="orbit-nested-node"
+                              onClick={() => {
+                                setSelectedStep(index);
+                                setEditing(false);
+                              }}
+                            >
+                              <span>STEP {index + 1}</span>
+                              <strong>{step.title}</strong>
+                              <small>
+                                {step.requiresApproval ? "◆ Human review" : step.executor}
+                              </small>
+                              <span>
+                                {index === 0
+                                  ? "Awaiting authorization"
+                                  : "Waiting for previous step"}{" "}
+                                · Explore →
+                              </span>
+                            </button>
+                          ))}
+                        </div>
                       </div>
                       <p className="orbit-detail-muted">
                         These are proposed steps, not actual execution statuses. Later steps are not
