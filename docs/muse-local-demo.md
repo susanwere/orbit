@@ -12,7 +12,7 @@ mkdir -p /tmp/orbit-muse-demo
 
 ## 2. Guaranteed deterministic simulation
 ```sh
-npm run muse:demo --workspace=/tmp/orbit-muse-demo --workspace=@orbit/api
+npm run muse:demo -w @orbit/api -- --workspace=/tmp/orbit-muse-demo
 ```
 
 Alternatively, run directly from the API workspace:
