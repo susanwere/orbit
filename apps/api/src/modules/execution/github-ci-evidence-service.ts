@@ -55,7 +55,7 @@ export class GithubCiEvidenceService {
     const load = async <T>(suffix: string): Promise<T> => {
       const response = await this.fetchImpl(base + suffix, {
         headers: {
-          Authorization: `***
+          Authorization: "Bearer " + this.githubToken,
           Accept: "application/vnd.github+json",
           "X-GitHub-Api-Version": "2022-11-28",
         },
