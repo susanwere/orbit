@@ -10,7 +10,7 @@ const input = {
   pullNumber: 5,
 };
 
-function fixture(overrides: { conclusion?: string; merged?: boolean; eligible?: boolean } = {}) {
+function fixture(overrides: { conclusion?: string; merged?: boolean; eligible?: boolean; associated?: boolean } = {}) {
   const writes: string[] = [];
   const fetchImpl = async (url: string) => ({
     ok: true,
@@ -21,7 +21,8 @@ function fixture(overrides: { conclusion?: string; merged?: boolean; eligible?: 
             conclusion: overrides.conclusion ?? "success",
             event: "pull_request",
             name: "CI",
-            head_sha: "abc123",
+            head_sha: "merge-commit-sha",
+            pull_requests: [{ number: overrides.associated === false ? 10 : 5, head: { sha: "abc123" } }],
             repository: { full_name: "owner/repo" },
           }
         : {
@@ -76,6 +77,12 @@ describe("GitHub CI-backed step completion", () => {
       await expect(f.service.verify(input)).rejects.toMatchObject({ code: "invalid_state" });
       expect(f.writes).toHaveLength(0);
     }
+  });
+
+  it("rejects CI from an unrelated pull request", async () => {
+    const f = fixture({ associated: false });
+    await expect(f.service.verify(input)).rejects.toMatchObject({ code: "invalid_state" });
+    expect(f.writes).toHaveLength(0);
   });
 
   it("denies a stale or blocked step without producing evidence", async () => {
