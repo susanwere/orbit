@@ -20,15 +20,15 @@ provider "aws" {
 }
 
 variable "aws_region" {
-  type = string
+  type    = string
   default = "eu-central-1"
 }
 variable "environment" {
-  type = string
+  type    = string
   default = "staging"
 }
 variable "name_prefix" {
-  type = string
+  type    = string
   default = "orbit-muse"
 }
 variable "vpc_id" { type = string }
@@ -41,9 +41,9 @@ variable "private_subnet_ids" {
 }
 variable "worker_image" {
   type        = string
-  description = "Optional immutable ECR image digest; omit during initial ECR bootstrap." 
-  default = null 
-  nullable = true
+  description = "Optional immutable ECR image digest; omit during initial ECR bootstrap."
+  default     = null
+  nullable    = true
   validation {
     condition     = var.worker_image == null || can(regex("@sha256:[a-f0-9]{64}$", var.worker_image))
     error_message = "Pin the worker image by sha256 digest."
@@ -77,8 +77,8 @@ resource "aws_ecr_lifecycle_policy" "worker" {
     rules = [{
       rulePriority = 1
       description  = "Expire untagged images after seven days"
-      selection = { tagStatus = "untagged", countType = "sinceImagePushed", countUnit = "days", countNumber = 7 }
-      action = { type = "expire" }
+      selection    = { tagStatus = "untagged", countType = "sinceImagePushed", countUnit = "days", countNumber = 7 }
+      action       = { type = "expire" }
     }]
   })
 }
@@ -89,7 +89,7 @@ resource "aws_cloudwatch_log_group" "worker" {
 resource "aws_ecs_cluster" "worker" {
   name = "${var.name_prefix}-${var.environment}"
   setting {
-    name = "containerInsights"
+    name  = "containerInsights"
     value = "enabled"
   }
 }
@@ -111,7 +111,7 @@ data "aws_iam_policy_document" "assume_tasks" {
   statement {
     actions = ["sts:AssumeRole"]
     principals {
-      type = "Service"
+      type        = "Service"
       identifiers = ["ecs-tasks.amazonaws.com"]
     }
   }
@@ -140,7 +140,7 @@ resource "aws_iam_role" "task" {
   assume_role_policy = data.aws_iam_policy_document.assume_tasks.json
 }
 resource "aws_ecs_task_definition" "worker" {
-  count = var.worker_image == null ? 0 : 1
+  count                    = var.worker_image == null ? 0 : 1
   family                   = "${var.name_prefix}-${var.environment}"
   requires_compatibilities = ["FARGATE"]
   network_mode             = "awsvpc"
@@ -151,20 +151,20 @@ resource "aws_ecs_task_definition" "worker" {
   ephemeral_storage { size_in_gib = 21 }
   runtime_platform {
     operating_system_family = "LINUX"
-    cpu_architecture = "X86_64"
+    cpu_architecture        = "X86_64"
   }
   container_definitions = jsonencode([{
-    name      = "muse-worker"
-    image     = var.worker_image
-    essential = true
+    name                   = "muse-worker"
+    image                  = var.worker_image
+    essential              = true
     readonlyRootFilesystem = true
-    user = "10001:10001"
+    user                   = "10001:10001"
     environment = [
       { name = "ORBIT_MUSE_ISOLATED_WORKER", value = "true" },
       { name = "ORBIT_JOB_API_ENDPOINT", value = var.job_api_endpoint }
     ]
-    secrets = [{ name = "META_API_KEY", valueFrom = var.meta_api_key_secret_arn }]
-    mountPoints = [{ sourceVolume = "scratch", containerPath = "/workspace", readOnly = false }]
+    secrets         = [{ name = "META_API_KEY", valueFrom = var.meta_api_key_secret_arn }]
+    mountPoints     = [{ sourceVolume = "scratch", containerPath = "/workspace", readOnly = false }]
     linuxParameters = { initProcessEnabled = true }
     logConfiguration = {
       logDriver = "awslogs"
