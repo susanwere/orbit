@@ -35,9 +35,11 @@ variable "private_subnet_ids" {
 }
 variable "worker_image" {
   type        = string
-  description = "Immutable ECR image digest (repository@sha256:...), never mutable latest."
+  description = "Optional immutable ECR image digest; omit during initial ECR bootstrap." 
+  default = null 
+  nullable = true
   validation {
-    condition     = can(regex("@sha256:[a-f0-9]{64}$", var.worker_image))
+    condition     = var.worker_image == null || can(regex("@sha256:[a-f0-9]{64}$", var.worker_image))
     error_message = "Pin the worker image by sha256 digest."
   }
 }
@@ -85,8 +87,7 @@ value = "enabled" }
 }
 resource "aws_security_group" "worker" {
   name_prefix = "${var.name_prefix}-${var.environment}-"
-  description = "No inbound ports
-outbound TLS only (requires a restricted egress proxy)"
+  description = "No inbound ports; outbound TLS only; egress proxy required"
   vpc_id      = var.vpc_id
   egress {
     description = "TLS to approved endpoints through controlled egress"
@@ -129,6 +130,7 @@ resource "aws_iam_role" "task" {
   assume_role_policy = data.aws_iam_policy_document.assume_tasks.json
 }
 resource "aws_ecs_task_definition" "worker" {
+  count = var.worker_image == null ? 0 : 1
   family                   = "${var.name_prefix}-${var.environment}"
   requires_compatibilities = ["FARGATE"]
   network_mode             = "awsvpc"
@@ -165,7 +167,7 @@ cpu_architecture = "X86_64" }
 }
 
 output "cluster_arn" { value = aws_ecs_cluster.worker.arn }
-output "task_definition_arn" { value = aws_ecs_task_definition.worker.arn }
+output "task_definition_arn" { value = try(aws_ecs_task_definition.worker[0].arn, null) }
 output "worker_security_group_id" { value = aws_security_group.worker.id }
 output "private_subnet_ids" { value = var.private_subnet_ids }
 output "ecr_repository_url" { value = aws_ecr_repository.worker.repository_url }
