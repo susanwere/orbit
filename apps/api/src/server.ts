@@ -33,7 +33,7 @@ import { WhyProvenanceQuery } from "./modules/provenance/why-provenance-query.js
 
 const port = Number(process.env.PORT ?? 4000);
 const host = process.env.HOST ?? "0.0.0.0";
-const databaseUrl = process.env.DATABASE_URL ?? "postgres://orbit:orbit@localhost:5433/orbit";
+const databaseUrl = process.env.DATABASE_URL ?? "***localhost:5433/orbit";
 
 const database = new PgDatabase(databaseUrl);
 const githubWebhookSecret = process.env.GITHUB_WEBHOOK_SECRET;
@@ -156,10 +156,7 @@ const app = await buildApp({
   agentSessions: auth
     ? {
         auth,
-        museJobs: new MuseExecutionJobService(
-          database,
-          new ProjectAuthorizationService(database),
-        ),
+        museJobs: new MuseExecutionJobService(database, new ProjectAuthorizationService(database)),
         service: new AgentSessionService(
           database,
           new ProjectAuthorizationService(database),
