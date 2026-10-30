@@ -9,23 +9,25 @@ const execFile = promisify(execFileCallback);
 export interface GitCommand {
   (args: string[], cwd: string): Promise<string>;
 }
-const gitCommand = (token: string): GitCommand => async (args, cwd) => {
-  const result = await execFile("git", args, {
-    cwd,
-    timeout: 120000,
-    maxBuffer: 1024 * 1024,
-    env: {
-      PATH: process.env.PATH,
-      HOME: process.env.HOME,
-      GIT_TERMINAL_PROMPT: "0",
-      GIT_CONFIG_COUNT: "1",
-      GIT_CONFIG_KEY_0: "http.https://github.com/.extraheader",
-      GIT_CONFIG_VALUE_0:
-        "AUTHORIZATION: basic " + Buffer.from("x-access-token:" + token).toString("base64"),
-    },
-  });
-  return result.stdout;
-};
+const gitCommand =
+  (token: string): GitCommand =>
+  async (args, cwd) => {
+    const result = await execFile("git", args, {
+      cwd,
+      timeout: 120000,
+      maxBuffer: 1024 * 1024,
+      env: {
+        PATH: process.env.PATH,
+        HOME: process.env.HOME,
+        GIT_TERMINAL_PROMPT: "0",
+        GIT_CONFIG_COUNT: "1",
+        GIT_CONFIG_KEY_0: "http.https://github.com/.extraheader",
+        GIT_CONFIG_VALUE_0:
+          "AUTHORIZATION: basic " + Buffer.from("x-access-token:" + token).toString("base64"),
+      },
+    });
+    return result.stdout;
+  };
 
 interface DeliveryJob extends Record<string, unknown> {
   id: string;
