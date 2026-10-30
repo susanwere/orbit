@@ -148,7 +148,7 @@ export class MuseExecutionWorker {
       failure ||= "Muse Code process failed or timed out.";
     }
     const state = failure ? "FAILED" : "TURN_FINISHED";
-    await this.db.transaction(async (tx) => {
+    const leaseFinalized = await this.db.transaction(async (tx) => {
       const finalized = await tx.query<{ id: string } & Record<string, unknown>>(
         `UPDATE muse_execution_jobs
          SET status=$3,exit_code=$4,event_count=$5,failure_reason=$6,finished_at=now(),lease_expires_at=NULL
@@ -166,7 +166,7 @@ export class MuseExecutionWorker {
       );
       // Recovery or another owner may have won the lease. A stale worker has
       // no authority to finalize a session or step after its lease expired.
-      if (!finalized.rows[0]) return;
+      if (!finalized.rows[0]) return false;
       if (failure) {
         await tx.query(
           `UPDATE agent_sessions SET state='FAILED',ended_at=now()
@@ -180,7 +180,8 @@ export class MuseExecutionWorker {
         );
       }
       // Exit 0 leaves session and step RUNNING pending independently verified CI.
+      return true;
     });
-    return { jobId: job.id, status: state };
+    return { jobId: job.id, status: leaseFinalized ? state : "LEASE_LOST" };
   }
 }
