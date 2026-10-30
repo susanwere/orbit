@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { WorkGraphCanvas } from "./WorkGraphCanvas.js";
 import type { CreatedProject } from "../projects/project-api.js";
 import type { ProjectIntentApi, ProjectPlan, StoredIntent } from "../intent/intent-api.js";
 import "./plan-review.css";
@@ -204,33 +205,19 @@ export function PlanReview({ project, originalIntent, plan, api, onBack, onUpdat
               <span>WORK GRAPH</span>
               <strong>{graph?.workItems.length ?? 0} proposed work items</strong>
             </div>
-            <div className="orbit-workspace-stage-content">
-              <div className="orbit-workspace-intent-node">
-                <span>◎ ORIGINAL INTENT</span>
-                <p>{originalIntent?.statement ?? "Original intent"}</p>
-              </div>
-              <div className="orbit-workspace-path" aria-hidden="true" />
-              <div className="orbit-workspace-stage-items">
-                {graph?.workItems.map((item, index) => (
-                  <a
-                    className="orbit-workspace-preview-node"
-                    href={`#plan-title-${index}`}
-                    key={item.key}
-                  >
-                    <span>WORK ITEM · {index + 1}</span>
-                    <strong>{item.title}</strong>
-                    <small>
-                      {item.workflows.length} workflows · {item.dependsOn.length} dependencies
-                    </small>
-                    <em>Configure ↗</em>
-                  </a>
-                ))}
-              </div>
-              <p className="orbit-workspace-stage-caption">
-                This is a navigable plan overview. Connected execution graph and 3D interaction are
-                the next stage.
-              </p>
-            </div>
+            {graph && (
+              <WorkGraphCanvas
+                items={graph.workItems}
+                intent={originalIntent?.statement ?? "Original intent"}
+                approved={approved}
+                onSelect={(key) => {
+                  const index = graph.workItems.findIndex((item) => item.key === key);
+                  if (index >= 0) {
+                    document.getElementById(`plan-title-${index}`)?.focus();
+                  }
+                }}
+              />
+            )}
           </section>
           <section
             className="intent-panel plan-panel orbit-workspace-inspector"
