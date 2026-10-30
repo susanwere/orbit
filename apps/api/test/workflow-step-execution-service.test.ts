@@ -143,3 +143,35 @@ describe("human approval authority", () => {
     ).rejects.toMatchObject({ code: "invalid_state" });
   });
 });
+
+describe("evidence-backed step completion", () => {
+  it("only marks a step complete with a linked completed session and passing evidence", async () => {
+    const statements: string[] = [];
+    const service = new WorkflowStepExecutionService(
+      { transaction: async (fn: (tx: unknown) => Promise<unknown>) =>
+          fn({ query: async (sql: string, args: unknown[]) => {
+            statements.push(sql);
+            if (sql.includes("pg_advisory_xact_lock")) return { rows: [] };
+            expect(args).toEqual(["step", "project", "org"]);
+            return { rows: [{ id: "step", state: "COMPLETED" }] };
+          } }) } as never,
+      { authorize: async () => ({ organizationId: "org" }) } as never,
+    );
+    await expect(service.complete({ projectId: "project", principalId: "reviewer", stepId: "step" }))
+      .resolves.toMatchObject({ state: "COMPLETED" });
+    expect(statements[1]).toContain("session.state='COMPLETED'");
+    expect(statements[1]).toContain("e.result='PASSED'");
+    expect(statements[1]).toContain("e.scope_type='workflow_step'");
+    expect(statements[1]).toContain("s.agent_session_id IS NOT NULL");
+  });
+
+  it("fails closed without proven completion", async () => {
+    const service = new WorkflowStepExecutionService(
+      { transaction: async (fn: (tx: unknown) => Promise<unknown>) =>
+          fn({ query: async () => ({ rows: [] }) }) } as never,
+      { authorize: async () => ({ organizationId: "org" }) } as never,
+    );
+    await expect(service.complete({ projectId: "project", principalId: "reviewer", stepId: "step" }))
+      .rejects.toMatchObject({ code: "invalid_state" });
+  });
+});
