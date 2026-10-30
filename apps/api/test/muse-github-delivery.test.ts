@@ -20,11 +20,21 @@ describe("trusted Muse GitHub delivery", () => {
   it("refuses delivery on an API host before contacting GitHub", async () => {
     let queries = 0;
     const service = new MuseGithubDeliveryService(
-      { query: async () => { queries++; return { rows: [job] }; } } as never,
+      {
+        query: async () => {
+          queries++;
+          return { rows: [job] };
+        },
+      } as never,
       "test-token",
     );
     await expect(
-      service.deliver({ jobId: "job1", projectId: "project", workspace: "/tmp/checkout", baseBranch: "main" }),
+      service.deliver({
+        jobId: "job1",
+        projectId: "project",
+        workspace: "/tmp/checkout",
+        baseBranch: "main",
+      }),
     ).rejects.toMatchObject({ code: "forbidden" });
     expect(queries).toBe(0);
   });
@@ -41,7 +51,12 @@ describe("trusted Muse GitHub delivery", () => {
       },
     );
     await expect(
-      service.deliver({ jobId: "job1", projectId: "project", workspace: "/tmp/checkout", baseBranch: "main" }),
+      service.deliver({
+        jobId: "job1",
+        projectId: "project",
+        workspace: "/tmp/checkout",
+        baseBranch: "main",
+      }),
     ).rejects.toMatchObject({ code: "forbidden" });
     expect(commands).toEqual([["remote", "get-url", "origin"]]);
   });
@@ -49,16 +64,23 @@ describe("trusted Muse GitHub delivery", () => {
   it("rejects a job that is not independently eligible for delivery", async () => {
     process.env.ORBIT_MUSE_ISOLATED_WORKER = "true";
     const service = new MuseGithubDeliveryService(
-      { query: async (sql: string) => {
-        expect(sql).toContain("job.status='TURN_FINISHED'");
-        expect(sql).toContain("gate.status='OPEN'");
-        expect(sql).toContain("job.github_repository IS NULL");
-        return { rows: [] };
-      } } as never,
+      {
+        query: async (sql: string) => {
+          expect(sql).toContain("job.status='TURN_FINISHED'");
+          expect(sql).toContain("gate.status='OPEN'");
+          expect(sql).toContain("job.github_repository IS NULL");
+          return { rows: [] };
+        },
+      } as never,
       "test-token",
     );
     await expect(
-      service.deliver({ jobId: "job1", projectId: "project", workspace: "/tmp/checkout", baseBranch: "main" }),
+      service.deliver({
+        jobId: "job1",
+        projectId: "project",
+        workspace: "/tmp/checkout",
+        baseBranch: "main",
+      }),
     ).rejects.toMatchObject({ code: "invalid_state" });
   });
 });
