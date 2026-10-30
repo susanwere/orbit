@@ -65,3 +65,35 @@ describe("project API authorization handling", () => {
     });
   });
 });
+
+describe("listing existing projects", () => {
+  it("requests the organization-scoped list with pagination cursor and bearer token", async () => {
+    const payload = {
+      projects: [
+        {
+          id: "a",
+          name: "Existing project",
+          organization_id: "org",
+          created_at: "2026-10-30T00:00:00Z",
+        },
+      ],
+      nextCursor: "a",
+    };
+    const sendRequest = vi
+      .fn<typeof fetch>()
+      .mockResolvedValue(new Response(JSON.stringify(payload), { status: 200 }));
+    const api = createProjectApi("http://localhost:4000", () => "Bearer secret", sendRequest);
+    await expect(api.listProjects(10, "cursor")).resolves.toEqual(payload);
+    expect(sendRequest).toHaveBeenCalledWith(
+      "http://localhost:4000/projects?limit=10&before=cursor",
+      { headers: { Authorization: "Bearer secret" } },
+    );
+  });
+
+  it("does not list projects without a session", async () => {
+    const sendRequest = vi.fn<typeof fetch>();
+    const api = createProjectApi("http://localhost:4000", () => undefined, sendRequest);
+    await expect(api.listProjects()).rejects.toMatchObject({ status: 401 });
+    expect(sendRequest).not.toHaveBeenCalled();
+  });
+});
