@@ -7,6 +7,7 @@ interface StepRow extends Record<string, unknown> {
   state: string;
   approval_required: boolean;
   approved_by_principal_id: string | null;
+  agent_session_id: string | null;
 }
 
 /**
@@ -96,7 +97,7 @@ export class WorkflowStepExecutionService {
         `orbit:steps:${actor.organizationId}:${input.projectId}`,
       ]);
       const step = await tx.query<StepRow>(
-        `SELECT s.id,s.state,s.approval_required,s.approved_by_principal_id
+        `SELECT s.id,s.state,s.approval_required,s.approved_by_principal_id,s.agent_session_id
          FROM workflow_step_executions s
          JOIN plan_proposals p ON p.id=s.plan_id
            AND p.project_id=s.project_id AND p.organization_id=s.organization_id
@@ -119,6 +120,7 @@ export class WorkflowStepExecutionService {
            ON prerequisite.project_id=edge.project_id
            AND prerequisite.id=edge.prerequisite_step_id
          WHERE edge.step_id=$1 AND edge.project_id=$2 AND edge.organization_id=$3
+           AND prerequisite.organization_id=$3
            AND (prerequisite.state <> 'COMPLETED'
              OR prerequisite.plan_id <> (
                SELECT plan_id FROM workflow_step_executions
@@ -128,6 +130,20 @@ export class WorkflowStepExecutionService {
       );
       if (dependencies.rows.length) {
         throw new DomainError("invalid_state", "Step prerequisites are not completed.");
+      }
+      // A bound agent must still be authorized at the moment this step starts.
+      // Revocation or cancellation after binding must invalidate execution.
+      const linkedSession = await tx.query<{ id: string } & Record<string, unknown>>(
+        `SELECT s.id FROM workflow_step_executions step
+         JOIN agent_sessions s ON s.id=step.agent_session_id
+           AND s.project_id=step.project_id AND s.organization_id=step.organization_id
+         WHERE step.id=$1 AND step.project_id=$2 AND step.organization_id=$3
+           AND s.state='AUTHORIZED'
+         LIMIT 1`,
+        [input.stepId, input.projectId, actor.organizationId],
+      );
+      if (current.agent_session_id && !linkedSession.rows.length) {
+        throw new DomainError("invalid_state", "Bound agent session is not authorized.");
       }
       // A previously approved step must not bypass a newly opened human gate.
       // Recheck inside the same project-serialized transaction as step start.
