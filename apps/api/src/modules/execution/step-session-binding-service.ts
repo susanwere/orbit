@@ -30,9 +30,17 @@ export class StepSessionBindingService {
            AND (session.requested_by_principal_id=$5
                 OR session.human_owner_principal_id=$5 OR $6='admin')
          RETURNING step.*`,
-        [input.stepId, input.projectId, actor.organizationId, input.sessionId, input.principalId, actor.role],
+        [
+          input.stepId,
+          input.projectId,
+          actor.organizationId,
+          input.sessionId,
+          input.principalId,
+          actor.role,
+        ],
       );
-      if (!result.rows[0]) throw new DomainError("invalid_state", "Session is not eligible for this approved step.");
+      if (!result.rows[0])
+        throw new DomainError("invalid_state", "Session is not eligible for this approved step.");
       return result.rows[0];
     });
   }
