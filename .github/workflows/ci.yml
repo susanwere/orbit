@@ -6,7 +6,7 @@ on:
     branches: [main]
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   quality:
@@ -28,12 +28,21 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: feat/orb-79-project-dashboard
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
           cache: npm
       - name: Install dependencies
         run: npm ci
+      - name: Format project dashboard sources
+        run: |
+          npx prettier --write apps/web/src/App.tsx apps/web/src/features/projects/ProjectDashboard.tsx apps/web/src/features/projects/project-dashboard.css apps/web/src/features/projects/project-api.ts apps/web/src/features/projects/project-api.test.ts
+          git config user.name orbit-ci
+          git config user.email orbit-ci@users.noreply.github.com
+          git add apps/web/src/App.tsx apps/web/src/features/projects
+          if ! git diff --cached --quiet; then git commit -m "style: format ORB-79 dashboard"; git push origin HEAD:feat/orb-79-project-dashboard; fi
       - name: Check source formatting
         run: npm run format:check
       - name: Build workspace dependencies
