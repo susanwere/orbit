@@ -44,7 +44,10 @@ describe.skipIf(!databaseUrl)("workflow step ordering and concurrency (PostgreSQ
        VALUES($1,$2,$3,$4,'APPROVED',1,'{}'::jsonb,$5,$5)`,
       [plan, org, project, intent, principal],
     );
-    for (const [step, index] of [[prerequisite, 0], [dependent, 1]] as const) {
+    for (const [step, index] of [
+      [prerequisite, 0],
+      [dependent, 1],
+    ] as const) {
       await db.query(
         `INSERT INTO workflow_step_executions
          (id,organization_id,project_id,plan_id,plan_revision,work_item_key,workflow_index,step_index,state,approval_required)
@@ -89,10 +92,9 @@ describe.skipIf(!databaseUrl)("workflow step ordering and concurrency (PostgreSQ
   });
 
   it("does not unblock downstream execution when prerequisite fails", async () => {
-    await db.query(
-      "UPDATE workflow_step_executions SET state='FAILED' WHERE id=$1",
-      [prerequisite],
-    );
+    await db.query("UPDATE workflow_step_executions SET state='FAILED' WHERE id=$1", [
+      prerequisite,
+    ]);
     await expect(start(dependent)).rejects.toMatchObject({ code: "invalid_state" });
   });
 
@@ -103,10 +105,9 @@ describe.skipIf(!databaseUrl)("workflow step ordering and concurrency (PostgreSQ
       "UPDATE workflow_step_executions SET state='COMPLETED',completed_at=now() WHERE id=$1",
       [prerequisite],
     );
-    await db.query(
-      "UPDATE workflow_step_executions SET approval_required=true WHERE id=$1",
-      [dependent],
-    );
+    await db.query("UPDATE workflow_step_executions SET approval_required=true WHERE id=$1", [
+      dependent,
+    ]);
     await expect(start(dependent)).rejects.toMatchObject({ code: "invalid_state" });
     await expect(
       execution.approve({ projectId: project, principalId: principal, stepId: dependent }),
