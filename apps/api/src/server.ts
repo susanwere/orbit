@@ -5,6 +5,7 @@ import type { OriginalIntentOptions } from "./modules/intent/original-intent-rou
 import { StepSessionBindingService } from "./modules/execution/step-session-binding-service.js";
 import { WorkflowStepExecutionService } from "./modules/execution/workflow-step-execution-service.js";
 import { MuseExecutionJobService } from "./modules/execution/muse-execution-worker.js";
+import { GithubCiEvidenceService } from "./modules/execution/github-ci-evidence-service.js";
 import { ApprovedStepMaterializer } from "./modules/execution/approved-step-materializer.js";
 import { HumanGateService } from "./modules/execution/human-gate-service.js";
 import { AgentSessionService } from "./modules/agents/agent-session-service.js";
@@ -139,6 +140,13 @@ const app = await buildApp({
         auth,
         db: database,
         authorization: new ProjectAuthorizationService(database),
+        evidence: process.env.ORBIT_GITHUB_EVIDENCE_TOKEN
+          ? new GithubCiEvidenceService(
+              database,
+              new ProjectAuthorizationService(database),
+              process.env.ORBIT_GITHUB_EVIDENCE_TOKEN,
+            )
+          : undefined,
         execution: new WorkflowStepExecutionService(
           database,
           new ProjectAuthorizationService(database),
