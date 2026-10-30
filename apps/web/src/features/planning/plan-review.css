@@ -603,7 +603,14 @@
   cursor: not-allowed;
 }
 @media (max-width: 700px) {
-  .orbit-detail-page { width: min(100% - 2rem, 900px); }
-  .orbit-detail-heading { flex-direction: column; gap: 0.5rem; }
-  .orbit-full-canvas .workgraph-root { height: 560px; }
+  .orbit-detail-page {
+    width: min(100% - 2rem, 900px);
+  }
+  .orbit-detail-heading {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  .orbit-full-canvas .workgraph-root {
+    height: 560px;
+  }
 }

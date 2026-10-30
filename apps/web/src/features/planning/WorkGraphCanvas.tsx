@@ -131,7 +131,12 @@ export function WorkGraphCanvas({ items, intent, approved, selectedItemKey, onSe
     if (!item) return 0;
     const ancestors = new Set(seen);
     ancestors.add(key);
-    const level = Math.max(1, ...item.dependsOn.filter((parent) => byKey.has(parent)).map((parent) => depth(parent, ancestors) + 1));
+    const level = Math.max(
+      1,
+      ...item.dependsOn
+        .filter((parent) => byKey.has(parent))
+        .map((parent) => depth(parent, ancestors) + 1),
+    );
     depths.set(key, level);
     return level;
   }
@@ -141,12 +146,16 @@ export function WorkGraphCanvas({ items, intent, approved, selectedItemKey, onSe
   }
   const positions = new Map<string, { x: number; y: number }>();
   for (const [level, nodes] of columns) {
-    nodes.forEach((node, index) => positions.set(node.id, {
-      x: level * 5,
-      y: (nodes.length - 1) * 1.8 - index * 3.6,
-    }));
+    nodes.forEach((node, index) =>
+      positions.set(node.id, {
+        x: level * 5,
+        y: (nodes.length - 1) * 1.8 - index * 3.6,
+      }),
+    );
   }
-  const visibleEdges = graph.edges.filter((edge) => visibleIds.has(edge.from) && visibleIds.has(edge.to));
+  const visibleEdges = graph.edges.filter(
+    (edge) => visibleIds.has(edge.from) && visibleIds.has(edge.to),
+  );
   const choose = (node: GraphNode) => {
     onSelect(node.target ?? null);
   };
@@ -203,7 +212,11 @@ export function WorkGraphCanvas({ items, intent, approved, selectedItemKey, onSe
               >
                 <span>{node.kind === "intent" ? "ORIGINAL INTENT" : "WORK ITEM"}</span>
                 <strong>{node.title}</strong>
-                <small>{node.kind === "work" ? `${items.find((item) => item.key === node.target)?.workflows.length ?? 0} workflows · Click to configure` : node.subtitle}</small>
+                <small>
+                  {node.kind === "work"
+                    ? `${items.find((item) => item.key === node.target)?.workflows.length ?? 0} workflows · Click to configure`
+                    : node.subtitle}
+                </small>
               </button>
             </Html>
           ))}

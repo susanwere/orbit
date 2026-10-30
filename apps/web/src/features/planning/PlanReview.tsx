@@ -180,9 +180,13 @@ export function PlanReview({ project, originalIntent, plan, api, onBack, onUpdat
   return (
     <main className="orbit-workspace">
       <aside className="orbit-workspace-nav" aria-label="Project navigation">
-        <a className="orbit-workspace-mark" href="#plan-heading" aria-label="Orbit workspace">◈</a>
+        <a className="orbit-workspace-mark" href="#plan-heading" aria-label="Orbit workspace">
+          ◈
+        </a>
         <span className="orbit-workspace-nav-label">Workspace</span>
-        <button type="button" className="orbit-workspace-nav-action" onClick={onBack}>← Intent</button>
+        <button type="button" className="orbit-workspace-nav-action" onClick={onBack}>
+          ← Intent
+        </button>
         <div className="orbit-workspace-nav-group">
           <span>PROJECT</span>
           <strong>{project.name}</strong>
@@ -192,31 +196,56 @@ export function PlanReview({ project, originalIntent, plan, api, onBack, onUpdat
           <strong>Workflows</strong>
           <small>{graph?.workItems.length ?? 0} work items</small>
         </div>
-        <p className="orbit-workspace-nav-note">Approval records human acceptance. Agent execution is separate.</p>
+        <p className="orbit-workspace-nav-note">
+          Approval records human acceptance. Agent execution is separate.
+        </p>
       </aside>
       <div className="orbit-workspace-main">
         <header className="orbit-workspace-toolbar">
           <div>
-            <span className="orbit-workspace-breadcrumb">ORBIT / {project.name} / {selectedItem ? selectedItem.key : "WORKFLOW"}</span>
+            <span className="orbit-workspace-breadcrumb">
+              ORBIT / {project.name} / {selectedItem ? selectedItem.key : "WORKFLOW"}
+            </span>
             <h1 id="plan-heading">{selectedItem ? selectedItem.title : "Workflow canvas"}</h1>
           </div>
-          <span className="orbit-workspace-state">{approved ? "Approved" : dirty ? "Unsaved changes" : "Proposed plan"}</span>
+          <span className="orbit-workspace-state">
+            {approved ? "Approved" : dirty ? "Unsaved changes" : "Proposed plan"}
+          </span>
         </header>
         {selectedItem && graph ? (
           <section className="orbit-detail-page" aria-label="Work item configuration">
-            <button type="button" className="orbit-detail-back" onClick={() => setSelectedItemKey(null)}>← Back to workflow canvas</button>
+            <button
+              type="button"
+              className="orbit-detail-back"
+              onClick={() => setSelectedItemKey(null)}
+            >
+              ← Back to workflow canvas
+            </button>
             <div className="orbit-detail-heading">
               <div>
                 <span className="orbit-detail-eyebrow">WORK ITEM / {selectedItem.key}</span>
                 <h2>{selectedItem.title}</h2>
                 <p>Configure this work item and the workflows it contains.</p>
               </div>
-              <span className="orbit-detail-tag">{approved ? "Read only · Approved" : "Proposed"}</span>
+              <span className="orbit-detail-tag">
+                {approved ? "Read only · Approved" : "Proposed"}
+              </span>
             </div>
             <div className="orbit-detail-tabs" role="tablist" aria-label="Configuration sections">
               {(["overview", "workflows", "dependencies"] as const).map((tab) => (
-                <button key={tab} type="button" role="tab" aria-selected={activeTab === tab} className={activeTab === tab ? "is-active" : ""} onClick={() => setActiveTab(tab)}>
-                  {tab === "overview" ? "Overview" : tab === "workflows" ? `Workflows (${selectedItem.workflows.length})` : "Dependencies"}
+                <button
+                  key={tab}
+                  type="button"
+                  role="tab"
+                  aria-selected={activeTab === tab}
+                  className={activeTab === tab ? "is-active" : ""}
+                  onClick={() => setActiveTab(tab)}
+                >
+                  {tab === "overview"
+                    ? "Overview"
+                    : tab === "workflows"
+                      ? `Workflows (${selectedItem.workflows.length})`
+                      : "Dependencies"}
                 </button>
               ))}
             </div>
@@ -226,10 +255,28 @@ export function PlanReview({ project, originalIntent, plan, api, onBack, onUpdat
                   <h3>Work item details</h3>
                   <p>Give this work item a clear outcome and description.</p>
                   <label htmlFor="item-title">Title</label>
-                  <input id="item-title" value={selectedItem.title} maxLength={200} disabled={!canEdit} onChange={(event) => editItem(selectedIndex, { title: event.target.value })} />
+                  <input
+                    id="item-title"
+                    value={selectedItem.title}
+                    maxLength={200}
+                    disabled={!canEdit}
+                    onChange={(event) => editItem(selectedIndex, { title: event.target.value })}
+                  />
                   <label htmlFor="item-description">Description</label>
-                  <textarea id="item-description" rows={5} value={selectedItem.description} maxLength={1200} disabled={!canEdit} onChange={(event) => editItem(selectedIndex, { description: event.target.value })} />
-                  <div className="orbit-detail-muted">{selectedItem.workflows.length} workflows · {selectedItem.dependsOn.length} dependencies</div>
+                  <textarea
+                    id="item-description"
+                    rows={5}
+                    value={selectedItem.description}
+                    maxLength={1200}
+                    disabled={!canEdit}
+                    onChange={(event) =>
+                      editItem(selectedIndex, { description: event.target.value })
+                    }
+                  />
+                  <div className="orbit-detail-muted">
+                    {selectedItem.workflows.length} workflows · {selectedItem.dependsOn.length}{" "}
+                    dependencies
+                  </div>
                 </div>
               )}
               {activeTab === "dependencies" && (
@@ -237,13 +284,28 @@ export function PlanReview({ project, originalIntent, plan, api, onBack, onUpdat
                   <h3>Dependencies</h3>
                   <p>Choose which other work items must be completed first.</p>
                   <div className="orbit-dependency-choices">
-                    {graph.workItems.filter((item) => item.key !== selectedItem.key).map((item) => (
-                      <label className="orbit-dependency-choice" key={item.key}>
-                        <input type="checkbox" disabled={!canEdit} checked={selectedItem.dependsOn.includes(item.key)}
-                          onChange={(event) => editItem(selectedIndex, { dependsOn: event.target.checked ? [...selectedItem.dependsOn, item.key] : selectedItem.dependsOn.filter((key) => key !== item.key) })} />
-                        <span><strong>{item.title}</strong><small>{item.key}</small></span>
-                      </label>
-                    ))}
+                    {graph.workItems
+                      .filter((item) => item.key !== selectedItem.key)
+                      .map((item) => (
+                        <label className="orbit-dependency-choice" key={item.key}>
+                          <input
+                            type="checkbox"
+                            disabled={!canEdit}
+                            checked={selectedItem.dependsOn.includes(item.key)}
+                            onChange={(event) =>
+                              editItem(selectedIndex, {
+                                dependsOn: event.target.checked
+                                  ? [...selectedItem.dependsOn, item.key]
+                                  : selectedItem.dependsOn.filter((key) => key !== item.key),
+                              })
+                            }
+                          />
+                          <span>
+                            <strong>{item.title}</strong>
+                            <small>{item.key}</small>
+                          </span>
+                        </label>
+                      ))}
                     {graph.workItems.length <= 1 && <p>No other work items available.</p>}
                   </div>
                 </div>
@@ -251,39 +313,91 @@ export function PlanReview({ project, originalIntent, plan, api, onBack, onUpdat
               {activeTab === "workflows" && (
                 <div className="orbit-detail-card">
                   <h3>Workflows</h3>
-                  <p>Each work item can contain multiple workflows, with their own steps and approval requirements.</p>
+                  <p>
+                    Each work item can contain multiple workflows, with their own steps and approval
+                    requirements.
+                  </p>
                   {selectedItem.workflows.map((workflow, workflowIndex) => (
-                    <details className="orbit-workflow-detail" key={workflowIndex} open={workflowIndex === 0 ? true : undefined}>
-                      <summary><span><strong>{workflow.name}</strong><small>{workflow.steps.length} steps · {workflow.steps.filter((step) => step.requiresApproval).length} approval gates</small></span><span>Configure</span></summary>
+                    <details
+                      className="orbit-workflow-detail"
+                      key={workflowIndex}
+                      open={workflowIndex === 0 ? true : undefined}
+                    >
+                      <summary>
+                        <span>
+                          <strong>{workflow.name}</strong>
+                          <small>
+                            {workflow.steps.length} steps ·{" "}
+                            {workflow.steps.filter((step) => step.requiresApproval).length} approval
+                            gates
+                          </small>
+                        </span>
+                        <span>Configure</span>
+                      </summary>
                       <div className="orbit-workflow-fields">
                         <label htmlFor={`workflow-${workflowIndex}-name`}>Workflow name</label>
-                        <input id={`workflow-${workflowIndex}-name`} disabled={!canEdit} value={workflow.name} onChange={(event) => {
-                          const next = structuredClone(graph);
-                          next.workItems[selectedIndex]!.workflows[workflowIndex]!.name = event.target.value;
-                          change(next);
-                        }} />
+                        <input
+                          id={`workflow-${workflowIndex}-name`}
+                          disabled={!canEdit}
+                          value={workflow.name}
+                          onChange={(event) => {
+                            const next = structuredClone(graph);
+                            next.workItems[selectedIndex]!.workflows[workflowIndex]!.name =
+                              event.target.value;
+                            change(next);
+                          }}
+                        />
                         {workflow.steps.map((step, stepIndex) => (
                           <div className="orbit-step-card" key={stepIndex}>
                             <span className="orbit-detail-eyebrow">STEP {stepIndex + 1}</span>
                             <label htmlFor={`step-${workflowIndex}-${stepIndex}`}>Step title</label>
-                            <input id={`step-${workflowIndex}-${stepIndex}`} disabled={!canEdit} maxLength={200} value={step.title} onChange={(event) => {
-                              const next = structuredClone(graph);
-                              next.workItems[selectedIndex]!.workflows[workflowIndex]!.steps[stepIndex]!.title = event.target.value;
-                              change(next);
-                            }} />
-                            <label htmlFor={`executor-${workflowIndex}-${stepIndex}`}>Executor</label>
-                            <select id={`executor-${workflowIndex}-${stepIndex}`} disabled={!canEdit} value={step.executor} onChange={(event) => {
-                              const next = structuredClone(graph);
-                              next.workItems[selectedIndex]!.workflows[workflowIndex]!.steps[stepIndex]!.executor = event.target.value as Executor;
-                              change(next);
-                            }}>
-                              <option value="human">Human</option><option value="agent">Agent (proposed)</option><option value="system">System</option>
+                            <input
+                              id={`step-${workflowIndex}-${stepIndex}`}
+                              disabled={!canEdit}
+                              maxLength={200}
+                              value={step.title}
+                              onChange={(event) => {
+                                const next = structuredClone(graph);
+                                next.workItems[selectedIndex]!.workflows[workflowIndex]!.steps[
+                                  stepIndex
+                                ]!.title = event.target.value;
+                                change(next);
+                              }}
+                            />
+                            <label htmlFor={`executor-${workflowIndex}-${stepIndex}`}>
+                              Executor
+                            </label>
+                            <select
+                              id={`executor-${workflowIndex}-${stepIndex}`}
+                              disabled={!canEdit}
+                              value={step.executor}
+                              onChange={(event) => {
+                                const next = structuredClone(graph);
+                                next.workItems[selectedIndex]!.workflows[workflowIndex]!.steps[
+                                  stepIndex
+                                ]!.executor = event.target.value as Executor;
+                                change(next);
+                              }}
+                            >
+                              <option value="human">Human</option>
+                              <option value="agent">Agent (proposed)</option>
+                              <option value="system">System</option>
                             </select>
-                            <label className="orbit-approval-choice"><input type="checkbox" disabled={!canEdit} checked={step.requiresApproval} onChange={(event) => {
-                              const next = structuredClone(graph);
-                              next.workItems[selectedIndex]!.workflows[workflowIndex]!.steps[stepIndex]!.requiresApproval = event.target.checked;
-                              change(next);
-                            }} />Requires human approval</label>
+                            <label className="orbit-approval-choice">
+                              <input
+                                type="checkbox"
+                                disabled={!canEdit}
+                                checked={step.requiresApproval}
+                                onChange={(event) => {
+                                  const next = structuredClone(graph);
+                                  next.workItems[selectedIndex]!.workflows[workflowIndex]!.steps[
+                                    stepIndex
+                                  ]!.requiresApproval = event.target.checked;
+                                  change(next);
+                                }}
+                              />
+                              Requires human approval
+                            </label>
                           </div>
                         ))}
                       </div>
@@ -295,24 +409,76 @@ export function PlanReview({ project, originalIntent, plan, api, onBack, onUpdat
           </section>
         ) : (
           <section className="orbit-full-canvas" aria-label="Plan overview">
-            <div className="orbit-workspace-stage-head"><span>PROJECT WORK GRAPH</span><strong>{graph?.workItems.length ?? 0} proposed work items</strong></div>
+            <div className="orbit-workspace-stage-head">
+              <span>PROJECT WORK GRAPH</span>
+              <strong>{graph?.workItems.length ?? 0} proposed work items</strong>
+            </div>
             {graph ? (
-              <WorkGraphCanvas items={graph.workItems} intent={originalIntent?.statement ?? "Original intent"} approved={approved} selectedItemKey={null} onSelect={(key) => { if (key) openItem(key); }} />
-            ) : <p role="alert" className="intent-error">The proposal could not be displayed. No approval was performed.</p>}
+              <WorkGraphCanvas
+                items={graph.workItems}
+                intent={originalIntent?.statement ?? "Original intent"}
+                approved={approved}
+                selectedItemKey={null}
+                onSelect={(key) => {
+                  if (key) openItem(key);
+                }}
+              />
+            ) : (
+              <p role="alert" className="intent-error">
+                The proposal could not be displayed. No approval was performed.
+              </p>
+            )}
           </section>
         )}
         <footer className="orbit-plan-footer">
           <div>
-            <strong>{approved ? "Plan approved" : dirty ? "You have unsaved changes" : "Review the proposed plan"}</strong>
+            <strong>
+              {approved
+                ? "Plan approved"
+                : dirty
+                  ? "You have unsaved changes"
+                  : "Review the proposed plan"}
+            </strong>
             <small>Human approval does not start agents or execute code.</small>
-            {error && <p role="alert" className="intent-error">{error}</p>}
+            {error && (
+              <p role="alert" className="intent-error">
+                {error}
+              </p>
+            )}
           </div>
           <div className="orbit-plan-footer-actions">
-            <button type="button" disabled={busy} onClick={() => { void latest(); }}>Reload latest</button>
-            {!approved && <>
-              <button type="button" disabled={busy || !dirty} onClick={() => { void save(); }}>Save changes</button>
-              <button type="button" className="cta-primary" disabled={busy || dirty || !graph} onClick={() => { void approve(); }}>Approve plan</button>
-            </>}
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => {
+                void latest();
+              }}
+            >
+              Reload latest
+            </button>
+            {!approved && (
+              <>
+                <button
+                  type="button"
+                  disabled={busy || !dirty}
+                  onClick={() => {
+                    void save();
+                  }}
+                >
+                  Save changes
+                </button>
+                <button
+                  type="button"
+                  className="cta-primary"
+                  disabled={busy || dirty || !graph}
+                  onClick={() => {
+                    void approve();
+                  }}
+                >
+                  Approve plan
+                </button>
+              </>
+            )}
           </div>
         </footer>
       </div>
