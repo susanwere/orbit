@@ -1,0 +1,38 @@
+# Opt-in local integration smoke test only.
+# This does not enforce Execution Contract path or network grants at the OS level.
+# Run only with disposable, non-sensitive checkouts. Never enable for arbitrary user code.
+services:
+  muse-worker:
+    profiles: ["muse-smoke"]
+    build:
+      context: ../..
+      dockerfile: infra/muse-worker/Dockerfile.local
+    init: true
+    restart: "no"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    env_file:
+      - ../../apps/api/.env.local
+    environment:
+      DATABASE_URL: postgres://orbit:orbit@postgres:5432/orbit
+      ORBIT_MUSE_ISOLATED_WORKER: "true"
+      ORBIT_WORKER_SANDBOX_CONFIRMED: "yes"
+      ORBIT_WORKER_WORKSPACE: /workspace
+      ORBIT_WORKER_BASE_BRANCH: main
+      HOME: /tmp
+    volumes:
+      - type: bind
+        source: ${ORBIT_DISPOSABLE_CHECKOUT:?Set ORBIT_DISPOSABLE_CHECKOUT to an absolute disposable checkout path}
+        target: /workspace
+    working_dir: /orbit/apps/api
+    read_only: true
+    tmpfs:
+      - /tmp:rw,nosuid,nodev,size=256m
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 256
+    mem_limit: 2g
+    cpus: 2
