@@ -64,6 +64,8 @@ describe("GitHub CI-backed step completion", () => {
     expect(f.writes.some((sql) => sql.includes("job.status='TURN_FINISHED'"))).toBe(true);
     expect(f.writes.some((sql) => sql.includes("gate.status='OPEN'"))).toBe(true);
     expect(f.writes.some((sql) => sql.includes("contract.allowed_repositories @>"))).toBe(true);
+    expect(f.writes.some((sql) => sql.includes("job.github_head_sha=$7"))).toBe(true);
+    expect(f.writes.some((sql) => sql.includes("job.github_pull_number=$6"))).toBe(true);
     expect(f.writes.some((sql) => sql.includes("INSERT INTO evidence"))).toBe(true);
     expect(f.writes.some((sql) => sql.includes("SET state='COMPLETED'"))).toBe(true);
   });
