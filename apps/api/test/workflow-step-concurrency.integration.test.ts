@@ -64,6 +64,8 @@ describe.skipIf(!databaseUrl)("workflow step ordering and concurrency (PostgreSQ
 
   afterAll(async () => {
     if (!db) return;
+    await db.query("DELETE FROM workflow_step_prerequisites WHERE project_id=$1", [project]);
+    await db.query("DELETE FROM workflow_step_executions WHERE project_id=$1", [project]);
     await db.query("DELETE FROM organizations WHERE id=$1", [org]);
     await db.close();
   });
