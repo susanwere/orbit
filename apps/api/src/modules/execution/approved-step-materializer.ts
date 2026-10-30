@@ -45,6 +45,16 @@ export class ApprovedStepMaterializer {
         );
       }
 
+      // AgentSession.work_item_id references orbit_work_items.id, whereas
+      // proposal work items use project-local keys. Persist their deterministic
+      // database identities before any session can be assigned.
+      for (const item of graph.workItems) {
+        await tx.query(
+          `INSERT INTO orbit_work_items(id,organization_id,project_id,title)
+           VALUES($1,$2,$3,$4)`,
+          [`work:${plan.id}:${item.key}`, actor.organizationId, projectId, item.title],
+        );
+      }
       const stepId = (key: string, workflow: number, step: number) =>
         `step:${plan.id}:${key}:${workflow}:${step}`;
       let count = 0;
