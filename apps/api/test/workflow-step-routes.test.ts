@@ -36,7 +36,15 @@ function fixture(authorized = true) {
       } as never,
     },
   });
-  return { app, get queried() { return queried; }, get materialized() { return materialized; } };
+  return {
+    app,
+    get queried() {
+      return queried;
+    },
+    get materialized() {
+      return materialized;
+    },
+  };
 }
 
 describe("workflow step routes", () => {

@@ -22,7 +22,10 @@ export async function registerWorkflowStepRoutes(
     "/projects/:projectId/execution/prepare",
     async (request, reply) => {
       const principal = options.auth.verify(request.headers.authorization);
-      const prepared = await options.materializer.materialize(request.params.projectId, principal.id);
+      const prepared = await options.materializer.materialize(
+        request.params.projectId,
+        principal.id,
+      );
       return reply.status(201).send(prepared);
     },
   );
