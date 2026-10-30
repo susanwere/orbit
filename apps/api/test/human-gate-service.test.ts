@@ -36,6 +36,10 @@ describe("Human Gate", () => {
     });
     expect(result).toMatchObject({ status: "APPROVED", sessionState: "RUNNING" });
     expect(sql.some((s) => s.includes("human_gate.resolved"))).toBe(true);
+    expect(sql.some((s) => s.includes("pg_advisory_xact_lock"))).toBe(true);
+    expect(sql.some((s) => s.includes("UPDATE workflow_step_executions"))).toBe(true);
+    expect(sql.some((s) => s.includes("THEN 'RUNNING'"))).toBe(true);
+    expect(sql.some((s) => s.includes("THEN 'CANCELED'"))).toBe(true);
     expect(sql.some((s) => s.includes("context_snapshots"))).toBe(false);
   });
   it("rejects agent impersonation of owner", async () => {
