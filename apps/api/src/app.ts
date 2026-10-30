@@ -19,6 +19,10 @@ import {
   registerOperationsRoutes,
   type OperationsOptions,
 } from "./modules/operations/operations-routes.js";
+import {
+  registerWorkflowStepRoutes,
+  type WorkflowStepRouteOptions,
+} from "./modules/execution/workflow-step-routes.js";
 import { registerHumanGateRoutes } from "./modules/execution/human-gate-routes.js";
 import type { HumanGateService } from "./modules/execution/human-gate-service.js";
 import { registerAgentSessionRoutes } from "./modules/agents/agent-session-routes.js";
@@ -55,6 +59,7 @@ export interface AppOptions {
   readonly planning?: PlanningRouteOptions;
   readonly projectManagement?: ProjectManagementOptions;
   readonly operations?: OperationsOptions;
+  readonly workflowSteps?: WorkflowStepRouteOptions;
   readonly humanGates?: { auth: AuthVerifier; service: HumanGateService };
   readonly agentSessions?: { auth: AuthVerifier; service: AgentSessionService };
   readonly projectReads?: ProjectReadRoutesOptions;
@@ -110,6 +115,7 @@ export async function buildApp(options: AppOptions = {}) {
   if (options.projectManagement)
     await app.register(registerProjectManagementRoutes, options.projectManagement);
   if (options.operations) await app.register(registerOperationsRoutes, options.operations);
+  if (options.workflowSteps) await app.register(registerWorkflowStepRoutes, options.workflowSteps);
   if (options.humanGates) await app.register(registerHumanGateRoutes, options.humanGates);
   if (options.agentSessions) await app.register(registerAgentSessionRoutes, options.agentSessions);
   if (options.projectReads) await app.register(registerProjectReadRoutes, options.projectReads);
