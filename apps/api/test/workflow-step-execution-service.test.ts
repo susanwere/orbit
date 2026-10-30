@@ -109,17 +109,22 @@ describe("human approval authority", () => {
   it("persists reviewer identity only on an approved plan and pending step", async () => {
     const statements: string[] = [];
     const service = new WorkflowStepExecutionService(
-      { transaction: async (fn: (tx: unknown) => Promise<unknown>) =>
-          fn({ query: async (sql: string, args: unknown[]) => {
-            statements.push(sql);
-            if (sql.includes("pg_advisory_xact_lock")) return { rows: [] };
-            expect(args).toEqual(["step", "project", "org", "reviewer"]);
-            return { rows: [{ id: "step", approved_by_principal_id: "reviewer" }] };
-          } }) } as never,
+      {
+        transaction: async (fn: (tx: unknown) => Promise<unknown>) =>
+          fn({
+            query: async (sql: string, args: unknown[]) => {
+              statements.push(sql);
+              if (sql.includes("pg_advisory_xact_lock")) return { rows: [] };
+              expect(args).toEqual(["step", "project", "org", "reviewer"]);
+              return { rows: [{ id: "step", approved_by_principal_id: "reviewer" }] };
+            },
+          }),
+      } as never,
       { authorize: async () => ({ organizationId: "org", role: "member" }) } as never,
     );
-    await expect(service.approve({ projectId: "project", principalId: "reviewer", stepId: "step" }))
-      .resolves.toMatchObject({ approved_by_principal_id: "reviewer" });
+    await expect(
+      service.approve({ projectId: "project", principalId: "reviewer", stepId: "step" }),
+    ).resolves.toMatchObject({ approved_by_principal_id: "reviewer" });
     expect(statements[1]).toContain("p.status='APPROVED'");
     expect(statements[1]).toContain("s.approved_by_principal_id IS NULL");
     expect(statements[1]).toContain("s.state IN ('BLOCKED','READY')");
@@ -127,11 +132,14 @@ describe("human approval authority", () => {
 
   it("rejects duplicate and ineligible approval updates", async () => {
     const service = new WorkflowStepExecutionService(
-      { transaction: async (fn: (tx: unknown) => Promise<unknown>) =>
-          fn({ query: async () => ({ rows: [] }) }) } as never,
+      {
+        transaction: async (fn: (tx: unknown) => Promise<unknown>) =>
+          fn({ query: async () => ({ rows: [] }) }),
+      } as never,
       { authorize: async () => ({ organizationId: "org" }) } as never,
     );
-    await expect(service.approve({ projectId: "project", principalId: "reviewer", stepId: "step" }))
-      .rejects.toMatchObject({ code: "invalid_state" });
+    await expect(
+      service.approve({ projectId: "project", principalId: "reviewer", stepId: "step" }),
+    ).rejects.toMatchObject({ code: "invalid_state" });
   });
 });

@@ -39,7 +39,10 @@ export class WorkflowStepExecutionService {
         [input.stepId, input.projectId, actor.organizationId, input.principalId],
       );
       if (!updated.rows[0]) {
-        throw new DomainError("invalid_state", "Step cannot be approved or has already been reviewed.");
+        throw new DomainError(
+          "invalid_state",
+          "Step cannot be approved or has already been reviewed.",
+        );
       }
       return updated.rows[0];
     });

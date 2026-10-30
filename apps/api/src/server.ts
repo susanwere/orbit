@@ -137,7 +137,10 @@ const app = await buildApp({
         auth,
         db: database,
         authorization: new ProjectAuthorizationService(database),
-        execution: new WorkflowStepExecutionService(database, new ProjectAuthorizationService(database)),
+        execution: new WorkflowStepExecutionService(
+          database,
+          new ProjectAuthorizationService(database),
+        ),
         materializer: new ApprovedStepMaterializer(
           database,
           new ProjectAuthorizationService(database),

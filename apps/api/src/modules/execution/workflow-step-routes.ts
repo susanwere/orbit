@@ -35,11 +35,13 @@ export async function registerWorkflowStepRoutes(
     "/projects/:projectId/execution/steps/:stepId/approve",
     async (request) => {
       const principal = options.auth.verify(request.headers.authorization);
-      return { step: await options.execution.approve({
-        projectId: request.params.projectId,
-        stepId: request.params.stepId,
-        principalId: principal.id,
-      }) };
+      return {
+        step: await options.execution.approve({
+          projectId: request.params.projectId,
+          stepId: request.params.stepId,
+          principalId: principal.id,
+        }),
+      };
     },
   );
   app.get<{ Params: { projectId: string } }>(

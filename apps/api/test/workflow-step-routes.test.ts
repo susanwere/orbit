@@ -26,7 +26,9 @@ function fixture(authorized = true) {
           return { rows: [{ id: "step", state: "BLOCKED" }] };
         },
       } as never,
-      execution: { approve: async () => ({ id: "step", approved_by_principal_id: "human" }) } as never,
+      execution: {
+        approve: async () => ({ id: "step", approved_by_principal_id: "human" }),
+      } as never,
       materializer: {
         materialize: async (projectId: string, principalId: string) => {
           materialized++;
@@ -52,7 +54,11 @@ describe("workflow step routes", () => {
   it("records authenticated explicit step approval", async () => {
     const f = fixture();
     const app = await f.app;
-    const response = await app.inject({ method: "POST", url: "/projects/project/execution/steps/step/approve", headers: { authorization: "Bearer token" } });
+    const response = await app.inject({
+      method: "POST",
+      url: "/projects/project/execution/steps/step/approve",
+      headers: { authorization: "Bearer token" },
+    });
     expect(response.statusCode).toBe(200);
     expect(response.json().step.approved_by_principal_id).toBe("human");
     await app.close();
