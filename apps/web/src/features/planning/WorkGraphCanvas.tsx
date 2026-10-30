@@ -144,11 +144,12 @@ export function WorkGraphCanvas({ items, intent, approved, selectedItemKey, onSe
     const column = node.kind === "intent" ? 0 : depth(node.target!);
     columns.set(column, [...(columns.get(column) ?? []), node]);
   }
+  const maxDepth = Math.max(0, ...columns.keys());
   const positions = new Map<string, { x: number; y: number }>();
   for (const [level, nodes] of columns) {
     nodes.forEach((node, index) =>
       positions.set(node.id, {
-        x: level * 5,
+        x: (level - maxDepth / 2) * 4.6,
         y: (nodes.length - 1) * 1.8 - index * 3.6,
       }),
     );
