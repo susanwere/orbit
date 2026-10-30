@@ -149,10 +149,12 @@ export class MuseExecutionWorker {
     }
     const state = failure ? "FAILED" : "TURN_FINISHED";
     await this.db.transaction(async (tx) => {
-      await tx.query(
+      const finalized = await tx.query<{ id: string } & Record<string, unknown>>(
         `UPDATE muse_execution_jobs
          SET status=$3,exit_code=$4,event_count=$5,failure_reason=$6,finished_at=now(),lease_expires_at=NULL
-         WHERE id=$1 AND project_id=$2 AND status='RUNNING'`,
+         WHERE id=$1 AND project_id=$2 AND status='RUNNING'
+           AND lease_expires_at > now()
+         RETURNING id`,
         [
           job.id,
           job.project_id,
@@ -162,6 +164,9 @@ export class MuseExecutionWorker {
           failure || null,
         ],
       );
+      // Recovery or another owner may have won the lease. A stale worker has
+      // no authority to finalize a session or step after its lease expired.
+      if (!finalized.rows[0]) return;
       if (failure) {
         await tx.query(
           `UPDATE agent_sessions SET state='FAILED',ended_at=now()
