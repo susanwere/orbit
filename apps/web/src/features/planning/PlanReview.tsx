@@ -413,30 +413,75 @@ export function PlanReview({ project, originalIntent, plan, api, onBack, onUpdat
               <details className="orbit-plan-settings">
                 <summary>Plan details and work item management</summary>
                 <div className="orbit-plan-settings-content">
-                  {originalIntent && <p className="orbit-detail-muted"><strong>Original intent (immutable):</strong> {originalIntent.statement}</p>}
+                  {originalIntent && (
+                    <p className="orbit-detail-muted">
+                      <strong>Original intent (immutable):</strong> {originalIntent.statement}
+                    </p>
+                  )}
                   <label htmlFor="plan-summary">Proposed outcome</label>
-                  <textarea id="plan-summary" rows={3} maxLength={2000} value={graph.summary} disabled={!canEdit} onChange={(event) => change({ ...graph, summary: event.target.value })} />
-                  {([
-                    ["guardrails", "Proposed guardrails"],
-                    ["decisionsToReview", "Decisions requiring review"],
-                    ["assumptions", "Assumptions"],
-                  ] as const).map(([key, title]) => (
+                  <textarea
+                    id="plan-summary"
+                    rows={3}
+                    maxLength={2000}
+                    value={graph.summary}
+                    disabled={!canEdit}
+                    onChange={(event) => change({ ...graph, summary: event.target.value })}
+                  />
+                  {(
+                    [
+                      ["guardrails", "Proposed guardrails"],
+                      ["decisionsToReview", "Decisions requiring review"],
+                      ["assumptions", "Assumptions"],
+                    ] as const
+                  ).map(([key, title]) => (
                     <div key={key}>
                       <label htmlFor={`plan-${key}`}>{title} (one per line)</label>
-                      <textarea id={`plan-${key}`} rows={3} value={graph[key].join("\n")} disabled={!canEdit} onChange={(event) => editList(key, event.target.value)} />
+                      <textarea
+                        id={`plan-${key}`}
+                        rows={3}
+                        value={graph[key].join("\n")}
+                        disabled={!canEdit}
+                        onChange={(event) => editList(key, event.target.value)}
+                      />
                     </div>
                   ))}
-                  <button type="button" disabled={!canEdit || graph.workItems.length >= 30} onClick={() => {
-                    const keys = new Set(graph.workItems.map((item) => item.key));
-                    let index = 1;
-                    while (keys.has(`NEW-${index}`)) index++;
-                    const key = `NEW-${index}`;
-                    change({ ...graph, workItems: [...graph.workItems, {
-                      key, title: "New work item", description: "Describe the expected outcome",
-                      dependsOn: [], workflows: [{ name: "Implementation", steps: [{ title: "Complete work item", executor: "human", requiresApproval: true }] }],
-                    }] });
-                    openItem(key);
-                  }}>+ Add work item</button>
+                  <button
+                    type="button"
+                    disabled={!canEdit || graph.workItems.length >= 30}
+                    onClick={() => {
+                      const keys = new Set(graph.workItems.map((item) => item.key));
+                      let index = 1;
+                      while (keys.has(`NEW-${index}`)) index++;
+                      const key = `NEW-${index}`;
+                      change({
+                        ...graph,
+                        workItems: [
+                          ...graph.workItems,
+                          {
+                            key,
+                            title: "New work item",
+                            description: "Describe the expected outcome",
+                            dependsOn: [],
+                            workflows: [
+                              {
+                                name: "Implementation",
+                                steps: [
+                                  {
+                                    title: "Complete work item",
+                                    executor: "human",
+                                    requiresApproval: true,
+                                  },
+                                ],
+                              },
+                            ],
+                          },
+                        ],
+                      });
+                      openItem(key);
+                    }}
+                  >
+                    + Add work item
+                  </button>
                 </div>
               </details>
             )}
