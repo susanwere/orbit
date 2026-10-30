@@ -60,7 +60,9 @@ export class MuseGithubDeliveryService {
     private readonly token: string,
     git?: GitCommand,
     private readonly request: typeof fetch = fetch,
-  ) {}
+  ) { this.git = git ?? gitCommand(token); }
+
+  private readonly git: GitCommand;
 
   async deliver(input: {
     jobId: string;
