@@ -29,6 +29,19 @@ The API denies unlinked identities instead of auto-creating privileged accounts.
 The app remains in public preview mode if `VITE_GOOGLE_CLIENT_ID` is unset;
 project creation cannot be called without an authorized session.
 
+## Local API startup and environment loading
+
+From the repository root run `npm run dev:api`. The workspace script runs in
+`apps/api` and automatically loads the optional repository-root `.env.local`,
+followed by optional `apps/api/.env.local`. Values in the API-specific file
+override values from the root file; values already exported in your shell take
+precedence over both. The script uses Node.js 22.9+ built-in environment-file
+support and needs no dotenv dependency.
+
+Ensure the five `ORBIT_AUTH_*` and `ORBIT_OIDC_*` variables above are set.
+Missing identity configuration prevents `POST /auth/exchange` from registering.
+Keep local environment files untracked; never commit signing secrets or API keys.
+
 ## Security boundaries
 
 - Only the backend verifies the Google token signature, issuer, audience, and expiry.
