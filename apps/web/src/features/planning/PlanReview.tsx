@@ -166,16 +166,70 @@ export function PlanReview({ project, originalIntent, plan, api, onBack, onUpdat
   }
 
   return (
-    <main className="intent-page">
-      <section className="intent-panel plan-panel" aria-labelledby="plan-heading">
+    <main className="orbit-workspace">
+      <aside className="orbit-workspace-nav" aria-label="Project navigation">
+        <a className="orbit-workspace-mark" href="#plan-heading" aria-label="Orbit workspace">◈</a>
+        <span className="orbit-workspace-nav-label">Workspace</span>
+        <button type="button" className="orbit-workspace-nav-action" onClick={onBack}>
+          ← Intent
+        </button>
+        <div className="orbit-workspace-nav-group">
+          <span>PROJECT</span>
+          <strong>{project.name}</strong>
+        </div>
+        <div className="orbit-workspace-nav-group">
+          <span>PLANNING</span>
+          <strong>Workflows</strong>
+          <small>{graph?.workItems.length ?? 0} work items</small>
+        </div>
+        <p className="orbit-workspace-nav-note">
+          Human approval is required before any external execution.
+        </p>
+      </aside>
+      <div className="orbit-workspace-main">
+        <header className="orbit-workspace-toolbar">
+          <div>
+            <span className="orbit-workspace-breadcrumb">ORBIT / {project.name}</span>
+            <h1 id="plan-heading">Workflow canvas</h1>
+          </div>
+          <span className="orbit-workspace-state">{approved ? "Approved" : dirty ? "Unsaved changes" : "Proposed plan"}</span>
+        </header>
+        <div className="orbit-workspace-layout">
+          <section className="orbit-workspace-stage" aria-label="Plan overview">
+            <div className="orbit-workspace-stage-head">
+              <span>WORK GRAPH</span>
+              <strong>{graph?.workItems.length ?? 0} proposed work items</strong>
+            </div>
+            <div className="orbit-workspace-stage-content">
+              <div className="orbit-workspace-intent-node">
+                <span>◎ ORIGINAL INTENT</span>
+                <p>{originalIntent?.statement ?? "Original intent"}</p>
+              </div>
+              <div className="orbit-workspace-path" aria-hidden="true" />
+              <div className="orbit-workspace-stage-items">
+                {graph?.workItems.map((item, index) => (
+                  <a className="orbit-workspace-preview-node" href={`#plan-title-${index}`} key={item.key}>
+                    <span>WORK ITEM · {index + 1}</span>
+                    <strong>{item.title}</strong>
+                    <small>{item.workflows.length} workflows · {item.dependsOn.length} dependencies</small>
+                    <em>Configure ↗</em>
+                  </a>
+                ))}
+              </div>
+              <p className="orbit-workspace-stage-caption">
+                This is a navigable plan overview. Connected execution graph and 3D interaction are the next stage.
+              </p>
+            </div>
+          </section>
+          <section className="intent-panel plan-panel orbit-workspace-inspector" aria-label="Plan configuration">
         <div className="intent-topline">
           <span className="eyebrow">ORBIT / {project.name} / PROPOSED PLAN</span>
           <button type="button" onClick={onBack} className="intent-back">
             Back to intent
           </button>
         </div>
-        <p className="intent-overline">STEP 02 · HUMAN REVIEW</p>
-        <h1 id="plan-heading">Review the proposed plan.</h1>
+        <p className="intent-overline">PLAN INSPECTOR · HUMAN REVIEW</p>
+        <h2 className="orbit-workspace-inspector-heading">Review & configure</h2>
         <p className="intent-description">
           Muse Spark suggests the work. You decide what gets approved. No agent runs, repository
           changes, or external work items are created from this screen.
@@ -439,7 +493,9 @@ export function PlanReview({ project, originalIntent, plan, api, onBack, onUpdat
             )}
           </>
         )}
-      </section>
+          </section>
+        </div>
+      </div>
     </main>
   );
 }
