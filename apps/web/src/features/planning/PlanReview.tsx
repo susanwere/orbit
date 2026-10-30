@@ -89,7 +89,9 @@ export function PlanReview({ project, originalIntent, plan, api, onBack, onUpdat
   const [status, setStatus] = useState(plan.status);
   const [dirty, setDirty] = useState(false);
   const [selectedItemKey, setSelectedItemKey] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<"overview" | "workflows" | "dependencies">("workflows");
+  const [activeTab, setActiveTab] = useState<"overview" | "workflows" | "dependencies">(
+    "workflows",
+  );
   const [selectedWorkflow, setSelectedWorkflow] = useState<number | null>(null);
   const [selectedStep, setSelectedStep] = useState<number | null>(null);
   const [editing, setEditing] = useState(false);
@@ -285,7 +287,13 @@ export function PlanReview({ project, originalIntent, plan, api, onBack, onUpdat
             {selectedWorkflow === null ? (
               <div className="orbit-detail-content">
                 <div className="orbit-canvas-actions">
-                  <button type="button" className="orbit-detail-back" onClick={() => setActiveTab(activeTab === "workflows" ? "dependencies" : "workflows")}>
+                  <button
+                    type="button"
+                    className="orbit-detail-back"
+                    onClick={() =>
+                      setActiveTab(activeTab === "workflows" ? "dependencies" : "workflows")
+                    }
+                  >
                     {activeTab === "workflows" ? "Dependencies & details" : "← Back to workflows"}
                   </button>
                 </div>
@@ -356,7 +364,6 @@ export function PlanReview({ project, originalIntent, plan, api, onBack, onUpdat
                 )}
                 {activeTab === "workflows" && (
                   <div className="orbit-detail-card orbit-detail-card--canvas">
-
                     <div className="orbit-nested-stage" aria-label="Workflows in this work item">
                       <div className="orbit-nested-stage-head">
                         <span>WORKFLOW GRAPH</span>
