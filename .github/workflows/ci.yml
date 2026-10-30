@@ -36,6 +36,15 @@ jobs:
         run: npm ci
       - name: Check source formatting
         run: npm run format:check
+      - name: Diagnostic formatted ORB-80 source
+        if: failure()
+        run: |
+          echo ORBIT_ROUTE_BEGIN
+          ./node_modules/.bin/prettier apps/api/src/modules/execution/workflow-step-routes.ts
+          echo ORBIT_ROUTE_END
+          echo ORBIT_TEST_BEGIN
+          ./node_modules/.bin/prettier apps/api/test/workflow-step-execution-service.test.ts
+          echo ORBIT_TEST_END
       - name: Build workspace dependencies
         run: npm run build -w @orbit/domain && npm run build -w @orbit/db
       - name: Typecheck
