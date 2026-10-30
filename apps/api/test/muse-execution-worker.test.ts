@@ -26,6 +26,9 @@ describe("Muse execution queue", () => {
       service.enqueue({ projectId: "project", principalId: "human", sessionId: "session" }),
     ).resolves.toMatchObject({ status: "QUEUED" });
     expect(statement).toContain("step.state='RUNNING'");
+    expect(statement).toContain("plan.status='APPROVED'");
+    expect(statement).toContain("plan.revision=step.plan_revision");
+    expect(statement).toContain("prereq.state <> 'COMPLETED'");
     expect(statement).toContain("s.state='RUNNING'");
     expect(statement).toContain("c.allowed_paths <> '[]'::jsonb");
     expect(statement).toContain("gate.status='OPEN'");
