@@ -10,7 +10,14 @@ const input = {
   pullNumber: 5,
 };
 
-function fixture(overrides: { conclusion?: string; merged?: boolean; eligible?: boolean; associated?: boolean } = {}) {
+function fixture(
+  overrides: {
+    conclusion?: string;
+    merged?: boolean;
+    eligible?: boolean;
+    associated?: boolean;
+  } = {},
+) {
   const writes: string[] = [];
   const fetchImpl = async (url: string) => ({
     ok: true,
@@ -22,7 +29,9 @@ function fixture(overrides: { conclusion?: string; merged?: boolean; eligible?: 
             event: "pull_request",
             name: "CI",
             head_sha: "merge-commit-sha",
-            pull_requests: [{ number: overrides.associated === false ? 10 : 5, head: { sha: "abc123" } }],
+            pull_requests: [
+              { number: overrides.associated === false ? 10 : 5, head: { sha: "abc123" } },
+            ],
             repository: { full_name: "owner/repo" },
           }
         : {
