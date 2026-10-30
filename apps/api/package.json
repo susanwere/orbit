@@ -10,7 +10,8 @@
     "test": "vitest run",
     "start": "node dist/server.js",
     "muse:demo": "node --env-file-if-exists=../../.env.local --import tsx src/muse-local-demo.ts",
-    "muse:open-jobs": "node --env-file-if-exists=../../.env.local --import tsx src/muse-open-jobs-demo.ts"
+    "muse:open-jobs": "node --env-file-if-exists=../../.env.local --import tsx src/muse-open-jobs-demo.ts",
+    "muse:queue-worker": "node --env-file-if-exists=../../.env.local --import tsx src/muse-queue-worker.ts"
   },
   "dependencies": {
     "@orbit/domain": "*",
