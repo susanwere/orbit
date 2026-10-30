@@ -118,6 +118,14 @@ export class MuseGithubDeliveryService {
     )
       .split("\0")
       .filter(Boolean);
+    const deleted = (await this.git(["ls-files", "--deleted", "-z"], input.workspace))
+      .split("\\0")
+      .filter(Boolean);
+    const stagedBefore = (await this.git(["diff", "--cached", "--name-only", "-z"], input.workspace))
+      .split("\\0")
+      .filter(Boolean);
+    if (deleted.length || stagedBefore.length)
+      throw new DomainError("forbidden", "Deleted or pre-staged files require separate review.");
     if (!changed.length || changed.length > 250)
       throw new DomainError("invalid_state", "Expected 1 to 250 changed files.");
     for (const path of changed) {
