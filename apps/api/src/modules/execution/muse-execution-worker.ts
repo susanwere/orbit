@@ -46,9 +46,20 @@ export class MuseExecutionJobService {
          )
        ON CONFLICT (project_id,agent_session_id) DO NOTHING
        RETURNING id,project_id,agent_session_id,workflow_step_id,status`,
-      [`musejob_${this.uuid()}`, input.projectId, actor.organizationId, input.principalId, input.sessionId, actor.role],
+      [
+        `musejob_${this.uuid()}`,
+        input.projectId,
+        actor.organizationId,
+        input.principalId,
+        input.sessionId,
+        actor.role,
+      ],
     );
-    if (!result.rows[0]) throw new DomainError("invalid_state", "Muse dispatch requires a running, scoped, unblocked session and no existing job.");
+    if (!result.rows[0])
+      throw new DomainError(
+        "invalid_state",
+        "Muse dispatch requires a running, scoped, unblocked session and no existing job.",
+      );
     return result.rows[0];
   }
 }
@@ -119,18 +130,25 @@ export class MuseExecutionWorker {
         `UPDATE muse_execution_jobs
          SET status=$3,exit_code=$4,event_count=$5,failure_reason=$6,finished_at=now()
          WHERE id=$1 AND project_id=$2 AND status='RUNNING'`,
-        [job.id,job.project_id,state,result?.exitCode ?? null,result?.events.length ?? 0,failure || null],
+        [
+          job.id,
+          job.project_id,
+          state,
+          result?.exitCode ?? null,
+          result?.events.length ?? 0,
+          failure || null,
+        ],
       );
       if (failure) {
         await tx.query(
           `UPDATE agent_sessions SET state='FAILED',ended_at=now()
            WHERE id=$1 AND project_id=$2 AND state='RUNNING'`,
-          [job.agent_session_id,job.project_id],
+          [job.agent_session_id, job.project_id],
         );
         await tx.query(
           `UPDATE workflow_step_executions SET state='FAILED'
            WHERE id=$1 AND project_id=$2 AND state='RUNNING'`,
-          [job.workflow_step_id,job.project_id],
+          [job.workflow_step_id, job.project_id],
         );
       }
       // Exit 0 leaves session and step RUNNING pending independently verified CI.

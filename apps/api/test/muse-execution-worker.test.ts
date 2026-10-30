@@ -1,7 +1,12 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { MuseExecutionJobService, MuseExecutionWorker } from "../src/modules/execution/muse-execution-worker.js";
+import {
+  MuseExecutionJobService,
+  MuseExecutionWorker,
+} from "../src/modules/execution/muse-execution-worker.js";
 
-afterEach(() => { delete process.env.ORBIT_MUSE_ISOLATED_WORKER; });
+afterEach(() => {
+  delete process.env.ORBIT_MUSE_ISOLATED_WORKER;
+});
 
 describe("Muse execution queue", () => {
   it("enqueues only a running contract-scoped unblocked session", async () => {
@@ -17,8 +22,9 @@ describe("Muse execution queue", () => {
       { authorize: async () => ({ organizationId: "org", role: "member" }) } as never,
       () => "fixed",
     );
-    await expect(service.enqueue({ projectId: "project", principalId: "human", sessionId: "session" }))
-      .resolves.toMatchObject({ status: "QUEUED" });
+    await expect(
+      service.enqueue({ projectId: "project", principalId: "human", sessionId: "session" }),
+    ).resolves.toMatchObject({ status: "QUEUED" });
     expect(statement).toContain("step.state='RUNNING'");
     expect(statement).toContain("s.state='RUNNING'");
     expect(statement).toContain("c.allowed_paths <> '[]'::jsonb");
@@ -31,16 +37,21 @@ describe("Muse execution queue", () => {
       { query: async () => ({ rows: [] }) } as never,
       { authorize: async () => ({ organizationId: "org", role: "member" }) } as never,
     );
-    await expect(service.enqueue({ projectId: "project", principalId: "human", sessionId: "session" }))
-      .rejects.toMatchObject({ code: "invalid_state" });
+    await expect(
+      service.enqueue({ projectId: "project", principalId: "human", sessionId: "session" }),
+    ).rejects.toMatchObject({ code: "invalid_state" });
   });
 });
 
 describe("isolated Muse execution worker", () => {
   const job = {
-    id: "job", organization_id: "org", project_id: "project",
-    agent_session_id: "session", workflow_step_id: "step",
-    status: "QUEUED", mission: "Implement a React component",
+    id: "job",
+    organization_id: "org",
+    project_id: "project",
+    agent_session_id: "session",
+    workflow_step_id: "step",
+    status: "QUEUED",
+    mission: "Implement a React component",
   };
   const harness = (exitCode: number) => {
     const statements: string[] = [];
@@ -48,18 +59,33 @@ describe("isolated Muse execution worker", () => {
     const worker = new MuseExecutionWorker(
       {
         transaction: async (fn: (tx: unknown) => Promise<unknown>) =>
-          fn({ query: async (sql: string) => {
-            statements.push(sql);
-            if (sql.includes("FROM muse_execution_jobs job")) return { rows: [job] };
-            return { rows: [] };
-          } }),
+          fn({
+            query: async (sql: string) => {
+              statements.push(sql);
+              if (sql.includes("FROM muse_execution_jobs job")) return { rows: [job] };
+              return { rows: [] };
+            },
+          }),
       } as never,
-      { execute: async () => {
-        invoked++;
-        return { provider: "meta-muse-code", exitCode, events: [{ type: "finished" }], outputTruncated: false };
-      } },
+      {
+        execute: async () => {
+          invoked++;
+          return {
+            provider: "meta-muse-code",
+            exitCode,
+            events: [{ type: "finished" }],
+            outputTruncated: false,
+          };
+        },
+      },
     );
-    return { worker, statements, get invoked() { return invoked; } };
+    return {
+      worker,
+      statements,
+      get invoked() {
+        return invoked;
+      },
+    };
   };
   it("refuses to execute outside an isolated worker", async () => {
     const h = harness(0);
@@ -70,17 +96,31 @@ describe("isolated Muse execution worker", () => {
   it("leaves a successful CLI turn awaiting independent CI evidence", async () => {
     process.env.ORBIT_MUSE_ISOLATED_WORKER = "true";
     const h = harness(0);
-    await expect(h.worker.runNext("/tmp/checkout")).resolves.toEqual({ jobId: "job", status: "TURN_FINISHED" });
+    await expect(h.worker.runNext("/tmp/checkout")).resolves.toEqual({
+      jobId: "job",
+      status: "TURN_FINISHED",
+    });
     expect(h.invoked).toBe(1);
-    expect(h.statements.some((sql) => sql.includes("UPDATE agent_sessions SET state='FAILED'"))).toBe(false);
+    expect(
+      h.statements.some((sql) => sql.includes("UPDATE agent_sessions SET state='FAILED'")),
+    ).toBe(false);
     expect(h.statements.some((sql) => sql.includes("SET status=$3"))).toBe(true);
   });
 
   it("marks failed session and step when Muse exits unsuccessfully", async () => {
     process.env.ORBIT_MUSE_ISOLATED_WORKER = "true";
     const h = harness(1);
-    await expect(h.worker.runNext("/tmp/checkout")).resolves.toEqual({ jobId: "job", status: "FAILED" });
-    expect(h.statements.some((sql) => sql.includes("UPDATE agent_sessions SET state='FAILED'"))).toBe(true);
-    expect(h.statements.some((sql) => sql.includes("UPDATE workflow_step_executions SET state='FAILED'"))).toBe(true);
+    await expect(h.worker.runNext("/tmp/checkout")).resolves.toEqual({
+      jobId: "job",
+      status: "FAILED",
+    });
+    expect(
+      h.statements.some((sql) => sql.includes("UPDATE agent_sessions SET state='FAILED'")),
+    ).toBe(true);
+    expect(
+      h.statements.some((sql) =>
+        sql.includes("UPDATE workflow_step_executions SET state='FAILED'"),
+      ),
+    ).toBe(true);
   });
 });
