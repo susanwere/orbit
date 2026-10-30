@@ -17,7 +17,7 @@
 .project-dashboard-logo {
   font-size: 1.25rem;
   font-weight: 800;
-  color: #d6f378;
+  color: #91adff;
 }
 .project-dashboard-current {
   padding: 0.85rem;
@@ -44,7 +44,7 @@
   margin-bottom: 2.5rem;
 }
 .project-dashboard-eyebrow {
-  color: #b9d970;
+  color: #96afff;
   letter-spacing: 0.17em;
   font-size: 0.7rem;
   font-weight: 700;
@@ -61,7 +61,7 @@
 .project-dashboard-empty button {
   border: 0;
   border-radius: 10px;
-  background: #d5f375;
+  background: #92b4ff;
   color: #151a13;
   font-weight: 700;
   padding: 0.85rem 1.1rem;
@@ -107,12 +107,12 @@
 }
 .project-dashboard-card:hover,
 .project-dashboard-card:focus-visible {
-  border-color: #d5f375;
+  border-color: #92b4ff;
   outline-offset: 3px;
 }
 .project-dashboard-card-icon {
   font-size: 1.5rem;
-  color: #d5f375;
+  color: #92b4ff;
 }
 .project-dashboard-card strong {
   font-size: 1.15rem;
@@ -123,7 +123,7 @@
 }
 .project-dashboard-card-link {
   font-size: 0.85rem;
-  color: #d5f375;
+  color: #92b4ff;
   margin-top: auto;
 }
 .project-dashboard-empty {
