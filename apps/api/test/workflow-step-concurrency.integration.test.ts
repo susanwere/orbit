@@ -24,9 +24,7 @@ describe.skipIf(!databaseUrl)("workflow step ordering and concurrency (PostgreSQ
   beforeAll(async () => {
     db = new PgDatabase(databaseUrl!);
     execution = new WorkflowStepExecutionService(db, new ProjectAuthorizationService(db));
-    await db.query("INSERT INTO organizations(id,name) VALUES($1,'Step concurrency test')", [
-      org,
-    ]);
+    await db.query("INSERT INTO organizations(id,name) VALUES($1,'Step concurrency test')", [org]);
     await db.query("INSERT INTO projects(id,organization_id,name) VALUES($1,$2,$3)", [
       project,
       org,
