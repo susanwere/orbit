@@ -27,6 +27,7 @@ import { registerHumanGateRoutes } from "./modules/execution/human-gate-routes.j
 import type { HumanGateService } from "./modules/execution/human-gate-service.js";
 import { registerAgentSessionRoutes } from "./modules/agents/agent-session-routes.js";
 import type { AgentSessionService } from "./modules/agents/agent-session-service.js";
+import type { MuseExecutionJobService } from "./modules/execution/muse-execution-worker.js";
 import {
   registerProjectReadRoutes,
   type ProjectReadRoutesOptions,
@@ -61,7 +62,11 @@ export interface AppOptions {
   readonly operations?: OperationsOptions;
   readonly workflowSteps?: WorkflowStepRouteOptions;
   readonly humanGates?: { auth: AuthVerifier; service: HumanGateService };
-  readonly agentSessions?: { auth: AuthVerifier; service: AgentSessionService };
+  readonly agentSessions?: {
+    auth: AuthVerifier;
+    service: AgentSessionService;
+    museJobs?: MuseExecutionJobService;
+  };
   readonly projectReads?: ProjectReadRoutesOptions;
   readonly githubWebhook?: GitHubWebhookRouteOptions;
   readonly decisionReview?: DecisionReviewService;
