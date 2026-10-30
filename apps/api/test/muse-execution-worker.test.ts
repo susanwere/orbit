@@ -57,7 +57,7 @@ describe("isolated Muse execution worker", () => {
     network_policy: "none",
     network_allowlist: [],
   };
-  const harness = (exitCode: number, overrides: Record<string, unknown> = {}) => {
+  const harness = (exitCode: number, overrides: Record<string, unknown> = {}, leaseWon = true) => {
     const statements: string[] = [];
     let invoked = 0;
     const worker = new MuseExecutionWorker(
@@ -68,6 +68,7 @@ describe("isolated Muse execution worker", () => {
               statements.push(sql);
               if (sql.includes("FROM muse_execution_jobs job"))
                 return { rows: [{ ...job, ...overrides }] };
+              if (sql.includes("SET status=$3")) return { rows: leaseWon ? [{ id: "job" }] : [] };
               return { rows: [] };
             },
           }),
@@ -126,6 +127,24 @@ describe("isolated Muse execution worker", () => {
       h.statements.some((sql) => sql.includes("UPDATE agent_sessions SET state='FAILED'")),
     ).toBe(false);
     expect(h.statements.some((sql) => sql.includes("SET status=$3"))).toBe(true);
+  });
+
+  it("does not alter session or step after lease ownership expires", async () => {
+    process.env.ORBIT_MUSE_ISOLATED_WORKER = "true";
+    const h = harness(1, {}, false);
+    await expect(h.worker.runNext("/tmp/checkout")).resolves.toEqual({
+      jobId: "job",
+      status: "LEASE_LOST",
+    });
+    expect(h.statements.some((sql) => sql.includes("lease_expires_at > now()"))).toBe(true);
+    expect(
+      h.statements.some((sql) => sql.includes("UPDATE agent_sessions SET state='FAILED'")),
+    ).toBe(false);
+    expect(
+      h.statements.some((sql) =>
+        sql.includes("UPDATE workflow_step_executions SET state='FAILED'"),
+      ),
+    ).toBe(false);
   });
 
   it("marks failed session and step when Muse exits unsuccessfully", async () => {
