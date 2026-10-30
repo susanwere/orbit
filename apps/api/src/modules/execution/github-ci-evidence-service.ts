@@ -105,6 +105,9 @@ export class GithubCiEvidenceService {
            AND step.state='RUNNING' AND session.state='RUNNING'
            AND plan.status='APPROVED' AND plan.revision=step.plan_revision
            AND job.status='TURN_FINISHED'
+           AND job.github_repository=$5
+           AND job.github_pull_number=$6
+           AND job.github_head_sha=$7
            AND contract.allowed_repositories @> $4::jsonb
            AND NOT EXISTS (
              SELECT 1 FROM human_gates gate WHERE gate.project_id=step.project_id
@@ -112,7 +115,15 @@ export class GithubCiEvidenceService {
                AND gate.agent_session_id=session.id AND gate.status='OPEN'
            )
          FOR UPDATE OF step,session,job`,
-        [input.stepId, input.projectId, actor.organizationId, JSON.stringify([input.repository])],
+        [
+          input.stepId,
+          input.projectId,
+          actor.organizationId,
+          JSON.stringify([input.repository]),
+          input.repository,
+          input.pullNumber,
+          run.head_sha,
+        ],
       );
       const ready = eligible.rows[0];
       if (!ready) {
