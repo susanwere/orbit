@@ -52,7 +52,12 @@ export class MuseGithubDeliveryService {
     private readonly request: typeof fetch = fetch,
   ) {}
 
-  async deliver(input: { jobId: string; projectId: string; workspace: string; baseBranch: string }) {
+  async deliver(input: {
+    jobId: string;
+    projectId: string;
+    workspace: string;
+    baseBranch: string;
+  }) {
     if (process.env.ORBIT_MUSE_ISOLATED_WORKER !== "true" || !this.token)
       throw new DomainError("forbidden", "Trusted isolated delivery is required.");
     if (!isAbsolute(input.workspace) || resolve(input.workspace) !== input.workspace)
@@ -81,8 +86,13 @@ export class MuseGithubDeliveryService {
       [input.jobId, input.projectId],
     );
     const job = record.rows[0];
-    if (!job || !Array.isArray(job.allowed_repositories) || job.allowed_repositories.length !== 1 ||
-        !Array.isArray(job.allowed_paths) || job.allowed_paths.length === 0) {
+    if (
+      !job ||
+      !Array.isArray(job.allowed_repositories) ||
+      job.allowed_repositories.length !== 1 ||
+      !Array.isArray(job.allowed_paths) ||
+      job.allowed_paths.length === 0
+    ) {
       throw new DomainError("invalid_state", "Job is not eligible for trusted delivery.");
     }
     const repository = job.allowed_repositories[0];
@@ -91,7 +101,8 @@ export class MuseGithubDeliveryService {
 
     const origin = (await this.git(["remote", "get-url", "origin"], input.workspace)).trim();
     const acceptedOrigins = [
-      `https://github.com/${repository}.git`, `https://github.com/${repository}`,
+      `https://github.com/${repository}.git`,
+      `https://github.com/${repository}`,
       `git@github.com:${repository}.git`,
     ];
     if (!acceptedOrigins.includes(origin))
@@ -99,29 +110,49 @@ export class MuseGithubDeliveryService {
     const base = (await this.git(["rev-parse", input.baseBranch], input.workspace)).trim();
     if (!/^[0-9a-f]{40}$/.test(base))
       throw new DomainError("invalid_state", "Base commit must be pinned locally.");
-    const changed = (await this.git(["ls-files", "--modified", "--others", "--exclude-standard", "-z"], input.workspace))
-      .split("\0").filter(Boolean);
+    const changed = (
+      await this.git(
+        ["ls-files", "--modified", "--others", "--exclude-standard", "-z"],
+        input.workspace,
+      )
+    )
+      .split("\0")
+      .filter(Boolean);
     if (!changed.length || changed.length > 250)
       throw new DomainError("invalid_state", "Expected 1 to 250 changed files.");
     for (const path of changed) {
       const absolute = resolve(input.workspace, path);
-      if (relative(input.workspace, absolute).startsWith("..") ||
-          !permitted(path, job.allowed_paths) || path.startsWith(".git/"))
+      if (
+        relative(input.workspace, absolute).startsWith("..") ||
+        !permitted(path, job.allowed_paths) ||
+        path.startsWith(".git/")
+      )
         throw new DomainError("forbidden", "Generated changes exceed granted paths.");
       const info = await lstat(absolute);
       if (!info.isFile() || info.isSymbolicLink() || info.size > 300000)
         throw new DomainError("forbidden", "Only bounded regular files may be delivered.");
     }
 
-    const branch = `orbit/muse-${job.id.replace(/[^a-zA-Z0-9_-]/g, "").slice(0,80)}`;
+    const branch = `orbit/muse-${job.id.replace(/[^a-zA-Z0-9_-]/g, "").slice(0, 80)}`;
     await this.git(["checkout", "-b", branch, base], input.workspace);
     await this.git(["add", "--", ...changed], input.workspace);
     const staged = (await this.git(["diff", "--cached", "--name-only", "-z"], input.workspace))
-      .split("\0").filter(Boolean);
+      .split("\0")
+      .filter(Boolean);
     if (staged.length !== changed.length || staged.some((p) => !changed.includes(p)))
       throw new DomainError("invalid_state", "Staged changes did not match validated files.");
-    await this.git(["-c", "user.name=Orbit Worker", "-c", "user.email=orbit-worker@users.noreply.github.com",
-      "commit", "-m", `Orbit Muse execution ${job.id}`], input.workspace);
+    await this.git(
+      [
+        "-c",
+        "user.name=Orbit Worker",
+        "-c",
+        "user.email=orbit-worker@users.noreply.github.com",
+        "commit",
+        "-m",
+        `Orbit Muse execution ${job.id}`,
+      ],
+      input.workspace,
+    );
     const head = (await this.git(["rev-parse", "HEAD"], input.workspace)).trim();
     if (!/^[0-9a-f]{40}$/.test(head)) throw new DomainError("invalid_state", "Invalid commit SHA.");
     await this.git(["push", "origin", `HEAD:refs/heads/${branch}`], input.workspace);
@@ -135,13 +166,20 @@ export class MuseGithubDeliveryService {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        title: `Orbit Muse execution ${job.id}`, head: branch, base: input.baseBranch,
+        title: `Orbit Muse execution ${job.id}`,
+        head: branch,
+        base: input.baseBranch,
         body: `Generated by the isolated Orbit worker for job ${job.id}. Human review required.`,
       }),
     });
     if (!response.ok) throw new DomainError("invalid_state", "GitHub PR delivery failed.");
     const pull = (await response.json()) as { number?: number; head?: { sha?: string } };
-    if (!Number.isSafeInteger(pull.number) || !pull.number || pull.number < 1 || pull.head?.sha !== head)
+    if (
+      !Number.isSafeInteger(pull.number) ||
+      !pull.number ||
+      pull.number < 1 ||
+      pull.head?.sha !== head
+    )
       throw new DomainError("invalid_state", "GitHub PR head does not match delivered commit.");
 
     const bound = await this.db.query<{ id: string } & Record<string, unknown>>(
