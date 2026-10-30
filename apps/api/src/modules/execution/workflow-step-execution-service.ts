@@ -1,0 +1,76 @@
+import { DomainError } from "@orbit/domain";
+import type { SqlDatabase } from "@orbit/db";
+import type { ProjectAuthorizationService } from "../projects/project-authorization.js";
+
+interface StepRow extends Record<string, unknown> {
+  id: string;
+  state: string;
+  approval_required: boolean;
+  approved_by_principal_id: string | null;
+}
+
+/**
+ * Backend authority for starting a single workflow step.
+ * This is intentionally separate from provider dispatch and never invokes an agent.
+ */
+export class WorkflowStepExecutionService {
+  constructor(
+    private readonly db: SqlDatabase,
+    private readonly authorization: ProjectAuthorizationService,
+  ) {}
+
+  async start(input: { projectId: string; principalId: string; stepId: string }) {
+    const actor = await this.authorization.authorize(input.principalId, input.projectId, "review");
+    return this.db.transaction(async (tx) => {
+      // Serialize competing starts and prerequisite completions for this project.
+      await tx.query("SELECT pg_advisory_xact_lock(hashtextextended($1, 0))", [
+        `orbit:steps:${actor.organizationId}:${input.projectId}`,
+      ]);
+      const step = await tx.query<StepRow>(
+        `SELECT s.id,s.state,s.approval_required,s.approved_by_principal_id
+         FROM workflow_step_executions s
+         JOIN plan_proposals p ON p.id=s.plan_id
+           AND p.project_id=s.project_id AND p.organization_id=s.organization_id
+         WHERE s.id=$1 AND s.project_id=$2 AND s.organization_id=$3
+           AND p.status='APPROVED' AND p.revision=s.plan_revision
+         FOR UPDATE OF s`,
+        [input.stepId, input.projectId, actor.organizationId],
+      );
+      const current = step.rows[0];
+      if (!current) throw new DomainError("invalid_state", "No approved matching plan step.");
+      if (current.state !== "READY" && current.state !== "BLOCKED") {
+        throw new DomainError("invalid_state", "Step cannot be started in its current state.");
+      }
+      if (current.approval_required && !current.approved_by_principal_id) {
+        throw new DomainError("invalid_state", "Step is awaiting human approval.");
+      }
+      const dependencies = await tx.query<{ id: string } & Record<string, unknown>>(
+        `SELECT prerequisite.id FROM workflow_step_prerequisites edge
+         JOIN workflow_step_executions prerequisite
+           ON prerequisite.project_id=edge.project_id
+           AND prerequisite.id=edge.prerequisite_step_id
+         WHERE edge.step_id=$1 AND edge.project_id=$2 AND edge.organization_id=$3
+           AND (prerequisite.state <> 'COMPLETED'
+             OR prerequisite.plan_id <> (
+               SELECT plan_id FROM workflow_step_executions
+               WHERE id=$1 AND project_id=$2 AND organization_id=$3
+             ))`,
+        [input.stepId, input.projectId, actor.organizationId],
+      );
+      if (dependencies.rows.length) {
+        throw new DomainError("invalid_state", "Step prerequisites are not completed.");
+      }
+      // This transition authorizes the step only; a separate explicit dispatch
+      // must bind an Agent Session and check its Execution Contract.
+      const updated = await tx.query<StepRow>(
+        `UPDATE workflow_step_executions
+         SET state='RUNNING',started_at=now()
+         WHERE id=$1 AND project_id=$2 AND organization_id=$3
+           AND state IN ('READY','BLOCKED') RETURNING *`,
+        [input.stepId, input.projectId, actor.organizationId],
+      );
+      if (!updated.rows[0]) throw new DomainError("invalid_state", "Step start conflict.");
+      return updated.rows[0];
+    });
+  }
+}
