@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { WorkGraphCanvas } from "./WorkGraphCanvas.js";
 import type { CreatedProject } from "../projects/project-api.js";
-import type { ProjectIntentApi, ProjectPlan, StoredIntent } from "../intent/intent-api.js";
+import type { ProjectIntentApi, ProjectPlan, StoredIntent, WorkflowExecutionStep } from "../intent/intent-api.js";
 import "./plan-review.css";
 
 type Executor = "human" | "agent" | "system";
@@ -97,6 +97,36 @@ export function PlanReview({ project, originalIntent, plan, api, onBack, onUpdat
   const [editing, setEditing] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [executionSteps, setExecutionSteps] = useState<readonly WorkflowExecutionStep[]>([]);
+  const [executionError, setExecutionError] = useState<string | null>(null);
+  const [executionLoading, setExecutionLoading] = useState(false);
+  useEffect(() => {
+    if (!approved) {
+      setExecutionSteps([]);
+      return;
+    }
+    let cancelled = false;
+    setExecutionLoading(true);
+    api.getExecutionSteps(project.id)
+      .then((steps) => {
+        if (!cancelled) {
+          setExecutionSteps(steps);
+          setExecutionError(null);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setExecutionError("Execution status is unavailable. No agent start is implied.");
+      })
+      .finally(() => { if (!cancelled) setExecutionLoading(false); });
+    return () => { cancelled = true; };
+  }, [api, project.id, status]);
+  const activeExecutionStep = selectedItemKey === null || selectedWorkflow === null ||
+    selectedStep === null ? null : executionSteps.find((step) =>
+      step.work_item_key === selectedItemKey &&
+      step.workflow_index === selectedWorkflow &&
+      step.step_index === selectedStep
+    );
+
   const selectedItem = graph?.workItems.find((item) => item.key === selectedItemKey);
   const approved = status === "APPROVED";
   const canEdit = !approved && !busy;
@@ -471,10 +501,28 @@ export function PlanReview({ project, originalIntent, plan, api, onBack, onUpdat
                           </label>
                         </>
                       )}
-                      <p className="orbit-detail-muted">
-                        Execution is not available from this planning view. Prerequisite completion
-                        must be verified by the execution service.
-                      </p>
+                      <div className="orbit-detail-card" aria-live="polite">
+                        <h4>Authoritative execution status</h4>
+                        {!approved ? (
+                          <p>Approve the plan before preparing execution.</p>
+                        ) : executionLoading ? (
+                          <p>Loading execution state…</p>
+                        ) : executionError ? (
+                          <p role="alert">{executionError}</p>
+                        ) : activeExecutionStep ? (
+                          <>
+                            <p>State: {activeExecutionStep.state}</p>
+                            <p>Blocker: {activeExecutionStep.blocker_reason ?? "None reported"}</p>
+                            <p>Agent session: {activeExecutionStep.agent_session_id ?? "Not bound"}</p>
+                          </>
+                        ) : (
+                          <p>No persisted execution step found. Plan approval does not start Muse.</p>
+                        )}
+                        <p className="orbit-detail-muted">
+                          Muse dispatch is not yet enabled from this view. Execution requires
+                          server-verified prerequisites, authorization, and an isolated worker.
+                        </p>
+                      </div>
                     </div>
                   ) : (
                     <div className="orbit-detail-card orbit-detail-card--canvas">
