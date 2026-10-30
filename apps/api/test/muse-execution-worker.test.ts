@@ -66,7 +66,8 @@ describe("isolated Muse execution worker", () => {
           fn({
             query: async (sql: string) => {
               statements.push(sql);
-              if (sql.includes("FROM muse_execution_jobs job")) return { rows: [{ ...job, ...overrides }] };
+              if (sql.includes("FROM muse_execution_jobs job"))
+                return { rows: [{ ...job, ...overrides }] };
               return { rows: [] };
             },
           }),

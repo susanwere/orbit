@@ -121,11 +121,16 @@ export class MuseExecutionWorker {
     const repositories = job.allowed_repositories;
     const paths = job.allowed_paths;
     const validStrings = (value: unknown): value is string[] =>
-      Array.isArray(value) && value.length > 0 &&
+      Array.isArray(value) &&
+      value.length > 0 &&
       value.every((entry) => typeof entry === "string" && entry.length > 0);
-    if (!validStrings(repositories) || !validStrings(paths) ||
-        job.network_policy !== "none" ||
-        !Array.isArray(job.network_allowlist) || job.network_allowlist.length > 0) {
+    if (
+      !validStrings(repositories) ||
+      !validStrings(paths) ||
+      job.network_policy !== "none" ||
+      !Array.isArray(job.network_allowlist) ||
+      job.network_allowlist.length > 0
+    ) {
       failure = "Execution contract requires explicit, offline repository and path grants.";
     }
     try {
