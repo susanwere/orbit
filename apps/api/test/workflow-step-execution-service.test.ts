@@ -242,9 +242,7 @@ describe("human-authorized failed step retry", () => {
     expect(update).toContain("job.status IN ('QUEUED','RUNNING','TURN_FINISHED')");
     expect(update).toContain("gate.status='OPEN'");
     expect(update).toContain("approved_by_principal_id=NULL");
-    expect(statements.some((sql) => sql.includes("'execution.step.retry_authorized'"))).toBe(
-      true,
-    );
+    expect(statements.some((sql) => sql.includes("'execution.step.retry_authorized'"))).toBe(true);
     expect(statements.some((sql) => sql.includes("UPDATE muse_execution_jobs"))).toBe(false);
   });
 
