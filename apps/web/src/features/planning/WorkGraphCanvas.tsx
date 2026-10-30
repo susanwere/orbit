@@ -119,7 +119,44 @@ interface Props {
 export function WorkGraphCanvas({ items, intent, approved, selectedItemKey, onSelect }: Props) {
   const graph = useMemo(() => projectPlanGraph(items, intent), [items, intent]);
 
-  const positions = new Map(graph.nodes.map((node) => [node.id, node]));
+  const visibleNodes = graph.nodes.filter((node) => node.kind === "intent" || node.kind === "work");
+  const visibleIds = new Set(visibleNodes.map((node) => node.id));
+  const columns = new Map<number, GraphNode[]>();
+  const depths = new Map<string, number>();
+  const byKey = new Map(items.map((item) => [item.key, item]));
+  function depth(key: string, seen = new Set<string>()): number {
+    if (depths.has(key)) return depths.get(key)!;
+    if (seen.has(key)) return 0;
+    const item = byKey.get(key);
+    if (!item) return 0;
+    const ancestors = new Set(seen);
+    ancestors.add(key);
+    const level = Math.max(
+      1,
+      ...item.dependsOn
+        .filter((parent) => byKey.has(parent))
+        .map((parent) => depth(parent, ancestors) + 1),
+    );
+    depths.set(key, level);
+    return level;
+  }
+  for (const node of visibleNodes) {
+    const column = node.kind === "intent" ? 0 : depth(node.target!);
+    columns.set(column, [...(columns.get(column) ?? []), node]);
+  }
+  const maxDepth = Math.max(0, ...columns.keys());
+  const positions = new Map<string, { x: number; y: number }>();
+  for (const [level, nodes] of columns) {
+    nodes.forEach((node, index) =>
+      positions.set(node.id, {
+        x: (level - maxDepth / 2) * 4.6,
+        y: (nodes.length - 1) * 1.8 - index * 3.6,
+      }),
+    );
+  }
+  const visibleEdges = graph.edges.filter(
+    (edge) => visibleIds.has(edge.from) && visibleIds.has(edge.to),
+  );
   const choose = (node: GraphNode) => {
     onSelect(node.target ?? null);
   };
@@ -129,8 +166,7 @@ export function WorkGraphCanvas({ items, intent, approved, selectedItemKey, onSe
       <div className="workgraph-legend" aria-label="Workflow graph legend">
         <span>● Intent</span>
         <span>● Work item</span>
-        <span>● Workflow</span>
-        <span>◆ Approval gate</span>
+        <span>● Work items contain workflows and approval gates</span>
         <strong>{approved ? "Approved plan" : "Proposed only · not running"}</strong>
       </div>
       <div className="workgraph-scene" aria-label="Connected plan graph">
@@ -140,7 +176,7 @@ export function WorkGraphCanvas({ items, intent, approved, selectedItemKey, onSe
           gl={{ alpha: true, antialias: true }}
         >
           <ambientLight intensity={1.1} />
-          {graph.edges.map((edge, index) => {
+          {visibleEdges.map((edge, index) => {
             const start = positions.get(edge.from);
             const end = positions.get(edge.to);
             if (!start || !end) return null;
@@ -156,10 +192,10 @@ export function WorkGraphCanvas({ items, intent, approved, selectedItemKey, onSe
               />
             );
           })}
-          {graph.nodes.map((node) => (
+          {visibleNodes.map((node) => (
             <Html
               key={node.id}
-              position={[node.x, node.y, 0]}
+              position={[positions.get(node.id)!.x, positions.get(node.id)!.y, 0]}
               center
               transform={false}
               zIndexRange={[15, 5]}
@@ -175,9 +211,13 @@ export function WorkGraphCanvas({ items, intent, approved, selectedItemKey, onSe
                   node.target ? "Show this work item's configuration" : "Original project intent"
                 }
               >
-                <span>{node.kind === "gate" ? "◆ HUMAN GATE" : node.kind.toUpperCase()}</span>
+                <span>{node.kind === "intent" ? "ORIGINAL INTENT" : "WORK ITEM"}</span>
                 <strong>{node.title}</strong>
-                <small>{node.subtitle}</small>
+                <small>
+                  {node.kind === "work"
+                    ? `${items.find((item) => item.key === node.target)?.workflows.length ?? 0} workflows · Click to configure`
+                    : node.subtitle}
+                </small>
               </button>
             </Html>
           ))}
@@ -192,11 +232,11 @@ export function WorkGraphCanvas({ items, intent, approved, selectedItemKey, onSe
         </Canvas>
       </div>
       <div className="workgraph-footer">
-        <span>Drag to pan · scroll to zoom · select a node to inspect</span>
+        <span>Drag to pan · scroll to zoom · select a work item to configure its workflows</span>
         <details>
           <summary>Accessible node list</summary>
           <ul>
-            {graph.nodes.map((node) => (
+            {visibleNodes.map((node) => (
               <li key={node.id}>
                 <button type="button" onClick={() => choose(node)}>
                   {node.title} · {node.kind}

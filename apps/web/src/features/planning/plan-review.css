@@ -382,3 +382,276 @@
     padding: 1rem;
   }
 }
+
+/* ORB-78: full-width work graph and dedicated, uncluttered configuration workspace. */
+.orbit-full-canvas {
+  min-width: 0;
+  background: #0b0f18;
+}
+.orbit-full-canvas .workgraph-root {
+  min-height: min(700px, 78vh);
+  height: calc(100vh - 205px);
+}
+.orbit-full-canvas .workgraph-node {
+  width: 238px;
+  min-height: 102px;
+  border-color: #638ad5;
+  border-radius: 16px;
+  background: #182840;
+}
+.orbit-full-canvas .workgraph-node--intent {
+  background: #29243e;
+  border-color: #a69be8;
+}
+.orbit-detail-page {
+  width: min(100% - 3rem, 900px);
+  margin: 0 auto;
+  padding: 2rem 0 5rem;
+}
+.orbit-detail-back {
+  border: 0;
+  background: none;
+  color: #a9c2ff;
+  cursor: pointer;
+  padding: 0.5rem 0;
+  font: inherit;
+}
+.orbit-detail-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 2rem;
+  padding: 2rem 0 1.6rem;
+}
+.orbit-detail-eyebrow {
+  color: #91aff0;
+  letter-spacing: 0.1em;
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+.orbit-detail-heading h2 {
+  font-size: clamp(1.5rem, 3vw, 2.2rem);
+  margin: 0.6rem 0;
+  line-height: 1.2;
+}
+.orbit-detail-heading p,
+.orbit-detail-card > p {
+  color: #9aaac3;
+  line-height: 1.6;
+  margin: 0.4rem 0 1.5rem;
+}
+.orbit-detail-tag {
+  border: 1px solid #4f6da8;
+  border-radius: 999px;
+  color: #bed0fa;
+  padding: 0.45rem 0.75rem;
+  white-space: nowrap;
+  font-size: 0.75rem;
+}
+.orbit-detail-tabs {
+  display: flex;
+  gap: 1.5rem;
+  border-bottom: 1px solid #2b3750;
+  overflow-x: auto;
+}
+.orbit-detail-tabs button {
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: #9eacc4;
+  padding: 0.9rem 0.2rem;
+  cursor: pointer;
+  font: inherit;
+  white-space: nowrap;
+}
+.orbit-detail-tabs button.is-active {
+  border-bottom-color: #79a1ff;
+  color: #d7e5ff;
+}
+.orbit-detail-content {
+  padding-top: 1.6rem;
+}
+.orbit-detail-card {
+  background: #131b29;
+  border: 1px solid #2b3b55;
+  border-radius: 18px;
+  padding: clamp(1.2rem, 3vw, 2rem);
+}
+.orbit-detail-card h3 {
+  margin: 0;
+  font-size: 1.2rem;
+}
+.orbit-detail-card label:not(.orbit-dependency-choice):not(.orbit-approval-choice) {
+  display: block;
+  color: #dce6f8;
+  font-weight: 600;
+  font-size: 0.85rem;
+  margin: 1.4rem 0 0.5rem;
+}
+.orbit-detail-card input:not([type="checkbox"]),
+.orbit-detail-card textarea,
+.orbit-detail-card select {
+  width: 100%;
+  font: inherit;
+  color: #f2f6ff;
+  background: #0e1522;
+  border: 1px solid #435778;
+  border-radius: 10px;
+  padding: 0.85rem 1rem;
+}
+.orbit-detail-card :is(input, select, textarea):focus-visible,
+.orbit-detail-page button:focus-visible {
+  outline: 2px solid #91adff;
+  outline-offset: 3px;
+}
+.orbit-detail-muted {
+  margin-top: 1.4rem;
+  color: #92a9ca;
+  font-size: 0.8rem;
+}
+.orbit-workflow-detail {
+  border: 1px solid #304360;
+  border-radius: 12px;
+  margin-top: 1rem;
+  overflow: hidden;
+}
+.orbit-workflow-detail summary {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: center;
+  padding: 1.2rem;
+  cursor: pointer;
+}
+.orbit-workflow-detail summary span:first-child {
+  display: grid;
+  gap: 0.4rem;
+}
+.orbit-workflow-detail summary small {
+  color: #9aacc9;
+}
+.orbit-workflow-fields {
+  padding: 0 1.2rem 1.2rem;
+}
+.orbit-step-card {
+  margin-top: 1.2rem;
+  padding: 1.2rem;
+  background: #0e1725;
+  border-radius: 12px;
+  border: 1px solid #293a56;
+}
+.orbit-detail-card .orbit-approval-choice {
+  display: flex;
+  gap: 0.7rem;
+  align-items: center;
+  margin-top: 1rem;
+}
+.orbit-dependency-choices {
+  display: grid;
+  gap: 0.65rem;
+}
+.orbit-dependency-choice {
+  display: flex;
+  gap: 0.8rem;
+  align-items: center;
+  border: 1px solid #30415c;
+  border-radius: 12px;
+  padding: 1rem;
+}
+.orbit-dependency-choice span {
+  display: grid;
+  gap: 0.25rem;
+}
+.orbit-dependency-choice small {
+  color: #92a8ca;
+}
+.orbit-plan-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 1.5rem;
+  padding: 1rem 1.5rem;
+  border-top: 1px solid #29354b;
+  background: #101622;
+}
+.orbit-plan-footer > div:first-child {
+  display: grid;
+  gap: 0.3rem;
+}
+.orbit-plan-footer small {
+  color: #94a4bb;
+}
+.orbit-plan-footer-actions {
+  display: flex;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+.orbit-plan-footer-actions button {
+  background: #1c2a41;
+  color: #eff4ff;
+  border: 1px solid #48618f;
+  border-radius: 9px;
+  padding: 0.65rem 0.9rem;
+  cursor: pointer;
+}
+.orbit-plan-footer-actions button.cta-primary {
+  background: #426ee8;
+}
+.orbit-plan-footer-actions button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+@media (max-width: 700px) {
+  .orbit-detail-page {
+    width: min(100% - 2rem, 900px);
+  }
+  .orbit-detail-heading {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  .orbit-full-canvas .workgraph-root {
+    height: 560px;
+  }
+}
+
+.orbit-plan-settings {
+  margin: 1rem 1.5rem 0;
+  border: 1px solid #334560;
+  background: #121b2c;
+  border-radius: 12px;
+}
+.orbit-plan-settings summary {
+  cursor: pointer;
+  padding: 1rem 1.2rem;
+  color: #b9d0fb;
+  font-weight: 600;
+}
+.orbit-plan-settings-content {
+  display: grid;
+  gap: 0.7rem;
+  padding: 0 1.2rem 1.2rem;
+}
+.orbit-plan-settings-content label {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #cbd9f1;
+}
+.orbit-plan-settings-content textarea {
+  width: 100%;
+  padding: 0.8rem;
+  border: 1px solid #425a7b;
+  border-radius: 9px;
+  background: #0c1422;
+  color: #eef3ff;
+  font: inherit;
+}
+.orbit-plan-settings-content button {
+  justify-self: start;
+  border: 1px solid #5172b1;
+  border-radius: 9px;
+  padding: 0.75rem 1rem;
+  color: #e4edff;
+  background: #21385b;
+  cursor: pointer;
+}
