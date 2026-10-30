@@ -614,3 +614,44 @@
     height: 560px;
   }
 }
+
+.orbit-plan-settings {
+  margin: 1rem 1.5rem 0;
+  border: 1px solid #334560;
+  background: #121b2c;
+  border-radius: 12px;
+}
+.orbit-plan-settings summary {
+  cursor: pointer;
+  padding: 1rem 1.2rem;
+  color: #b9d0fb;
+  font-weight: 600;
+}
+.orbit-plan-settings-content {
+  display: grid;
+  gap: 0.7rem;
+  padding: 0 1.2rem 1.2rem;
+}
+.orbit-plan-settings-content label {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #cbd9f1;
+}
+.orbit-plan-settings-content textarea {
+  width: 100%;
+  padding: 0.8rem;
+  border: 1px solid #425a7b;
+  border-radius: 9px;
+  background: #0c1422;
+  color: #eef3ff;
+  font: inherit;
+}
+.orbit-plan-settings-content button {
+  justify-self: start;
+  border: 1px solid #5172b1;
+  border-radius: 9px;
+  padding: 0.75rem 1rem;
+  color: #e4edff;
+  background: #21385b;
+  cursor: pointer;
+}
