@@ -21,7 +21,12 @@ function run(command: string, args: string[], cwd: string): Promise<void> {
   return new Promise((accept, reject) => {
     // Running npm scripts from generated code is potentially unsafe.
     // Only use a disposable checkout containing no secrets.
-    const child = spawn(command, args, { cwd, stdio: "inherit", shell: false, env: previewEnv });
+    const child = spawn(command, args, {
+      cwd,
+      stdio: "inherit",
+      shell: false,
+      env: previewEnv,
+    });
     child.on("error", reject);
     child.on("exit", (code) =>
       code === 0 ? accept() : reject(new Error(`${command} exited ${code}`)),
