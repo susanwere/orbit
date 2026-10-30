@@ -22,7 +22,16 @@ function harness({
       return { rows: [{}] };
     }
     if (sql.includes("JOIN plan_proposals")) {
-      return { rows: [{ id: "step", state, approval_required: true, approved_by_principal_id: approved ? "reviewer" : null }] };
+      return {
+        rows: [
+          {
+            id: "step",
+            state,
+            approval_required: true,
+            approved_by_principal_id: approved ? "reviewer" : null,
+          },
+        ],
+      };
     }
     if (sql.includes("FROM workflow_step_prerequisites")) {
       return { rows: Array.from({ length: prerequisites }, (_, index) => ({ id: String(index) })) };
@@ -37,7 +46,13 @@ function harness({
     db as never,
     { authorize: async () => ({ organizationId: "org", role: "member" }) } as never,
   );
-  return { service, statements, get updates() { return updates; } };
+  return {
+    service,
+    statements,
+    get updates() {
+      return updates;
+    },
+  };
 }
 
 describe("authoritative step execution", () => {
@@ -48,7 +63,9 @@ describe("authoritative step execution", () => {
     await expect(h.service.start(input)).resolves.toMatchObject({ state: "RUNNING" });
     expect(h.updates).toBe(1);
     expect(h.statements.some((sql) => sql.includes("p.status='APPROVED'"))).toBe(true);
-    expect(h.statements.some((sql) => sql.includes("prerequisite.state <> 'COMPLETED'"))).toBe(true);
+    expect(h.statements.some((sql) => sql.includes("prerequisite.state <> 'COMPLETED'"))).toBe(
+      true,
+    );
   });
 
   it("blocks pending approval without changing state", async () => {
@@ -72,8 +89,16 @@ describe("authoritative step execution", () => {
   it("denies unauthorized principals before querying step records", async () => {
     let queried = false;
     const service = new WorkflowStepExecutionService(
-      { transaction: async () => { queried = true; } } as never,
-      { authorize: async () => { throw new Error("Not authorized"); } } as never,
+      {
+        transaction: async () => {
+          queried = true;
+        },
+      } as never,
+      {
+        authorize: async () => {
+          throw new Error("Not authorized");
+        },
+      } as never,
     );
     await expect(service.start(input)).rejects.toThrow("Not authorized");
     expect(queried).toBe(false);
