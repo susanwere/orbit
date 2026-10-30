@@ -80,8 +80,13 @@ describe("approved plan step materialization", () => {
       entry.sql.includes("INSERT INTO workflow_step_executions"),
     );
     expect(inserted).toHaveLength(4);
-    const workItems = h.statements.filter((entry) => entry.sql.includes("INSERT INTO orbit_work_items"));
-    expect(workItems.map((entry) => entry.params[0])).toEqual(["work:plan:setup", "work:plan:build"]);
+    const workItems = h.statements.filter((entry) =>
+      entry.sql.includes("INSERT INTO orbit_work_items"),
+    );
+    expect(workItems.map((entry) => entry.params[0])).toEqual([
+      "work:plan:setup",
+      "work:plan:build",
+    ]);
     expect(inserted[1]?.params.at(-1)).toBe(true);
     expect(inserted[0]?.params[4]).toBe(3);
   });
