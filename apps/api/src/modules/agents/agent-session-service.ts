@@ -130,25 +130,58 @@ export class AgentSessionService {
   }
   async start(projectId: string, principalId: string, sessionId: string) {
     const actor = await this.auth.authorize(principalId, projectId, "review");
-    const result = await this.db.query<Record<string, unknown>>(
-      `UPDATE agent_sessions
-      SET state='RUNNING',started_at=now()
-      WHERE project_id=$1 AND organization_id=$5 AND id=$2 AND state='AUTHORIZED'
-        AND (human_owner_principal_id=$3 OR requested_by_principal_id=$3 OR $4='admin')
-        AND EXISTS (
-          SELECT 1 FROM plan_proposals p
-          WHERE p.project_id=agent_sessions.project_id
-            AND p.organization_id=agent_sessions.organization_id
-            AND p.status='APPROVED'
-        )
-      RETURNING *`,
-      [projectId, sessionId, principalId, actor.role, actor.organizationId],
-    );
-    if (!result.rows[0])
-      throw new DomainError(
-        "invalid_state",
-        "Session cannot start without an approved project plan and valid authorization.",
+    return this.db.transaction(async (tx) => {
+      await tx.query("SELECT pg_advisory_xact_lock(hashtextextended($1, 0))", [
+        `orbit:steps:${actor.organizationId}:${projectId}`,
+      ]);
+      const eligible = await tx.query<Record<string, unknown>>(
+        `SELECT step.id AS step_id
+         FROM workflow_step_executions step
+         JOIN agent_sessions session ON session.id=step.agent_session_id
+           AND session.project_id=step.project_id AND session.organization_id=step.organization_id
+         JOIN plan_proposals plan ON plan.id=step.plan_id
+           AND plan.project_id=step.project_id AND plan.organization_id=step.organization_id
+         WHERE session.id=$1 AND step.project_id=$2 AND step.organization_id=$3
+           AND session.state='AUTHORIZED' AND step.state IN ('READY','BLOCKED')
+           AND plan.status='APPROVED' AND plan.revision=step.plan_revision
+           AND (session.human_owner_principal_id=$4 OR session.requested_by_principal_id=$4
+                OR $5='admin')
+           AND (step.approval_required=false OR step.approved_by_principal_id IS NOT NULL)
+           AND NOT EXISTS (
+             SELECT 1 FROM workflow_step_prerequisites dep
+             JOIN workflow_step_executions prerequisite ON prerequisite.id=dep.prerequisite_step_id
+               AND prerequisite.project_id=dep.project_id
+             WHERE dep.project_id=step.project_id AND dep.step_id=step.id
+               AND (prerequisite.state <> 'COMPLETED' OR prerequisite.plan_id<>step.plan_id)
+           )
+           AND NOT EXISTS (
+             SELECT 1 FROM human_gates gate
+             WHERE gate.agent_session_id=session.id AND gate.project_id=session.project_id
+               AND gate.organization_id=session.organization_id AND gate.status='OPEN'
+           )
+         FOR UPDATE OF step,session`,
+        [sessionId, projectId, actor.organizationId, principalId, actor.role],
       );
-    return result.rows[0];
+      const stepId = eligible.rows[0]?.step_id;
+      if (typeof stepId !== "string") {
+        throw new DomainError("invalid_state", "Session step is blocked, unapproved, or missing.");
+      }
+      const started = await tx.query<Record<string, unknown>>(
+        `UPDATE agent_sessions
+         SET state='RUNNING',started_at=now()
+         WHERE id=$1 AND project_id=$2 AND organization_id=$3 AND state='AUTHORIZED'
+         RETURNING *`,
+        [sessionId, projectId, actor.organizationId],
+      );
+      if (!started.rows[0]) throw new DomainError("invalid_state", "Session start conflict.");
+      const updated = await tx.query<Record<string, unknown>>(
+        `UPDATE workflow_step_executions SET state='RUNNING',started_at=now()
+         WHERE id=$1 AND project_id=$2 AND organization_id=$3
+           AND agent_session_id=$4 AND state IN ('READY','BLOCKED') RETURNING id`,
+        [stepId, projectId, actor.organizationId, sessionId],
+      );
+      if (!updated.rows[0]) throw new DomainError("invalid_state", "Step start conflict.");
+      return { ...started.rows[0], workflowStepId: stepId };
+    });
   }
 }
