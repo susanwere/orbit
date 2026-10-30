@@ -1,6 +1,6 @@
 import { Canvas } from "@react-three/fiber";
 import { Html, Line, MapControls } from "@react-three/drei";
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import "./workgraph-canvas.css";
 
 interface WorkStep {
@@ -88,10 +88,7 @@ export function projectPlanGraph(
           y: y - 2.05 - wi * 2,
           target: item.key,
         });
-        edges.push({
-          from: wi === 0 ? workId : `workflow:${item.key}:${wi - 1}`,
-          to: workflowId,
-        });
+        edges.push({ from: wi === 0 ? workId : `workflow:${item.key}:${wi - 1}`, to: workflowId });
         if (workflow.steps.some((step) => step.requiresApproval)) {
           const gateId = `gate:${item.key}:${wi}`;
           nodes.push({
@@ -115,16 +112,16 @@ interface Props {
   readonly items: readonly WorkItem[];
   readonly intent: string;
   readonly approved: boolean;
-  readonly onSelect: (key: string) => void;
+  readonly selectedItemKey: string | null;
+  readonly onSelect: (key: string | null) => void;
 }
 
-export function WorkGraphCanvas({ items, intent, approved, onSelect }: Props) {
+export function WorkGraphCanvas({ items, intent, approved, selectedItemKey, onSelect }: Props) {
   const graph = useMemo(() => projectPlanGraph(items, intent), [items, intent]);
-  const [selected, setSelected] = useState<string>("intent");
+
   const positions = new Map(graph.nodes.map((node) => [node.id, node]));
   const choose = (node: GraphNode) => {
-    setSelected(node.id);
-    if (node.target) onSelect(node.target);
+    onSelect(node.target ?? null);
   };
 
   return (
@@ -169,12 +166,10 @@ export function WorkGraphCanvas({ items, intent, approved, onSelect }: Props) {
             >
               <button
                 type="button"
-                className={`workgraph-node workgraph-node--${node.kind} ${selected === node.id ? "is-selected" : ""}`}
-                aria-pressed={selected === node.id}
+                className={`workgraph-node workgraph-node--${node.kind} ${(node.target ? selectedItemKey === node.target : selectedItemKey === null) ? "is-selected" : ""}`}
+                aria-pressed={node.target ? selectedItemKey === node.target : selectedItemKey === null}
                 onClick={() => choose(node)}
-                title={
-                  node.target ? "Show this work item's configuration" : "Original project intent"
-                }
+                title={node.target ? "Show this work item's configuration" : "Original project intent"}
               >
                 <span>{node.kind === "gate" ? "◆ HUMAN GATE" : node.kind.toUpperCase()}</span>
                 <strong>{node.title}</strong>

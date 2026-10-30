@@ -88,8 +88,10 @@ export function PlanReview({ project, originalIntent, plan, api, onBack, onUpdat
   const [revision, setRevision] = useState(plan.revision);
   const [status, setStatus] = useState(plan.status);
   const [dirty, setDirty] = useState(false);
+  const [selectedItemKey, setSelectedItemKey] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const selectedItem = graph?.workItems.find((item) => item.key === selectedItemKey);
   const approved = status === "APPROVED";
   const canEdit = !approved && !busy;
 
@@ -123,6 +125,7 @@ export function PlanReview({ project, originalIntent, plan, api, onBack, onUpdat
       const latestGraph = readGraph(current.content);
       if (!latestGraph) throw new Error("The plan has an unsupported shape.");
       setGraph(latestGraph);
+      setSelectedItemKey((key) => latestGraph.workItems.some((item) => item.key === key) ? key : null);
       setRevision(current.revision);
       setStatus(current.status);
       setDirty(false);
@@ -210,12 +213,8 @@ export function PlanReview({ project, originalIntent, plan, api, onBack, onUpdat
                 items={graph.workItems}
                 intent={originalIntent?.statement ?? "Original intent"}
                 approved={approved}
-                onSelect={(key) => {
-                  const index = graph.workItems.findIndex((item) => item.key === key);
-                  if (index >= 0) {
-                    document.getElementById(`plan-title-${index}`)?.focus();
-                  }
-                }}
+                selectedItemKey={selectedItemKey}
+                onSelect={(key) => setSelectedItemKey(key)}
               />
             )}
           </section>
@@ -230,10 +229,11 @@ export function PlanReview({ project, originalIntent, plan, api, onBack, onUpdat
               </button>
             </div>
             <p className="intent-overline">PLAN INSPECTOR · HUMAN REVIEW</p>
-            <h2 className="orbit-workspace-inspector-heading">Review & configure</h2>
+            <h2 className="orbit-workspace-inspector-heading">{selectedItem ? selectedItem.title : "Plan overview"}</h2>
             <p className="intent-description">
-              Muse Spark suggests the work. You decide what gets approved. No agent runs, repository
-              changes, or external work items are created from this screen.
+              {selectedItem
+                ? "Configure the selected work item and its proposed workflows."
+                : "Select a canvas node to inspect its configuration. Approval does not start any agents."}
             </p>
             {originalIntent && (
               <details className="plan-original">
@@ -256,7 +256,8 @@ export function PlanReview({ project, originalIntent, plan, api, onBack, onUpdat
               </div>
             ) : (
               <>
-                <label htmlFor="plan-summary">Proposed outcome</label>
+                {!selectedItem && <label htmlFor="plan-summary">Proposed outcome</label>}
+                {!selectedItem && (
                 <textarea
                   id="plan-summary"
                   className="plan-textarea"
@@ -266,9 +267,18 @@ export function PlanReview({ project, originalIntent, plan, api, onBack, onUpdat
                   disabled={!canEdit}
                   onChange={(event) => change({ ...graph, summary: event.target.value })}
                 />
-                <h2>Work items & workflows</h2>
-                <div className="plan-work-items">
-                  {graph.workItems.map((item, index) => (
+                )}
+                {selectedItem && (
+                  <button type="button" onClick={() => setSelectedItemKey(null)}>
+                    ← Back to plan overview
+                  </button>
+                )}
+                <h2>{selectedItem ? "Selected work item" : "Work items"}</h2>
+                {!selectedItem && <p className="intent-hint">Select a work item in the canvas to edit only that item. All changes remain proposals until approved.</p>}
+                {selectedItem && <div className="plan-work-items">
+                  {graph.workItems.filter((item) => !selectedItemKey || item.key === selectedItemKey).map((item) => {
+                    const index = graph.workItems.findIndex((entry) => entry.key === item.key);
+                    return (
                     <article className="plan-work-item" key={item.key}>
                       <div className="plan-item-top">
                         <strong>{item.key}</strong>
@@ -277,6 +287,7 @@ export function PlanReview({ project, originalIntent, plan, api, onBack, onUpdat
                           disabled={!canEdit || graph.workItems.length <= 1}
                           onClick={() => {
                             const removed = item.key;
+                            setSelectedItemKey(null);
                             change({
                               ...graph,
                               workItems: graph.workItems
@@ -383,8 +394,9 @@ export function PlanReview({ project, originalIntent, plan, api, onBack, onUpdat
                         </div>
                       ))}
                     </article>
-                  ))}
-                </div>
+                    );
+                  })}
+                </div>}
                 <button
                   type="button"
                   disabled={!canEdit || graph.workItems.length >= 30}
@@ -392,12 +404,14 @@ export function PlanReview({ project, originalIntent, plan, api, onBack, onUpdat
                     const keys = new Set(graph.workItems.map((item) => item.key));
                     let i = 1;
                     while (keys.has(`NEW-${i}`)) i++;
+                    const newKey = `NEW-${i}`;
+                    setSelectedItemKey(newKey);
                     change({
                       ...graph,
                       workItems: [
                         ...graph.workItems,
                         {
-                          key: `NEW-${i}`,
+                          key: newKey,
                           title: "New work item",
                           description: "Describe the work and expected outcome",
                           dependsOn: [],
@@ -420,7 +434,7 @@ export function PlanReview({ project, originalIntent, plan, api, onBack, onUpdat
                 >
                   Add work item
                 </button>
-                <div className="plan-lists">
+                {!selectedItem && <div className="plan-lists">
                   {(
                     [
                       ["guardrails", "Proposed guardrails"],
@@ -439,7 +453,7 @@ export function PlanReview({ project, originalIntent, plan, api, onBack, onUpdat
                       />
                     </div>
                   ))}
-                </div>
+                </div>}
                 <p className="intent-hint">
                   All work and guardrails above are proposals, not executed or enforced policies.
                   Approval records human acceptance; execution is a separate controlled step.
