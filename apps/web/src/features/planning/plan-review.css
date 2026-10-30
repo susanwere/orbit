@@ -692,3 +692,118 @@
   outline: 2px solid #9abbff;
   outline-offset: 3px;
 }
+
+/* Shared visual rhythm for project, workflow, and step canvases. */
+.orbit-detail-page--canvas {
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  padding: 1.5rem 0 0;
+}
+.orbit-detail-page--canvas > .orbit-detail-back,
+.orbit-detail-page--canvas > .orbit-detail-heading,
+.orbit-detail-page--canvas > .orbit-detail-tabs,
+.orbit-detail-page--canvas > .orbit-detail-content > .orbit-detail-tabs {
+  margin-left: clamp(1.25rem, 4vw, 3rem);
+  margin-right: clamp(1.25rem, 4vw, 3rem);
+}
+.orbit-detail-page--canvas > .orbit-detail-heading {
+  padding: 1rem 0 2rem;
+}
+.orbit-detail-page--canvas .orbit-detail-content {
+  padding-top: 0;
+}
+.orbit-detail-card--canvas {
+  padding: 0;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+}
+.orbit-detail-card--canvas > h3,
+.orbit-detail-card--canvas > p,
+.orbit-detail-card--canvas > label,
+.orbit-detail-card--canvas > input {
+  margin-left: clamp(1.25rem, 4vw, 3rem);
+  margin-right: clamp(1.25rem, 4vw, 3rem);
+}
+.orbit-detail-card--canvas > h3 {
+  margin-top: 2rem;
+}
+.orbit-nested-stage {
+  min-height: 510px;
+  margin-top: 2rem;
+  background-color: #0b0f18;
+  background-image: radial-gradient(#343e56 0.8px, transparent 0.8px);
+  background-size: 20px 20px;
+}
+.orbit-nested-stage-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1.4rem 1.75rem;
+  background: #0b0f18;
+  color: #a0adc7;
+  font-size: 0.76rem;
+}
+.orbit-nested-stage-head strong {
+  font-weight: 500;
+  color: #d9e4f7;
+}
+.orbit-nested-stage-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.4rem;
+  padding: 0.8rem 1.75rem;
+  background: #0e1420;
+  border-top: 1px solid #27354d;
+  border-bottom: 1px solid #27354d;
+  color: #a9bce7;
+  font-size: 0.75rem;
+}
+.orbit-nested-graph {
+  align-items: center;
+  justify-content: safe center;
+  min-height: 370px;
+  padding: 3rem 2.5rem;
+  margin: 0;
+  gap: 4.5rem;
+  overflow-x: auto;
+}
+.orbit-nested-node {
+  flex: 0 0 238px;
+  min-height: 110px;
+  border-radius: 16px;
+  background: #192b46;
+  border-color: #668fd6;
+}
+.orbit-nested-node:not(:last-child) {
+  position: relative;
+}
+.orbit-nested-node:not(:last-child)::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: calc(100% + 1px);
+  width: 4.5rem;
+  border-top: 1px solid #7299db;
+  pointer-events: none;
+}
+.orbit-nested-node:hover {
+  border-color: #adc9ff;
+  background: #203452;
+}
+@media (max-width: 750px) {
+  .orbit-nested-graph {
+    justify-content: flex-start;
+    gap: 2.4rem;
+    min-height: 340px;
+    padding: 2rem 1rem;
+  }
+  .orbit-nested-node {
+    flex-basis: 200px;
+  }
+  .orbit-nested-node:not(:last-child)::after {
+    width: 2.4rem;
+  }
+}
