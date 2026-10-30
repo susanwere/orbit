@@ -12,12 +12,14 @@ export class MuseLeaseRecoveryService {
     if (!Number.isInteger(limit) || limit < 1 || limit > 100)
       throw new Error("Invalid recovery batch size.");
     return this.db.transaction(async (tx) => {
-      const claims = await tx.query<{
-        id: string;
-        project_id: string;
-        agent_session_id: string;
-        workflow_step_id: string;
-      } & Record<string, unknown>>(
+      const claims = await tx.query<
+        {
+          id: string;
+          project_id: string;
+          agent_session_id: string;
+          workflow_step_id: string;
+        } & Record<string, unknown>
+      >(
         `SELECT id,project_id,agent_session_id,workflow_step_id
          FROM muse_execution_jobs WHERE status='RUNNING'
            AND lease_expires_at IS NOT NULL AND lease_expires_at < now()

@@ -12,16 +12,18 @@ describe("Muse crashed worker lease recovery", () => {
     const statements: string[] = [];
     const service = new MuseLeaseRecoveryService({
       transaction: async (fn: (tx: unknown) => Promise<unknown>) =>
-        fn({ query: async (sql: string, args: unknown[]) => {
-          statements.push(sql);
-          if (sql.includes("FROM muse_execution_jobs WHERE status='RUNNING'")) {
-            expect(args).toEqual([50]);
-            return { rows: claimed ? [job] : [] };
-          }
-          if (sql.includes("UPDATE muse_execution_jobs"))
-            return { rows: updated ? [{ id: "job" }] : [] };
-          return { rows: [] };
-        } }),
+        fn({
+          query: async (sql: string, args: unknown[]) => {
+            statements.push(sql);
+            if (sql.includes("FROM muse_execution_jobs WHERE status='RUNNING'")) {
+              expect(args).toEqual([50]);
+              return { rows: claimed ? [job] : [] };
+            }
+            if (sql.includes("UPDATE muse_execution_jobs"))
+              return { rows: updated ? [{ id: "job" }] : [] };
+            return { rows: [] };
+          },
+        }),
     } as never);
     return { service, statements };
   };
@@ -31,8 +33,12 @@ describe("Muse crashed worker lease recovery", () => {
     await expect(h.service.recoverExpired()).resolves.toBe(1);
     expect(h.statements[0]).toContain("FOR UPDATE SKIP LOCKED");
     expect(h.statements[0]).toContain("lease_expires_at < now()");
-    expect(h.statements.some((q) => q.includes("UPDATE agent_sessions SET state='FAILED'"))).toBe(true);
-    expect(h.statements.some((q) => q.includes("UPDATE workflow_step_executions SET state='FAILED'"))).toBe(true);
+    expect(h.statements.some((q) => q.includes("UPDATE agent_sessions SET state='FAILED'"))).toBe(
+      true,
+    );
+    expect(
+      h.statements.some((q) => q.includes("UPDATE workflow_step_executions SET state='FAILED'")),
+    ).toBe(true);
     expect(h.statements.some((q) => q.includes("SET status='QUEUED'"))).toBe(false);
   });
 
