@@ -1,0 +1,34 @@
+name: Terraform Muse Worker Validation
+
+on:
+  pull_request:
+    paths:
+      - 'infra/muse-worker/**'
+      - '.github/workflows/muse-worker-terraform.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'infra/muse-worker/**'
+      - '.github/workflows/muse-worker-terraform.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: infra/muse-worker
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: '1.9.8'
+      - name: Terraform format
+        run: terraform fmt -check -recursive
+      - name: Initialize without backend
+        run: terraform init -backend=false -input=false
+      - name: Terraform validate
+        run: terraform validate -no-color
