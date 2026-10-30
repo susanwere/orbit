@@ -75,7 +75,9 @@
   border-color: #bd86c8;
   width: 175px;
 }
-.workgraph-node: hover, .workgraph-node.is-selected, .workgraph-node: focus-visible {
+.workgraph-node:hover,
+.workgraph-node.is-selected,
+.workgraph-node:focus-visible {
   border-color: #b7ceff;
   outline: 2px solid #91adff;
   outline-offset: 3px;
@@ -120,17 +122,17 @@
   width: 100%;
   cursor: pointer;
 }
-.workgraph-footer li button: focus-visible {
+.workgraph-footer li button:focus-visible {
   outline: 2px solid #a8c2ff;
 }
-@media(max-width: 800px) {
+@media (max-width: 800px) {
   .workgraph-root {
-    height: 540px
+    height: 540px;
   }
   .workgraph-legend {
-    gap: 0.6rem
+    gap: 0.6rem;
   }
   .workgraph-footer {
-    flex-wrap: wrap
+    flex-wrap: wrap;
   }
 }
