@@ -263,13 +263,13 @@ export function PlanReview({ project, originalIntent, plan, api, onBack, onUpdat
                 {!selectedItem && <label htmlFor="plan-summary">Proposed outcome</label>}
                 {!selectedItem && (
                   <textarea
-                  id="plan-summary"
-                  className="plan-textarea"
-                  rows={3}
-                  maxLength={2000}
-                  value={graph.summary}
-                  disabled={!canEdit}
-                  onChange={(event) => change({ ...graph, summary: event.target.value })}
+                    id="plan-summary"
+                    className="plan-textarea"
+                    rows={3}
+                    maxLength={2000}
+                    value={graph.summary}
+                    disabled={!canEdit}
+                    onChange={(event) => change({ ...graph, summary: event.target.value })}
                   />
                 )}
                 {selectedItem && (
@@ -286,128 +286,133 @@ export function PlanReview({ project, originalIntent, plan, api, onBack, onUpdat
                 )}
                 {selectedItem && (
                   <div className="plan-work-items">
-                  {graph.workItems
-                    .filter((item) => !selectedItemKey || item.key === selectedItemKey)
-                    .map((item) => {
-                    const index = graph.workItems.findIndex((entry) => entry.key === item.key);
-                    return (
-                      <article className="plan-work-item" key={item.key}>
-                      <div className="plan-item-top">
-                        <strong>{item.key}</strong>
-                        <button
-                          type="button"
-                          disabled={!canEdit || graph.workItems.length <= 1}
-                          onClick={() => {
-                            const removed = item.key;
-                            setSelectedItemKey(null);
-                            change({
-                              ...graph,
-                              workItems: graph.workItems
-                                .filter((entry) => entry.key !== removed)
-                                .map((entry) => ({
-                                  ...entry,
-                                  dependsOn: entry.dependsOn.filter((key) => key !== removed),
-                                })),
-                            });
-                          }}
-                        >
-                          Remove item
-                        </button>
-                      </div>
-                      <label htmlFor={`plan-title-${index}`}>Work item title</label>
-                      <input
-                        id={`plan-title-${index}`}
-                        value={item.title}
-                        maxLength={200}
-                        disabled={!canEdit}
-                        onChange={(event) => editItem(index, { title: event.target.value })}
-                      />
-                      <label htmlFor={`plan-description-${index}`}>Description</label>
-                      <textarea
-                        id={`plan-description-${index}`}
-                        rows={2}
-                        maxLength={1200}
-                        value={item.description}
-                        disabled={!canEdit}
-                        onChange={(event) => editItem(index, { description: event.target.value })}
-                      />
-                      <label htmlFor={`plan-dependencies-${index}`}>
-                        Dependencies (work item keys, comma-separated)
-                      </label>
-                      <input
-                        id={`plan-dependencies-${index}`}
-                        value={item.dependsOn.join(", ")}
-                        disabled={!canEdit}
-                        onChange={(event) =>
-                          editItem(index, {
-                            dependsOn: event.target.value
-                              .split(",")
-                              .map((x) => x.trim())
-                              .filter(Boolean),
-                          })
-                        }
-                      />
-                      <h3>Workflows</h3>
-                      {item.workflows.map((workflow, wi) => (
-                        <div className="plan-workflow" key={wi}>
-                          <strong>{workflow.name}</strong>
-                          <ol>
-                            {workflow.steps.map((step, si) => (
-                              <li key={si}>
-                                <label htmlFor={`step-title-${index}-${wi}-${si}`}>Step</label>
-                                <input
-                                  id={`step-title-${index}-${wi}-${si}`}
-                                  value={step.title}
-                                  disabled={!canEdit}
-                                  maxLength={200}
-                                  onChange={(event) => {
-                                    const next = structuredClone(graph);
-                                    next.workItems[index]!.workflows[wi]!.steps[si]!.title =
-                                      event.target.value;
-                                    change(next);
-                                  }}
-                                />
-                                <label htmlFor={`step-executor-${index}-${wi}-${si}`}>
-                                  Executor
-                                </label>
-                                <select
-                                  id={`step-executor-${index}-${wi}-${si}`}
-                                  value={step.executor}
-                                  disabled={!canEdit}
-                                  onChange={(event) => {
-                                    const next = structuredClone(graph);
-                                    next.workItems[index]!.workflows[wi]!.steps[si]!.executor =
-                                      event.target.value as Executor;
-                                    change(next);
-                                  }}
-                                >
-                                  <option value="human">Human</option>
-                                  <option value="agent">Approved agent (proposed)</option>
-                                  <option value="system">System</option>
-                                </select>
-                                <label className="plan-checkbox">
-                                  <input
-                                    type="checkbox"
-                                    checked={step.requiresApproval}
-                                    disabled={!canEdit}
-                                    onChange={(event) => {
-                                      const next = structuredClone(graph);
-                                      next.workItems[index]!.workflows[wi]!.steps[
-                                        si
-                                      ]!.requiresApproval = event.target.checked;
-                                      change(next);
-                                    }}
-                                  />
-                                  Requires human approval
-                                </label>
-                              </li>
+                    {graph.workItems
+                      .filter((item) => !selectedItemKey || item.key === selectedItemKey)
+                      .map((item) => {
+                        const index = graph.workItems.findIndex((entry) => entry.key === item.key);
+                        return (
+                          <article className="plan-work-item" key={item.key}>
+                            <div className="plan-item-top">
+                              <strong>{item.key}</strong>
+                              <button
+                                type="button"
+                                disabled={!canEdit || graph.workItems.length <= 1}
+                                onClick={() => {
+                                  const removed = item.key;
+                                  setSelectedItemKey(null);
+                                  change({
+                                    ...graph,
+                                    workItems: graph.workItems
+                                      .filter((entry) => entry.key !== removed)
+                                      .map((entry) => ({
+                                        ...entry,
+                                        dependsOn: entry.dependsOn.filter((key) => key !== removed),
+                                      })),
+                                  });
+                                }}
+                              >
+                                Remove item
+                              </button>
+                            </div>
+                            <label htmlFor={`plan-title-${index}`}>Work item title</label>
+                            <input
+                              id={`plan-title-${index}`}
+                              value={item.title}
+                              maxLength={200}
+                              disabled={!canEdit}
+                              onChange={(event) => editItem(index, { title: event.target.value })}
+                            />
+                            <label htmlFor={`plan-description-${index}`}>Description</label>
+                            <textarea
+                              id={`plan-description-${index}`}
+                              rows={2}
+                              maxLength={1200}
+                              value={item.description}
+                              disabled={!canEdit}
+                              onChange={(event) =>
+                                editItem(index, { description: event.target.value })
+                              }
+                            />
+                            <label htmlFor={`plan-dependencies-${index}`}>
+                              Dependencies (work item keys, comma-separated)
+                            </label>
+                            <input
+                              id={`plan-dependencies-${index}`}
+                              value={item.dependsOn.join(", ")}
+                              disabled={!canEdit}
+                              onChange={(event) =>
+                                editItem(index, {
+                                  dependsOn: event.target.value
+                                    .split(",")
+                                    .map((x) => x.trim())
+                                    .filter(Boolean),
+                                })
+                              }
+                            />
+                            <h3>Workflows</h3>
+                            {item.workflows.map((workflow, wi) => (
+                              <div className="plan-workflow" key={wi}>
+                                <strong>{workflow.name}</strong>
+                                <ol>
+                                  {workflow.steps.map((step, si) => (
+                                    <li key={si}>
+                                      <label htmlFor={`step-title-${index}-${wi}-${si}`}>
+                                        Step
+                                      </label>
+                                      <input
+                                        id={`step-title-${index}-${wi}-${si}`}
+                                        value={step.title}
+                                        disabled={!canEdit}
+                                        maxLength={200}
+                                        onChange={(event) => {
+                                          const next = structuredClone(graph);
+                                          next.workItems[index]!.workflows[wi]!.steps[si]!.title =
+                                            event.target.value;
+                                          change(next);
+                                        }}
+                                      />
+                                      <label htmlFor={`step-executor-${index}-${wi}-${si}`}>
+                                        Executor
+                                      </label>
+                                      <select
+                                        id={`step-executor-${index}-${wi}-${si}`}
+                                        value={step.executor}
+                                        disabled={!canEdit}
+                                        onChange={(event) => {
+                                          const next = structuredClone(graph);
+                                          next.workItems[index]!.workflows[wi]!.steps[
+                                            si
+                                          ]!.executor = event.target.value as Executor;
+                                          change(next);
+                                        }}
+                                      >
+                                        <option value="human">Human</option>
+                                        <option value="agent">Approved agent (proposed)</option>
+                                        <option value="system">System</option>
+                                      </select>
+                                      <label className="plan-checkbox">
+                                        <input
+                                          type="checkbox"
+                                          checked={step.requiresApproval}
+                                          disabled={!canEdit}
+                                          onChange={(event) => {
+                                            const next = structuredClone(graph);
+                                            next.workItems[index]!.workflows[wi]!.steps[
+                                              si
+                                            ]!.requiresApproval = event.target.checked;
+                                            change(next);
+                                          }}
+                                        />
+                                        Requires human approval
+                                      </label>
+                                    </li>
+                                  ))}
+                                </ol>
+                              </div>
                             ))}
-                          </ol>
-                        </div>
-                      ))}
-                      </article>
-                    );
-                    })}
+                          </article>
+                        );
+                      })}
                   </div>
                 )}
                 <button
@@ -449,24 +454,24 @@ export function PlanReview({ project, originalIntent, plan, api, onBack, onUpdat
                 </button>
                 {!selectedItem && (
                   <div className="plan-lists">
-                  {(
-                    [
-                      ["guardrails", "Proposed guardrails"],
-                      ["decisionsToReview", "Decisions requiring review"],
-                      ["assumptions", "Assumptions"],
-                    ] as const
-                  ).map(([key, heading]) => (
-                    <div key={key}>
-                      <label htmlFor={`plan-${key}`}>{heading} (one per line)</label>
-                      <textarea
-                        id={`plan-${key}`}
-                        rows={3}
-                        value={graph[key].join("\n")}
-                        disabled={!canEdit}
-                        onChange={(event) => editList(key, event.target.value)}
-                      />
-                    </div>
-                  ))}
+                    {(
+                      [
+                        ["guardrails", "Proposed guardrails"],
+                        ["decisionsToReview", "Decisions requiring review"],
+                        ["assumptions", "Assumptions"],
+                      ] as const
+                    ).map(([key, heading]) => (
+                      <div key={key}>
+                        <label htmlFor={`plan-${key}`}>{heading} (one per line)</label>
+                        <textarea
+                          id={`plan-${key}`}
+                          rows={3}
+                          value={graph[key].join("\n")}
+                          disabled={!canEdit}
+                          onChange={(event) => editList(key, event.target.value)}
+                        />
+                      </div>
+                    ))}
                   </div>
                 )}
                 <p className="intent-hint">

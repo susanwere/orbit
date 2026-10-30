@@ -167,9 +167,13 @@ export function WorkGraphCanvas({ items, intent, approved, selectedItemKey, onSe
               <button
                 type="button"
                 className={`workgraph-node workgraph-node--${node.kind} ${(node.target ? selectedItemKey === node.target : selectedItemKey === null) ? "is-selected" : ""}`}
-                aria-pressed={node.target ? selectedItemKey === node.target : selectedItemKey === null}
+                aria-pressed={
+                  node.target ? selectedItemKey === node.target : selectedItemKey === null
+                }
                 onClick={() => choose(node)}
-                title={node.target ? "Show this work item's configuration" : "Original project intent"}
+                title={
+                  node.target ? "Show this work item's configuration" : "Original project intent"
+                }
               >
                 <span>{node.kind === "gate" ? "◆ HUMAN GATE" : node.kind.toUpperCase()}</span>
                 <strong>{node.title}</strong>
