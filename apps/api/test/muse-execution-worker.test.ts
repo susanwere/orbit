@@ -57,11 +57,7 @@ describe("isolated Muse execution worker", () => {
     network_policy: "none",
     network_allowlist: [],
   };
-  const harness = (
-    exitCode: number,
-    overrides: Record<string, unknown> = {},
-    leaseWon = true,
-  ) => {
+  const harness = (exitCode: number, overrides: Record<string, unknown> = {}, leaseWon = true) => {
     const statements: string[] = [];
     let invoked = 0;
     const worker = new MuseExecutionWorker(
