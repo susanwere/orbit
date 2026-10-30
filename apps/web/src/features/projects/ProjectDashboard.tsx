@@ -63,8 +63,17 @@ export function ProjectDashboard({ api, onOpen, onCreate, onHome }: Props) {
   return (
     <main className="project-dashboard">
       <aside className="project-dashboard-sidebar" aria-label="Workspace navigation">
-        <button type="button" className="project-dashboard-logo project-dashboard-home" onClick={onHome} aria-label="Orbit home">◈ Orbit</button>
-        <button type="button" className="project-dashboard-home-link" onClick={onHome}>⌂ &nbsp; Home</button>
+        <button
+          type="button"
+          className="project-dashboard-logo project-dashboard-home"
+          onClick={onHome}
+          aria-label="Orbit home"
+        >
+          ◈ Orbit
+        </button>
+        <button type="button" className="project-dashboard-home-link" onClick={onHome}>
+          ⌂ &nbsp; Home
+        </button>
         <span className="project-dashboard-current">▦ &nbsp; Projects</span>
         <p>Intent-led engineering, with humans in control.</p>
       </aside>
