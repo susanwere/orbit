@@ -807,3 +807,12 @@
     width: 2.4rem;
   }
 }
+
+.orbit-canvas-actions {
+  display: flex;
+  justify-content: flex-end;
+  padding: 0.5rem clamp(1.25rem, 4vw, 3rem);
+}
+.orbit-detail-page--canvas .orbit-detail-heading {
+  padding-bottom: 0.5rem;
+}
