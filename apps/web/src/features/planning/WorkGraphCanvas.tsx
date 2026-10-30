@@ -88,7 +88,10 @@ export function projectPlanGraph(
           y: y - 2.05 - wi * 2,
           target: item.key,
         });
-        edges.push({ from: wi === 0 ? workId : `workflow:${item.key}:${wi - 1}`, to: workflowId });
+        edges.push({
+          from: wi === 0 ? workId : `workflow:${item.key}:${wi - 1}`,
+          to: workflowId,
+        });
         if (workflow.steps.some((step) => step.requiresApproval)) {
           const gateId = `gate:${item.key}:${wi}`;
           nodes.push({
@@ -147,10 +150,7 @@ export function WorkGraphCanvas({ items, intent, approved, onSelect }: Props) {
             return (
               <Line
                 key={index}
-                points={[
-                  [start.x, start.y, -1],
-                  [end.x, end.y, -1],
-                ]}
+                points={[[start.x, start.y, -1], [end.x, end.y, -1]]}
                 color={edge.dependency ? "#8cadff" : "#536c96"}
                 lineWidth={edge.dependency ? 2 : 1.5}
               />
