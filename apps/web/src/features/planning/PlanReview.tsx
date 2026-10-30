@@ -125,7 +125,9 @@ export function PlanReview({ project, originalIntent, plan, api, onBack, onUpdat
       const latestGraph = readGraph(current.content);
       if (!latestGraph) throw new Error("The plan has an unsupported shape.");
       setGraph(latestGraph);
-      setSelectedItemKey((key) => latestGraph.workItems.some((item) => item.key === key) ? key : null);
+      setSelectedItemKey((key) =>
+        latestGraph.workItems.some((item) => item.key === key) ? key : null,
+      );
       setRevision(current.revision);
       setStatus(current.status);
       setDirty(false);
@@ -229,7 +231,9 @@ export function PlanReview({ project, originalIntent, plan, api, onBack, onUpdat
               </button>
             </div>
             <p className="intent-overline">PLAN INSPECTOR · HUMAN REVIEW</p>
-            <h2 className="orbit-workspace-inspector-heading">{selectedItem ? selectedItem.title : "Plan overview"}</h2>
+            <h2 className="orbit-workspace-inspector-heading">
+              {selectedItem ? selectedItem.title : "Plan overview"}
+            </h2>
             <p className="intent-description">
               {selectedItem
                 ? "Configure the selected work item and its proposed workflows."
@@ -258,7 +262,7 @@ export function PlanReview({ project, originalIntent, plan, api, onBack, onUpdat
               <>
                 {!selectedItem && <label htmlFor="plan-summary">Proposed outcome</label>}
                 {!selectedItem && (
-                <textarea
+                  <textarea
                   id="plan-summary"
                   className="plan-textarea"
                   rows={3}
@@ -266,7 +270,7 @@ export function PlanReview({ project, originalIntent, plan, api, onBack, onUpdat
                   value={graph.summary}
                   disabled={!canEdit}
                   onChange={(event) => change({ ...graph, summary: event.target.value })}
-                />
+                  />
                 )}
                 {selectedItem && (
                   <button type="button" onClick={() => setSelectedItemKey(null)}>
@@ -274,12 +278,20 @@ export function PlanReview({ project, originalIntent, plan, api, onBack, onUpdat
                   </button>
                 )}
                 <h2>{selectedItem ? "Selected work item" : "Work items"}</h2>
-                {!selectedItem && <p className="intent-hint">Select a work item in the canvas to edit only that item. All changes remain proposals until approved.</p>}
-                {selectedItem && <div className="plan-work-items">
-                  {graph.workItems.filter((item) => !selectedItemKey || item.key === selectedItemKey).map((item) => {
+                {!selectedItem && (
+                  <p className="intent-hint">
+                    Select a work item in the canvas to edit only that item. All changes remain
+                    proposals until approved.
+                  </p>
+                )}
+                {selectedItem && (
+                  <div className="plan-work-items">
+                  {graph.workItems
+                    .filter((item) => !selectedItemKey || item.key === selectedItemKey)
+                    .map((item) => {
                     const index = graph.workItems.findIndex((entry) => entry.key === item.key);
                     return (
-                    <article className="plan-work-item" key={item.key}>
+                      <article className="plan-work-item" key={item.key}>
                       <div className="plan-item-top">
                         <strong>{item.key}</strong>
                         <button
@@ -393,10 +405,11 @@ export function PlanReview({ project, originalIntent, plan, api, onBack, onUpdat
                           </ol>
                         </div>
                       ))}
-                    </article>
+                      </article>
                     );
-                  })}
-                </div>}
+                    })}
+                  </div>
+                )}
                 <button
                   type="button"
                   disabled={!canEdit || graph.workItems.length >= 30}
@@ -434,7 +447,8 @@ export function PlanReview({ project, originalIntent, plan, api, onBack, onUpdat
                 >
                   Add work item
                 </button>
-                {!selectedItem && <div className="plan-lists">
+                {!selectedItem && (
+                  <div className="plan-lists">
                   {(
                     [
                       ["guardrails", "Proposed guardrails"],
@@ -453,7 +467,8 @@ export function PlanReview({ project, originalIntent, plan, api, onBack, onUpdat
                       />
                     </div>
                   ))}
-                </div>}
+                  </div>
+                )}
                 <p className="intent-hint">
                   All work and guardrails above are proposals, not executed or enforced policies.
                   Approval records human acceptance; execution is a separate controlled step.
