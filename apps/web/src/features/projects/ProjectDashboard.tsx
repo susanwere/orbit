@@ -6,9 +6,10 @@ interface Props {
   readonly api: ProjectCreationApi;
   readonly onOpen: (project: CreatedProject) => void;
   readonly onCreate: () => void;
+  readonly onHome: () => void;
 }
 
-export function ProjectDashboard({ api, onOpen, onCreate }: Props) {
+export function ProjectDashboard({ api, onOpen, onCreate, onHome }: Props) {
   const [projects, setProjects] = useState<CreatedProject[]>([]);
   const [cursor, setCursor] = useState<string | null>(null);
   const [query, setQuery] = useState("");
@@ -62,7 +63,17 @@ export function ProjectDashboard({ api, onOpen, onCreate }: Props) {
   return (
     <main className="project-dashboard">
       <aside className="project-dashboard-sidebar" aria-label="Workspace navigation">
-        <span className="project-dashboard-logo">◈ Orbit</span>
+        <button
+          type="button"
+          className="project-dashboard-logo project-dashboard-home"
+          onClick={onHome}
+          aria-label="Orbit home"
+        >
+          ◈ Orbit
+        </button>
+        <button type="button" className="project-dashboard-home-link" onClick={onHome}>
+          ⌂ &nbsp; Home
+        </button>
         <span className="project-dashboard-current">▦ &nbsp; Projects</span>
         <p>Intent-led engineering, with humans in control.</p>
       </aside>

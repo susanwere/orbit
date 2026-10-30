@@ -129,8 +129,8 @@
   place-items: center;
   width: 42px;
   height: 42px;
-  color: #dbf56b;
-  background: #242c1d;
+  color: #91adff;
+  background: #1d2945;
   border-radius: 12px;
   font-size: 1.6rem;
   text-decoration: none;
@@ -191,9 +191,9 @@
   line-height: 1.3;
 }
 .orbit-workspace-state {
-  background: #252a23;
-  color: #d4ec98;
-  border: 1px solid #435139;
+  background: #202a41;
+  color: #b0c4ff;
+  border: 1px solid #405d9b;
   border-radius: 999px;
   padding: 0.4rem 0.8rem;
   font-size: 0.78rem;
@@ -274,7 +274,7 @@
 }
 .orbit-workspace-preview-node:hover,
 .orbit-workspace-preview-node:focus-visible {
-  border-color: #cdf15f;
+  border-color: #91adff;
   outline-offset: 2px;
 }
 .orbit-workspace-preview-node strong {
@@ -286,7 +286,7 @@
   font-size: 0.73rem;
 }
 .orbit-workspace-preview-node em {
-  color: #d3ed84;
+  color: #a5baff;
   font-size: 0.75rem;
   font-style: normal;
   margin-top: auto;
@@ -324,7 +324,7 @@
   flex-wrap: wrap;
 }
 .orbit-workspace :is(button, a, input, select, textarea):focus-visible {
-  outline: 2px solid #d0f16e;
+  outline: 2px solid #91adff;
   outline-offset: 2px;
 }
 @media (max-width: 1180px) {
