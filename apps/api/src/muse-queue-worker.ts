@@ -3,7 +3,10 @@ import { resolve } from "node:path";
 import { PgDatabase } from "@orbit/db";
 import { MuseGithubDeliveryService } from "./modules/execution/muse-github-delivery.js";
 import { MuseExecutionWorker } from "./modules/execution/muse-execution-worker.js";
-import { MuseCodeCliExecutor, LocalMuseProcessRunner } from "./modules/execution/muse-code-executor.js";
+import {
+  MuseCodeCliExecutor,
+  LocalMuseProcessRunner,
+} from "./modules/execution/muse-code-executor.js";
 
 async function main() {
   const mode = process.argv[2];
@@ -18,10 +21,12 @@ async function main() {
   ) {
     throw new Error("Worker requires mode, isolated checkout and database.");
   }
-  if (mode === "execute" && (!process.env.META_API_KEY || process.env.ORBIT_WORKER_GITHUB_TOKEN))
+  if (mode === "execute" && (!process.env.META_API_KEY || process.env.ORBIT_WORKER_GITHUB_TOKEN)) {
     throw new Error("Execution needs Muse credentials only, never a GitHub token.");
-  if (mode === "deliver" && (!process.env.ORBIT_WORKER_GITHUB_TOKEN || process.env.META_API_KEY))
+  }
+  if (mode === "deliver" && (!process.env.ORBIT_WORKER_GITHUB_TOKEN || process.env.META_API_KEY)) {
     throw new Error("Delivery needs a GitHub token only, never Muse credentials.");
+  }
   const db = new PgDatabase(process.env.DATABASE_URL);
   try {
     if (mode === "execute") {
@@ -41,8 +46,9 @@ async function main() {
     }
     // Explicit job selection: do not deliver some unrelated project's most recent job.
     const jobId = process.env.ORBIT_WORKER_JOB_ID;
-    if (!jobId || !/^musejob_[a-zA-Z0-9-]{20,80}$/.test(jobId))
+    if (!jobId || !/^musejob_[a-zA-Z0-9-]{20,80}$/.test(jobId)) {
       throw new Error("Delivery requires an explicit ORBIT_WORKER_JOB_ID.");
+    }
     const job = await db.query<{ project_id: string } & Record<string, unknown>>(
       "SELECT project_id FROM muse_execution_jobs WHERE id=$1 AND status='TURN_FINISHED' AND github_repository IS NULL",
       [jobId],
