@@ -18,6 +18,13 @@ export interface ProjectPlan {
   readonly content: unknown;
 }
 
+export interface ExecutionStep {
+  readonly id: string;
+  readonly state: string;
+  readonly blocker_reason: string | null;
+  readonly work_item_key: string;
+}
+
 export interface ProjectIntentApi {
   getIntent(projectId: string): Promise<StoredIntent | null>;
   submitIntent(projectId: string, statement: string): Promise<StoredIntent>;
@@ -26,6 +33,8 @@ export interface ProjectIntentApi {
   updatePlan(projectId: string, expectedRevision: number, content: unknown): Promise<ProjectPlan>;
   approvePlan(projectId: string, expectedRevision: number): Promise<ProjectPlan>;
   getRepositories(projectId: string): Promise<readonly ConnectedRepository[]>;
+  prepareExecution(projectId: string): Promise<unknown>;
+  getExecutionSteps(projectId: string): Promise<readonly ExecutionStep[]>;
 }
 
 export interface ProjectIntentApiOptions {
@@ -94,6 +103,10 @@ export function createIntentApi(
           expectedRevision,
         })
       ).plan,
+    prepareExecution: async (id) =>
+      request<unknown>(`${path(id)}/execution/prepare`, "POST"),
+    getExecutionSteps: async (id) =>
+      (await request<{ steps: ExecutionStep[] }>(`${path(id)}/execution/steps`)).steps,
     getRepositories: async (id) =>
       (await request<{ repositories: ConnectedRepository[] }>(`${path(id)}/repositories`))
         .repositories,
