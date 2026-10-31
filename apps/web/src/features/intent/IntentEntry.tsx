@@ -27,6 +27,7 @@ export function IntentEntry({ project, api, onBack }: IntentEntryProps) {
   const [phase, setPhase] = useState<Phase>("loading");
   const [error, setError] = useState<string | null>(null);
   const [repositoryError, setRepositoryError] = useState(false);
+  const [repositoryLoading, setRepositoryLoading] = useState(true);
   const [reviewOpen, setReviewOpen] = useState(false);
   const [executionPreparing, setExecutionPreparing] = useState(false);
   const [executionSummary, setExecutionSummary] = useState<string | null>(null);
@@ -102,9 +103,14 @@ export function IntentEntry({ project, api, onBack }: IntentEntryProps) {
       }
       if (repositoryResult?.status === "fulfilled") {
         setRepositories(repositoryResult.value);
+        setOnboardingRepository(
+          (selected) => selected || repositoryResult.value[0]?.full_name || "",
+        );
+        setRepositoryError(false);
       } else {
         setRepositoryError(true);
       }
+      setRepositoryLoading(false);
       setPhase("ready");
     });
     return () => {
@@ -136,6 +142,24 @@ export function IntentEntry({ project, api, onBack }: IntentEntryProps) {
       cancelled = true;
     };
   }, [api, project.id, plan?.status]);
+
+  async function reloadRepositories() {
+    setRepositoryLoading(true);
+    setRepositoryError(false);
+    try {
+      const loaded = await api.getRepositories(project.id);
+      setRepositories(loaded);
+      setOnboardingRepository((selected) =>
+        loaded.some((item) => item.full_name === selected)
+          ? selected
+          : (loaded[0]?.full_name ?? ""),
+      );
+    } catch {
+      setRepositoryError(true);
+    } finally {
+      setRepositoryLoading(false);
+    }
+  }
 
   async function onboardMuse() {
     if (!onboardingApproved || !onboardingRepository || onboardingBusy) return;
@@ -525,13 +549,29 @@ export function IntentEntry({ project, api, onBack }: IntentEntryProps) {
                           value={onboardingRepository}
                           onChange={(event) => setOnboardingRepository(event.target.value)}
                         >
-                          <option value="">Choose a repository</option>
+                          <option value="">
+                            {repositoryLoading ? "Loading repositories…" : "Choose a repository"}
+                          </option>
                           {repositories.map((repository) => (
                             <option key={repository.id} value={repository.full_name}>
                               {repository.full_name}
                             </option>
                           ))}
                         </select>
+                        {repositoryError && (
+                          <p role="alert">
+                            Could not load the repositories connected to this project.
+                            <button type="button" onClick={() => void reloadRepositories()}>
+                              Retry loading repositories
+                            </button>
+                          </p>
+                        )}
+                        {!repositoryLoading && !repositoryError && repositories.length === 0 && (
+                          <p role="status">
+                            No repository registration was found for this project. Your original
+                            project and intent are safe. Check the project repository connection.
+                          </p>
+                        )}
                         <label>
                           <input
                             type="checkbox"
@@ -542,7 +582,13 @@ export function IntentEntry({ project, api, onBack }: IntentEntryProps) {
                         </label>
                         <button
                           type="button"
-                          disabled={!onboardingApproved || !onboardingRepository || onboardingBusy}
+                          disabled={
+                            !onboardingApproved ||
+                            !onboardingRepository ||
+                            onboardingBusy ||
+                            repositoryLoading ||
+                            repositoryError
+                          }
                           onClick={() => void onboardMuse()}
                         >
                           {onboardingBusy ? "Authorizing…" : "Authorize Muse Code"}
