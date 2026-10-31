@@ -35,6 +35,31 @@ describe("Muse execution queue", () => {
     expect(statement).toContain("ON CONFLICT");
   });
 
+  it("scopes Muse job reads to the authenticated project and organization", async () => {
+    const recorded: { sql?: string; args?: unknown[] } = {};
+    const service = new MuseExecutionJobService(
+      {
+        query: async (sql: string, args: unknown[]) => {
+          recorded.sql = sql;
+          recorded.args = args;
+          return { rows: [{ id: "job", status: "TURN_FINISHED" }] };
+        },
+      } as never,
+      {
+        authorize: async (_principal: string, _project: string, permission: string) => {
+          expect(permission).toBe("read");
+          return { projectId: "project", organizationId: "org" };
+        },
+      } as never,
+    );
+    await expect(
+      service.getStatus({ projectId: "project", principalId: "human", sessionId: "session" }),
+    ).resolves.toMatchObject({ status: "TURN_FINISHED" });
+    expect(recorded.args).toEqual(["project", "org", "session"]);
+    expect(recorded.sql).toContain("job.organization_id=$2");
+    expect(recorded.sql).toContain("session.organization_id=job.organization_id");
+  });
+
   it("fails closed on duplicates or unauthorized dispatch", async () => {
     const service = new MuseExecutionJobService(
       { query: async () => ({ rows: [] }) } as never,
