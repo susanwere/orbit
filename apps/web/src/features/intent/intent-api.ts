@@ -117,9 +117,11 @@ export function createIntentApi(
       await request(`${path(id)}/execution/steps/${encodeURIComponent(stepId)}/approve`, "POST");
     },
     authorizeExecutionRetry: async (id, stepId) => {
-      await request(`${path(id)}/execution/steps/${encodeURIComponent(stepId)}/authorize-retry`, "POST", {
-        acknowledgeFailedAttempt: true,
-      });
+      await request(
+        `${path(id)}/execution/steps/${encodeURIComponent(stepId)}/authorize-retry`,
+        "POST",
+        { acknowledgeFailedAttempt: true },
+      );
     },
     getRepositories: async (id) =>
       (await request<{ repositories: ConnectedRepository[] }>(`${path(id)}/repositories`))
