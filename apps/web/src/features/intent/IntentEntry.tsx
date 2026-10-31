@@ -327,15 +327,17 @@ export function IntentEntry({ project, api, onBack }: IntentEntryProps) {
                         {" · "}
                         {step.state}
                         {step.blocker_reason && <span> · Blocked: {step.blocker_reason}</span>}
-                        {step.approval_required && !step.approved_at && step.state === "BLOCKED" && (
-                          <button
-                            type="button"
-                            disabled={Boolean(stepActionPending)}
-                            onClick={() => void actOnStep(step, "approve")}
-                          >
-                            {stepActionPending === step.id ? "Approving…" : "Approve step"}
-                          </button>
-                        )}
+                        {step.approval_required &&
+                          !step.approved_at &&
+                          step.state === "BLOCKED" && (
+                            <button
+                              type="button"
+                              disabled={Boolean(stepActionPending)}
+                              onClick={() => void actOnStep(step, "approve")}
+                            >
+                              {stepActionPending === step.id ? "Approving…" : "Approve step"}
+                            </button>
+                          )}
                         {step.state === "FAILED" && (
                           <button
                             type="button"
