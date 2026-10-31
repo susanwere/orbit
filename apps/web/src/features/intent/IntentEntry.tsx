@@ -141,13 +141,17 @@ export function IntentEntry({ project, api, onBack }: IntentEntryProps) {
             }[];
           } | null;
           const workItem = graph?.workItems?.find((item) => item.key === step.work_item_key);
-          const stepTitle = workItem?.workflows?.[step.workflow_index]?.steps?.[step.step_index]?.title;
+          const stepTitle =
+            workItem?.workflows?.[step.workflow_index]?.steps?.[step.step_index]?.title;
           const mission = [
             workItem?.title ?? step.work_item_key,
             workItem?.description ?? "Implement the approved work item.",
             stepTitle ? `Approved step: ${stepTitle}` : "",
             "Follow the approved execution contract and human gates.",
-          ].filter(Boolean).join("\n").slice(0, 2000);
+          ]
+            .filter(Boolean)
+            .join("\n")
+            .slice(0, 2000);
           sessionId = await api.createAgentSession(
             project.id,
             agentDefinitionId.trim(),
@@ -403,14 +407,19 @@ export function IntentEntry({ project, api, onBack }: IntentEntryProps) {
                 </button>
                 {executionSteps.some((step) => !step.agent_session_id) && (
                   <div>
-                    <label htmlFor="orbit-agent-definition">Approved Muse agent definition ID</label>
+                    <label htmlFor="orbit-agent-definition">
+                      Approved Muse agent definition ID
+                    </label>
                     <input
                       id="orbit-agent-definition"
                       value={agentDefinitionId}
                       onChange={(event) => setAgentDefinitionId(event.target.value)}
                       placeholder="Approved coding agent ID"
                     />
-                    <p>Sessions are created for your account with the approved agent's existing repository and path permissions.</p>
+                    <p>
+                      Sessions are created for your account with the approved agent's existing
+                      repository and path permissions.
+                    </p>
                   </div>
                 )}
                 {executionSteps.length > 0 && (
