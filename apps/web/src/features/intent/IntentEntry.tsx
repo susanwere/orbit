@@ -34,7 +34,7 @@ export function IntentEntry({ project, api, onBack }: IntentEntryProps) {
   const [executionLoaded, setExecutionLoaded] = useState(false);
   const [stepActionPending, setStepActionPending] = useState<string | null>(null);
   const [museJobs, setMuseJobs] = useState<Record<string, MuseJobStatus | null>>({});
-  const [githubRunId, setGithubRunId] = useState("");
+  const [githubRunIds, setGithubRunIds] = useState<Record<string, string>>({});
   const [agentDefinitionId, setAgentDefinitionId] = useState("");
   const [pendingSessionIds, setPendingSessionIds] = useState<Record<string, string>>({});
   const busy = phase === "loading" || phase === "saving" || phase === "planning";
@@ -199,7 +199,7 @@ export function IntentEntry({ project, api, onBack }: IntentEntryProps) {
 
   async function verifyCi(step: ExecutionStep) {
     const job = step.agent_session_id ? museJobs[step.agent_session_id] : null;
-    const runId = Number(githubRunId);
+    const runId = Number(githubRunIds[step.id] ?? "");
     if (
       !job?.github_repository ||
       !job.github_pull_number ||
@@ -556,13 +556,20 @@ export function IntentEntry({ project, api, onBack }: IntentEntryProps) {
                                 type="number"
                                 min="1"
                                 step="1"
-                                value={githubRunId}
-                                onChange={(event) => setGithubRunId(event.target.value)}
+                                value={githubRunIds[step.id] ?? ""}
+                                onChange={(event) =>
+                                  setGithubRunIds((current) => ({
+                                    ...current,
+                                    [step.id]: event.target.value,
+                                  }))
+                                }
                                 placeholder="From the Actions run URL"
                               />
                               <button
                                 type="button"
-                                disabled={Boolean(stepActionPending) || !githubRunId.trim()}
+                                disabled={
+                                  Boolean(stepActionPending) || !githubRunIds[step.id]?.trim()
+                                }
                                 onClick={() => void verifyCi(step)}
                               >
                                 Verify GitHub CI
