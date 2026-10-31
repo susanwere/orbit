@@ -305,16 +305,27 @@ export function IntentEntry({ project, api, onBack }: IntentEntryProps) {
             {plan.status === "APPROVED" && (
               <section aria-label="Execution step review">
                 <h3>Execution steps</h3>
-                <p>Review real backend statuses and approve only the required human gates. Approval does not start an agent.</p>
-                <button type="button" onClick={() => void loadExecutionSteps()} disabled={Boolean(stepActionPending)}>
+                <p>
+                  Review real backend statuses and approve only the required human gates. Approval
+                  does not start an agent.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => void loadExecutionSteps()}
+                  disabled={Boolean(stepActionPending)}
+                >
                   Refresh execution status
                 </button>
                 {executionSteps.length > 0 && (
                   <ol>
                     {executionSteps.map((step) => (
                       <li key={step.id}>
-                        <strong>{step.work_item_key} · Workflow {step.workflow_index + 1}, Step {step.step_index + 1}</strong>
-                        {" · "}{step.state}
+                        <strong>
+                          {step.work_item_key} · Workflow {step.workflow_index + 1}, Step{" "}
+                          {step.step_index + 1}
+                        </strong>
+                        {" · "}
+                        {step.state}
                         {step.blocker_reason && <span> · Blocked: {step.blocker_reason}</span>}
                         {step.approval_required && !step.approved_at && step.state === "BLOCKED" && (
                           <button
@@ -331,7 +342,9 @@ export function IntentEntry({ project, api, onBack }: IntentEntryProps) {
                             disabled={Boolean(stepActionPending)}
                             onClick={() => void actOnStep(step, "retry")}
                           >
-                            {stepActionPending === step.id ? "Authorizing…" : "Acknowledge failure & authorize retry"}
+                            {stepActionPending === step.id
+                              ? "Authorizing…"
+                              : "Acknowledge failure & authorize retry"}
                           </button>
                         )}
                       </li>
