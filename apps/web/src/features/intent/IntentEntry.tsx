@@ -34,7 +34,7 @@ export function IntentEntry({ project, api, onBack }: IntentEntryProps) {
   const [executionLoaded, setExecutionLoaded] = useState(false);
   const [stepActionPending, setStepActionPending] = useState<string | null>(null);
   const [museJobs, setMuseJobs] = useState<Record<string, MuseJobStatus | null>>({});
-  const [githubRunId, setGithubRunId] = useState("");
+  const [githubRunIds, setGithubRunIds] = useState<Record<string, string>>({});
   const [agentDefinitionId, setAgentDefinitionId] = useState("");
   const [pendingSessionIds, setPendingSessionIds] = useState<Record<string, string>>({});
   const busy = phase === "loading" || phase === "saving" || phase === "planning";
@@ -199,7 +199,7 @@ export function IntentEntry({ project, api, onBack }: IntentEntryProps) {
 
   async function verifyCi(step: ExecutionStep) {
     const job = step.agent_session_id ? museJobs[step.agent_session_id] : null;
-    const runId = Number(githubRunId);
+    const runId = Number(githubRunIds[step.id] ?? "");
     if (
       !job?.github_repository ||
       !job.github_pull_number ||
@@ -467,121 +467,131 @@ export function IntentEntry({ project, api, onBack }: IntentEntryProps) {
                   <ol>
                     {executionSteps.map((step) => (
                       <li key={step.id}>
-                        <strong>
-                          {step.work_item_key} · Workflow {step.workflow_index + 1}, Step{" "}
-                          {step.step_index + 1}
-                        </strong>
-                        {" · "}
-                        {step.state}
-                        {step.blocker_reason && <span> · Blocked: {step.blocker_reason}</span>}
-                        {step.approval_required &&
-                          !step.approved_at &&
-                          step.state === "BLOCKED" && (
-                            <button
-                              type="button"
-                              disabled={Boolean(stepActionPending)}
-                              onClick={() => void actOnStep(step, "approve")}
-                            >
-                              {stepActionPending === step.id ? "Approving…" : "Approve step"}
-                            </button>
-                          )}
-                        {!step.agent_session_id &&
-                          step.state === "BLOCKED" &&
-                          step.blocker_reason !== "prerequisite_incomplete" &&
-                          step.blocker_reason !== "human_approval_required" && (
-                            <button
-                              type="button"
-                              disabled={Boolean(stepActionPending) || !agentDefinitionId.trim()}
-                              onClick={() => void actOnStep(step, "create")}
-                            >
-                              {pendingSessionIds[step.id]
-                                ? "Retry binding created session"
-                                : "Create & bind agent session"}
-                            </button>
-                          )}
-                        {step.agent_session_id &&
-                          step.blocker_reason === null &&
-                          (step.state === "READY" || step.state === "BLOCKED") && (
-                            <button
-                              type="button"
-                              disabled={Boolean(stepActionPending)}
-                              onClick={() => void actOnStep(step, "start")}
-                            >
-                              Start authorized session
-                            </button>
-                          )}
-                        {step.agent_session_id && step.state === "RUNNING" && (
-                          <button
-                            type="button"
-                            disabled={Boolean(stepActionPending)}
-                            onClick={() => void actOnStep(step, "dispatch")}
-                          >
-                            Queue Muse Code
-                          </button>
-                        )}
-                        {step.agent_session_id && (
-                          <button
-                            type="button"
-                            disabled={Boolean(stepActionPending)}
-                            onClick={() => void actOnStep(step, "job")}
-                          >
-                            Check Muse job
-                          </button>
-                        )}
-                        {step.agent_session_id && museJobs[step.agent_session_id] && (
-                          <p role="status">
-                            Muse job: {museJobs[step.agent_session_id]?.status}
-                            {museJobs[step.agent_session_id]?.github_pull_number
-                              ? ` · PR #${museJobs[step.agent_session_id]?.github_pull_number}`
-                              : ""}
-                            {museJobs[step.agent_session_id]?.failure_reason
-                              ? ` · ${museJobs[step.agent_session_id]?.failure_reason}`
-                              : ""}
-                          </p>
-                        )}
-                        {step.agent_session_id &&
-                          museJobs[step.agent_session_id]?.github_pull_number &&
-                          museJobs[step.agent_session_id]?.github_repository && (
-                            <div>
-                              <a
-                                href={`https://github.com/${museJobs[step.agent_session_id]?.github_repository}/pull/${museJobs[step.agent_session_id]?.github_pull_number}`}
-                                target="_blank"
-                                rel="noreferrer"
-                              >
-                                Review generated pull request
-                              </a>
-                              <label htmlFor={`github-run-${step.id}`}>GitHub Actions run ID</label>
-                              <input
-                                id={`github-run-${step.id}`}
-                                type="number"
-                                min="1"
-                                step="1"
-                                value={githubRunId}
-                                onChange={(event) => setGithubRunId(event.target.value)}
-                                placeholder="From the Actions run URL"
-                              />
+                        <details>
+                          <summary>
+                            <strong>
+                              {step.work_item_key} · Workflow {step.workflow_index + 1}, Step{" "}
+                              {step.step_index + 1}
+                            </strong>
+                            {" · "}
+                            {step.state}
+                            {step.blocker_reason && (
+                              <span> · Blocked: {step.blocker_reason.replaceAll("_", " ")}</span>
+                            )}
+                          </summary>
+                          {step.approval_required &&
+                            !step.approved_at &&
+                            step.state === "BLOCKED" && (
                               <button
                                 type="button"
-                                disabled={Boolean(stepActionPending) || !githubRunId.trim()}
-                                onClick={() => void verifyCi(step)}
+                                disabled={Boolean(stepActionPending)}
+                                onClick={() => void actOnStep(step, "approve")}
                               >
-                                Verify GitHub CI
+                                {stepActionPending === step.id ? "Approving…" : "Approve step"}
                               </button>
-                            </div>
+                            )}
+                          {!step.agent_session_id &&
+                            step.state === "BLOCKED" &&
+                            step.blocker_reason !== "prerequisite_incomplete" &&
+                            step.blocker_reason !== "human_approval_required" && (
+                              <button
+                                type="button"
+                                disabled={Boolean(stepActionPending) || !agentDefinitionId.trim()}
+                                onClick={() => void actOnStep(step, "create")}
+                              >
+                                {pendingSessionIds[step.id]
+                                  ? "Retry binding created session"
+                                  : "Create & bind agent session"}
+                              </button>
+                            )}
+                          {step.agent_session_id &&
+                            step.blocker_reason === null &&
+                            (step.state === "READY" || step.state === "BLOCKED") && (
+                              <button
+                                type="button"
+                                disabled={Boolean(stepActionPending)}
+                                onClick={() => void actOnStep(step, "start")}
+                              >
+                                Start authorized session
+                              </button>
+                            )}
+                          {step.agent_session_id && step.state === "RUNNING" && (
+                            <button
+                              type="button"
+                              disabled={Boolean(stepActionPending)}
+                              onClick={() => void actOnStep(step, "dispatch")}
+                            >
+                              Queue Muse Code
+                            </button>
                           )}
-                        {step.state === "FAILED" && (
-                          <button
-                            type="button"
-                            disabled={Boolean(stepActionPending)}
-                            onClick={() => void actOnStep(step, "retry")}
-                          >
-                            {stepActionPending === step.id
-                              ? "Authorizing…"
-                              : "Acknowledge failure & authorize retry"}
-                          </button>
-                        )}
-                      </li>
-                    ))}
+                          {step.agent_session_id && (
+                            <button
+                              type="button"
+                              disabled={Boolean(stepActionPending)}
+                              onClick={() => void actOnStep(step, "job")}
+                            >
+                              Check Muse job
+                            </button>
+                          )}
+                          {step.agent_session_id && museJobs[step.agent_session_id] && (
+                            <p role="status">
+                              Muse job: {museJobs[step.agent_session_id]?.status}
+                              {museJobs[step.agent_session_id]?.github_pull_number
+                                ? ` · PR #${museJobs[step.agent_session_id]?.github_pull_number}`
+                                : ""}
+                              {museJobs[step.agent_session_id]?.failure_reason
+                                ? ` · ${museJobs[step.agent_session_id]?.failure_reason}`
+                                : ""}
+                            </p>
+                          )}
+                          {step.agent_session_id &&
+                            museJobs[step.agent_session_id]?.github_pull_number &&
+                            museJobs[step.agent_session_id]?.github_repository && (
+                              <div>
+                                <a
+                                  href={`https://github.com/${museJobs[step.agent_session_id]?.github_repository}/pull/${museJobs[step.agent_session_id]?.github_pull_number}`}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                >
+                                  Review generated pull request
+                                </a>
+                                <label htmlFor={`github-run-${step.id}`}>GitHub Actions run ID</label>
+                                <input
+                                  id={`github-run-${step.id}`}
+                                  type="number"
+                                  min="1"
+                                  step="1"
+                                  value={githubRunIds[step.id] ?? ""}
+                                  onChange={(event) =>
+                                    setGithubRunIds((current) => ({
+                                      ...current,
+                                      [step.id]: event.target.value,
+                                    }))
+                                  }
+                                  placeholder="From the Actions run URL"
+                                />
+                                <button
+                                  type="button"
+                                  disabled={Boolean(stepActionPending) || !githubRunIds[step.id]?.trim()}
+                                  onClick={() => void verifyCi(step)}
+                                >
+                                  Verify GitHub CI
+                                </button>
+                              </div>
+                            )}
+                          {step.state === "FAILED" && (
+                            <button
+                              type="button"
+                              disabled={Boolean(stepActionPending)}
+                              onClick={() => void actOnStep(step, "retry")}
+                            >
+                              {stepActionPending === step.id
+                                ? "Authorizing…"
+                                : "Acknowledge failure & authorize retry"}
+                            </button>
+                          )}
+                        </details>
+                      </li>                   ))}
                   </ol>
                 )}
               </section>
