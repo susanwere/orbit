@@ -103,8 +103,7 @@ export function createIntentApi(
           expectedRevision,
         })
       ).plan,
-    prepareExecution: async (id) =>
-      request<unknown>(`${path(id)}/execution/prepare`, "POST"),
+    prepareExecution: async (id) => request<unknown>(`${path(id)}/execution/prepare`, "POST"),
     getExecutionSteps: async (id) =>
       (await request<{ steps: ExecutionStep[] }>(`${path(id)}/execution/steps`)).steps,
     getRepositories: async (id) =>
