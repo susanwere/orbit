@@ -12,8 +12,12 @@ async function main() {
     (mode !== "execute" && mode !== "deliver") ||
     process.env.ORBIT_MUSE_ISOLATED_WORKER !== "true" ||
     process.env.ORBIT_WORKER_SANDBOX_CONFIRMED !== "yes" ||
-    !workspace || resolve(workspace) !== workspace || !process.env.DATABASE_URL
-  ) throw new Error("Worker requires mode, isolated checkout and database.");
+    !workspace ||
+    resolve(workspace) !== workspace ||
+    !process.env.DATABASE_URL
+  ) {
+    throw new Error("Worker requires mode, isolated checkout and database.");
+  }
   if (mode === "execute" && (!process.env.META_API_KEY || process.env.ORBIT_WORKER_GITHUB_TOKEN))
     throw new Error("Execution needs Muse credentials only, never a GitHub token.");
   if (mode === "deliver" && (!process.env.ORBIT_WORKER_GITHUB_TOKEN || process.env.META_API_KEY))
@@ -21,11 +25,18 @@ async function main() {
   const db = new PgDatabase(process.env.DATABASE_URL);
   try {
     if (mode === "execute") {
-      const worker = new MuseExecutionWorker(db, new MuseCodeCliExecutor(new LocalMuseProcessRunner()));
+      const worker = new MuseExecutionWorker(
+        db,
+        new MuseCodeCliExecutor(new LocalMuseProcessRunner()),
+      );
       const result = await worker.runNext(workspace);
       if (!result) return process.stdout.write("No eligible queued Muse execution.\n");
-      process.stdout.write(`Muse outcome: ${result.status}; independent delivery and CI verification required.\n`);
-      if (result.status !== "TURN_FINISHED" && result.status !== "LEASE_LOST") process.exitCode = 1;
+      process.stdout.write(
+        `Muse outcome: ${result.status}; independent delivery and CI verification required.\n`,
+      );
+      if (result.status !== "TURN_FINISHED" && result.status !== "LEASE_LOST") {
+        process.exitCode = 1;
+      }
       return;
     }
     // Explicit job selection: do not deliver some unrelated project's most recent job.
@@ -39,10 +50,14 @@ async function main() {
     if (!job.rows[0]) throw new Error("Job has no pending deliverable.");
     const service = new MuseGithubDeliveryService(db, process.env.ORBIT_WORKER_GITHUB_TOKEN!);
     const delivered = await service.deliver({
-      jobId, projectId: job.rows[0].project_id, workspace,
+      jobId,
+      projectId: job.rows[0].project_id,
+      workspace,
       baseBranch: process.env.ORBIT_WORKER_BASE_BRANCH ?? "main",
     });
-    process.stdout.write(`Delivered ${delivered.jobId} as ${delivered.repository} PR #${delivered.pullNumber}. Await CI verification.\n`);
+    process.stdout.write(
+      `Delivered ${delivered.jobId} as ${delivered.repository} PR #${delivered.pullNumber}. Await CI verification.\n`,
+    );
   } finally {
     await db.close();
   }
