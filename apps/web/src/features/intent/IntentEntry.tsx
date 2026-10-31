@@ -26,6 +26,9 @@ export function IntentEntry({ project, api, onBack }: IntentEntryProps) {
   const [repositories, setRepositories] = useState<readonly ConnectedRepository[]>([]);
   const [phase, setPhase] = useState<Phase>("loading");
   const [error, setError] = useState<string | null>(null);
+  const [repositoryInput, setRepositoryInput] = useState("");
+  const [registrationError, setRegistrationError] = useState<string | null>(null);
+  const [registrationBusy, setRegistrationBusy] = useState(false);
   const [repositoryError, setRepositoryError] = useState(false);
   const [repositoryLoading, setRepositoryLoading] = useState(true);
   const [reviewOpen, setReviewOpen] = useState(false);
@@ -158,6 +161,30 @@ export function IntentEntry({ project, api, onBack }: IntentEntryProps) {
       setRepositoryError(true);
     } finally {
       setRepositoryLoading(false);
+    }
+  }
+
+  async function connectRepository() {
+    if (!repositoryInput.trim() || registrationBusy) return;
+    setRegistrationBusy(true);
+    setRegistrationError(null);
+    try {
+      const registration = await api.connectRepository(project.id, repositoryInput.trim());
+      setRepositories((current) => [
+        ...current.filter((repository) => repository.id !== registration.id),
+        registration,
+      ]);
+      setOnboardingRepository(registration.full_name);
+      setRepositoryInput("");
+      await reloadRepositories();
+    } catch (failure) {
+      setRegistrationError(
+        failure instanceof Error
+          ? failure.message
+          : "Could not connect repository. Retry to continue.",
+      );
+    } finally {
+      setRegistrationBusy(false);
     }
   }
 
@@ -546,6 +573,7 @@ export function IntentEntry({ project, api, onBack }: IntentEntryProps) {
                         <label htmlFor="muse-repository">Repository</label>
                         <select
                           id="muse-repository"
+                          disabled={repositoryLoading || registrationBusy}
                           value={onboardingRepository}
                           onChange={(event) => setOnboardingRepository(event.target.value)}
                         >
@@ -568,10 +596,28 @@ export function IntentEntry({ project, api, onBack }: IntentEntryProps) {
                         )}
                         {!repositoryLoading && !repositoryError && repositories.length === 0 && (
                           <p role="status">
-                            No repository registration was found for this project. Your original
-                            project and intent are safe. Check the project repository connection.
+                            No repository registration was found for this project. Connect a GitHub
+                            repository below to continue with this project.
                           </p>
                         )}
+                        <label htmlFor="muse-repository-registration">
+                          GitHub repository URL or owner/repo
+                        </label>
+                        <input
+                          id="muse-repository-registration"
+                          value={repositoryInput}
+                          onChange={(event) => setRepositoryInput(event.target.value)}
+                          placeholder="susanwere/private-test"
+                          disabled={registrationBusy}
+                        />
+                        <button
+                          type="button"
+                          disabled={registrationBusy || !repositoryInput.trim()}
+                          onClick={() => void connectRepository()}
+                        >
+                          {registrationBusy ? "Connecting repository…" : "Connect repository"}
+                        </button>
+                        {registrationError && <p role="alert">{registrationError}</p>}
                         <label>
                           <input
                             type="checkbox"

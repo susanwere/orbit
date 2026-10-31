@@ -141,3 +141,31 @@ describe("intent API authorization and durable intent", () => {
     expect(JSON.parse(String(fetchImpl.mock.calls[1]?.[1]?.body))).toEqual({ expectedRevision: 3 });
   });
 });
+
+describe("existing project repository registration", () => {
+  it("connects and discovers the repository using authenticated project endpoints", async () => {
+    const repository = {
+      id: "repo-1",
+      project_id: "existing-project",
+      full_name: "susanwere/private-test",
+    };
+    const send = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(new Response(JSON.stringify(repository), { status: 201 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ repositories: [repository] })));
+    const api = createIntentApi("http://localhost:4000", () => "Bearer signed", send);
+    expect(await api.connectRepository("existing-project", "susanwere/private-test")).toEqual(
+      repository,
+    );
+    expect(await api.getRepositories("existing-project")).toEqual([repository]);
+    expect(send.mock.calls[0]?.[0]).toBe(
+      "http://localhost:4000/projects/existing-project/repositories",
+    );
+    expect(send.mock.calls[0]?.[1]).toMatchObject({
+      method: "POST",
+      headers: { Authorization: "Bearer signed" },
+      body: JSON.stringify({ repository: "susanwere/private-test" }),
+    });
+    expect(send.mock.calls[1]?.[1]?.method).toBe("GET");
+  });
+});

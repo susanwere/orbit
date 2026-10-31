@@ -151,33 +151,30 @@ export async function registerProjectManagementRoutes(
       const actor = principal(req.headers.authorization);
       const access = await authorization.authorize(actor.id, req.params.projectId, "review");
       const git = parseGitHubRepository(req.body?.repository);
-      try {
-        const r = await db.query<RepositoryRow>(
-          `INSERT INTO project_repositories(project_id,organization_id,owner,repo,full_name,html_url)
-       VALUES($1,$2,$3,$4,$5,$6) RETURNING id,project_id,owner,repo,full_name,html_url,created_at`,
-          [
-            req.params.projectId,
-            access.organizationId,
-            git.owner,
-            git.repo,
-            git.fullName,
-            git.htmlUrl,
-          ],
-        );
-        return reply.status(201).send(r.rows[0]);
-      } catch (e) {
-        if (isUnique(e))
-          throw new DomainError("validation", "Repository is already connected to this project.");
-        throw e;
-      }
+      const registration = await db.query<RepositoryRow>(
+        `INSERT INTO project_repositories(project_id,organization_id,owner,repo,full_name,html_url)
+         VALUES($1,$2,$3,$4,$5,$6)
+         ON CONFLICT (project_id,provider,full_name) DO UPDATE
+         SET full_name=EXCLUDED.full_name
+         RETURNING id,project_id,owner,repo,full_name,html_url,created_at`,
+        [
+          req.params.projectId,
+          access.organizationId,
+          git.owner,
+          git.repo,
+          git.fullName,
+          git.htmlUrl,
+        ],
+      );
+      return reply.status(201).send(registration.rows[0]);
     },
   );
   app.get<{ Params: { projectId: string } }>("/projects/:projectId/repositories", async (req) => {
     const actor = principal(req.headers.authorization);
-    await authorization.authorize(actor.id, req.params.projectId, "read");
+    const access = await authorization.authorize(actor.id, req.params.projectId, "read");
     const r = await db.query<RepositoryRow>(
-      "SELECT id,project_id,owner,repo,full_name,html_url,created_at FROM project_repositories WHERE project_id=$1 ORDER BY created_at,id",
-      [req.params.projectId],
+      "SELECT id,project_id,owner,repo,full_name,html_url,created_at FROM project_repositories WHERE project_id=$1 AND organization_id=$2 ORDER BY created_at,id",
+      [req.params.projectId, access.organizationId],
     );
     return { repositories: r.rows };
   });

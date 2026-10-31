@@ -56,6 +56,7 @@ export interface ProjectIntentApi {
   generatePlan(projectId: string): Promise<ProjectPlan>;
   updatePlan(projectId: string, expectedRevision: number, content: unknown): Promise<ProjectPlan>;
   approvePlan(projectId: string, expectedRevision: number): Promise<ProjectPlan>;
+  connectRepository(projectId: string, repository: string): Promise<ConnectedRepository>;
   getRepositories(projectId: string): Promise<readonly ConnectedRepository[]>;
   prepareExecution(projectId: string): Promise<unknown>;
   getExecutionSteps(projectId: string): Promise<readonly ExecutionStep[]>;
@@ -203,6 +204,8 @@ export function createIntentApi(
         { repository, runId, pullNumber },
       );
     },
+    connectRepository: async (id, repository) =>
+      request<ConnectedRepository>(`${path(id)}/repositories`, "POST", { repository }),
     getRepositories: async (id) =>
       (await request<{ repositories: ConnectedRepository[] }>(`${path(id)}/repositories`))
         .repositories,

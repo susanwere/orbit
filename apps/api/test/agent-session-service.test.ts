@@ -196,3 +196,59 @@ describe("approved project agent catalog", () => {
     expect(JSON.stringify(agents)).not.toContain("META_API_KEY");
   });
 });
+
+describe("repository-scoped Muse onboarding", () => {
+  it("reuses the approved definition and refuses a different repository scope", async () => {
+    const statements: string[] = [];
+    let approvedRepository = "susanwere/private-test";
+    const transaction = {
+      query: async (statement: string) => {
+        statements.push(statement);
+        if (statement.includes("FROM project_repositories"))
+          return { rows: [{ id: "repository" }] };
+        if (statement.includes("FROM orbit_agent_definition_versions"))
+          return {
+            rows: [
+              {
+                status: "approved",
+                version: 1,
+                definition: { allowedRepositories: [approvedRepository] },
+              },
+            ],
+          };
+        return { rows: [] };
+      },
+    };
+    const service = new AgentSessionService(
+      {
+        transaction: async (callback: (client: typeof transaction) => Promise<unknown>) =>
+          callback(transaction),
+      } as never,
+      { authorize: async () => ({ organizationId: "org", role: "admin" }) } as never,
+      {} as never,
+    );
+    await expect(
+      service.onboardMuse("project", "admin", "susanwere/private-test"),
+    ).resolves.toEqual({ id: "muse_code_project", version: 1, reused: true });
+    expect(statements.some((statement) => statement.includes("INSERT INTO"))).toBe(false);
+    approvedRepository = "other/repository";
+    await expect(
+      service.onboardMuse("project", "admin", "susanwere/private-test"),
+    ).rejects.toMatchObject({ code: "invalid_state" });
+  });
+
+  it("rejects a repository that is not registered to the project", async () => {
+    const transaction = { query: async () => ({ rows: [] }) };
+    const service = new AgentSessionService(
+      {
+        transaction: async (callback: (client: typeof transaction) => Promise<unknown>) =>
+          callback(transaction),
+      } as never,
+      { authorize: async () => ({ organizationId: "org", role: "admin" }) } as never,
+      {} as never,
+    );
+    await expect(
+      service.onboardMuse("project", "admin", "susanwere/private-test"),
+    ).rejects.toMatchObject({ code: "forbidden" });
+  });
+});
