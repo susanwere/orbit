@@ -177,9 +177,7 @@ describe("approved project agent catalog", () => {
           sql = statement;
           argumentsSeen = args;
           return {
-            rows: [
-              { id: "muse", name: "Muse Code", provider: "meta", version: 1 },
-            ],
+            rows: [{ id: "muse", name: "Muse Code", provider: "meta", version: 1 }],
           };
         },
       } as never,
