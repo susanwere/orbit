@@ -53,13 +53,38 @@ export class AgentSessionService {
         return { id, version: current.version, reused: true };
       }
       const definition = {
-        id, organizationId: actor.organizationId, name: "Meta Muse Code", purpose: "Approved coding work in a scoped project repository", provider: "meta", model: "muse-code",
-        capabilities: ["read", "write"], approvedTools: ["code"], maxContextClassification: "PUBLIC", allowedContextScopes: [],
-        allowedRepositories: [repository], allowedPaths: ["src/**", "index.html", "package.json", "package-lock.json", "tsconfig*.json", "vite.config.*"],
-        approvalRequiredActions: ["github-push", "deploy"], forbiddenActions: ["access-secrets", "production-deploy"],
-        networkPolicy: "none", networkAllowlist: [], status: "approved", version: 1, createdByPrincipalId: principalId, createdAt: new Date().toISOString(),
+        id,
+        organizationId: actor.organizationId,
+        name: "Meta Muse Code",
+        purpose: "Approved coding work in a scoped project repository",
+        provider: "meta",
+        model: "muse-code",
+        capabilities: ["read", "write"],
+        approvedTools: ["code"],
+        maxContextClassification: "PUBLIC",
+        allowedContextScopes: [],
+        allowedRepositories: [repository],
+        allowedPaths: [
+          "src/**",
+          "index.html",
+          "package.json",
+          "package-lock.json",
+          "tsconfig*.json",
+          "vite.config.*",
+        ],
+        approvalRequiredActions: ["github-push", "deploy"],
+        forbiddenActions: ["access-secrets", "production-deploy"],
+        networkPolicy: "none",
+        networkAllowlist: [],
+        status: "approved",
+        version: 1,
+        createdByPrincipalId: principalId,
+        createdAt: new Date().toISOString(),
       };
-      await tx.query("INSERT INTO orbit_agent_definition_versions(id,organization_id,version,status,definition,approved_by_principal_id) VALUES ($1,$2,1,'approved',$3::jsonb,$4)", [id, actor.organizationId, JSON.stringify(definition), principalId]);
+      await tx.query(
+        "INSERT INTO orbit_agent_definition_versions(id,organization_id,version,status,definition,approved_by_principal_id) VALUES ($1,$2,1,'approved',$3::jsonb,$4)",
+        [id, actor.organizationId, JSON.stringify(definition), principalId],
+      );
       return { id, version: 1, reused: false };
     });
   }

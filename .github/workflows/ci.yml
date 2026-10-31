@@ -34,10 +34,6 @@ jobs:
           cache: npm
       - name: Install dependencies
         run: npm ci
-      - name: Format onboarding sources
-        run: |
-          npx prettier apps/api/src/modules/agents/agent-session-service.ts apps/api/src/modules/agents/agent-session-routes.ts apps/web/src/features/intent/intent-api.ts apps/web/src/features/intent/IntentEntry.tsx --write
-          git diff -- apps/api/src/modules/agents/agent-session-service.ts apps/api/src/modules/agents/agent-session-routes.ts apps/web/src/features/intent/intent-api.ts apps/web/src/features/intent/IntentEntry.tsx
       - name: Check source formatting
         run: npm run format:check
       - name: Build workspace dependencies

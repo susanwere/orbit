@@ -148,7 +148,9 @@ export function IntentEntry({ project, api, onBack }: IntentEntryProps) {
       setAgentDefinitionId(agents.find((agent) => agent.provider === "meta")?.id ?? "");
       setOnboardingApproved(false);
     } catch (failure) {
-      setAgentCatalogError(failure instanceof Error ? failure.message : "Could not authorize Muse Code.");
+      setAgentCatalogError(
+        failure instanceof Error ? failure.message : "Could not authorize Muse Code.",
+      );
     } finally {
       setOnboardingBusy(false);
     }
@@ -513,19 +515,36 @@ export function IntentEntry({ project, api, onBack }: IntentEntryProps) {
                     {approvedAgents.length === 0 && (
                       <div className="execution-onboarding">
                         <h4>Connect Meta Muse Code</h4>
-                        <p>Authorize Muse Code for a connected repository. Running code still requires plan and step approval.</p>
+                        <p>
+                          Authorize Muse Code for a connected repository. Running code still
+                          requires plan and step approval.
+                        </p>
                         <label htmlFor="muse-repository">Repository</label>
-                        <select id="muse-repository" value={onboardingRepository} onChange={(event) => setOnboardingRepository(event.target.value)}>
+                        <select
+                          id="muse-repository"
+                          value={onboardingRepository}
+                          onChange={(event) => setOnboardingRepository(event.target.value)}
+                        >
                           <option value="">Choose a repository</option>
                           {repositories.map((repository) => (
-                            <option key={repository.id} value={repository.full_name}>{repository.full_name}</option>
+                            <option key={repository.id} value={repository.full_name}>
+                              {repository.full_name}
+                            </option>
                           ))}
                         </select>
                         <label>
-                          <input type="checkbox" checked={onboardingApproved} onChange={(event) => setOnboardingApproved(event.target.checked)} />
+                          <input
+                            type="checkbox"
+                            checked={onboardingApproved}
+                            onChange={(event) => setOnboardingApproved(event.target.checked)}
+                          />
                           I authorize Muse Code to modify the approved paths in this repository.
                         </label>
-                        <button type="button" disabled={!onboardingApproved || !onboardingRepository || onboardingBusy} onClick={() => void onboardMuse()}>
+                        <button
+                          type="button"
+                          disabled={!onboardingApproved || !onboardingRepository || onboardingBusy}
+                          onClick={() => void onboardMuse()}
+                        >
                           {onboardingBusy ? "Authorizing…" : "Authorize Muse Code"}
                         </button>
                       </div>
