@@ -1,0 +1,24 @@
+# Local integration testing only. Not a production sandbox.
+# Build from repository root with: docker compose -f docker-compose.yml -f infra/muse-worker/compose.local.yml build muse-worker
+FROM node:22-bookworm-slim
+RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates curl git \
+  && rm -rf /var/lib/apt/lists/*
+WORKDIR /orbit
+COPY package*.json ./
+COPY tsconfig.base.json ./
+COPY apps/ apps/
+COPY packages/ packages/
+RUN npm ci --ignore-scripts --no-audit --no-fund \
+  && npm run build -w @orbit/domain \
+  && npm run build -w @orbit/db
+COPY docs/ docs/
+COPY infra/ infra/
+# The official installer installs the native CLI. A version check makes failure explicit.
+# This installer is fetched at build time; pin and verify an artifact before production use.
+RUN curl -fsSL https://dev.meta.ai/install.sh -o /tmp/install-muse.sh \
+  && bash /tmp/install-muse.sh \
+  && rm /tmp/install-muse.sh
+ENV PATH="/root/.local/bin:/root/.muse/bin:/usr/local/bin:${PATH}"
+RUN muse --version
+WORKDIR /orbit/apps/api
+CMD ["node", "--import", "tsx", "src/muse-queue-worker.ts"]

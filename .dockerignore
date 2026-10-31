@@ -1,0 +1,19 @@
+# Never send local credentials or generated files to Docker builds
+**/.env
+**/.env.*
+!**/.env.example
+**/node_modules
+**/dist
+**/coverage
+.git
+**/.git
+**/.DS_Store
+**/.ssh
+**/.aws
+**/.npmrc
+**/.terraform
+**/terraform.tfstate*
+*.pem
+*.key
+*.p12
+*.pfx

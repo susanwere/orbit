@@ -1,8 +1,4 @@
-/**
- * One-job worker entrypoint. Must run inside an independently provisioned
- * sandbox with a disposable, prechecked checkout and restricted credentials.
- * This program does not create the OS sandbox.
- */
+/** Separate execution and GitHub delivery entrypoints. Neither process receives the other's credential. */
 import { resolve } from "node:path";
 import { PgDatabase } from "@orbit/db";
 import { MuseGithubDeliveryService } from "./modules/execution/muse-github-delivery.js";
@@ -13,54 +9,60 @@ import {
 } from "./modules/execution/muse-code-executor.js";
 
 async function main() {
+  const mode = process.argv[2];
   const workspace = process.env.ORBIT_WORKER_WORKSPACE;
-  const url = process.env.DATABASE_URL;
-  const token = process.env.ORBIT_WORKER_GITHUB_TOKEN;
-  const baseBranch = process.env.ORBIT_WORKER_BASE_BRANCH ?? "main";
   if (
+    (mode !== "execute" && mode !== "deliver") ||
     process.env.ORBIT_MUSE_ISOLATED_WORKER !== "true" ||
     process.env.ORBIT_WORKER_SANDBOX_CONFIRMED !== "yes" ||
     !workspace ||
     resolve(workspace) !== workspace ||
-    !url ||
-    !token ||
-    !process.env.META_API_KEY
+    !process.env.DATABASE_URL
   ) {
-    throw new Error(
-      "Worker requires a provisioned isolated checkout, database and private credentials.",
-    );
+    throw new Error("Worker requires mode, isolated checkout and database.");
   }
-  const db = new PgDatabase(url);
+  if (mode === "execute" && (!process.env.META_API_KEY || process.env.ORBIT_WORKER_GITHUB_TOKEN)) {
+    throw new Error("Execution needs Muse credentials only, never a GitHub token.");
+  }
+  if (mode === "deliver" && (!process.env.ORBIT_WORKER_GITHUB_TOKEN || process.env.META_API_KEY)) {
+    throw new Error("Delivery needs a GitHub token only, never Muse credentials.");
+  }
+  const db = new PgDatabase(process.env.DATABASE_URL);
   try {
-    const worker = new MuseExecutionWorker(
-      db,
-      new MuseCodeCliExecutor(new LocalMuseProcessRunner()),
-    );
-    const result = await worker.runNext(workspace);
-    if (!result) {
-      process.stdout.write("No eligible queued Muse execution.\n");
+    if (mode === "execute") {
+      const worker = new MuseExecutionWorker(
+        db,
+        new MuseCodeCliExecutor(new LocalMuseProcessRunner()),
+      );
+      const result = await worker.runNext(workspace);
+      if (!result) return process.stdout.write("No eligible queued Muse execution.\n");
+      process.stdout.write(
+        `Muse outcome: ${result.status}; independent delivery and CI verification required.\n`,
+      );
+      if (result.status !== "TURN_FINISHED" && result.status !== "LEASE_LOST") {
+        process.exitCode = 1;
+      }
       return;
     }
-    if (result.status !== "TURN_FINISHED") {
-      process.stdout.write(`Muse execution outcome: ${result.status}. No delivery attempted.\n`);
-      if (result.status !== "LEASE_LOST") process.exitCode = 1;
-      return;
+    // Explicit job selection: do not deliver some unrelated project's most recent job.
+    const jobId = process.env.ORBIT_WORKER_JOB_ID;
+    if (!jobId || !/^musejob_[a-zA-Z0-9-]{20,80}$/.test(jobId)) {
+      throw new Error("Delivery requires an explicit ORBIT_WORKER_JOB_ID.");
     }
     const job = await db.query<{ project_id: string } & Record<string, unknown>>(
-      "SELECT project_id FROM muse_execution_jobs WHERE id=$1 AND status='TURN_FINISHED'",
-      [result.jobId],
+      "SELECT project_id FROM muse_execution_jobs WHERE id=$1 AND status='TURN_FINISHED' AND github_repository IS NULL",
+      [jobId],
     );
-    const projectId = job.rows[0]?.project_id;
-    if (!projectId) throw new Error("Job has no deliverable project.");
-    const delivery = new MuseGithubDeliveryService(db, token);
-    const delivered = await delivery.deliver({
-      jobId: result.jobId,
-      projectId,
+    if (!job.rows[0]) throw new Error("Job has no pending deliverable.");
+    const service = new MuseGithubDeliveryService(db, process.env.ORBIT_WORKER_GITHUB_TOKEN!);
+    const delivered = await service.deliver({
+      jobId,
+      projectId: job.rows[0].project_id,
       workspace,
-      baseBranch,
+      baseBranch: process.env.ORBIT_WORKER_BASE_BRANCH ?? "main",
     });
     process.stdout.write(
-      `Delivered job ${delivered.jobId} as ${delivered.repository} PR #${delivered.pullNumber}. Await independent CI evidence.\n`,
+      `Delivered ${delivered.jobId} as ${delivered.repository} PR #${delivered.pullNumber}. Await CI verification.\n`,
     );
   } finally {
     await db.close();
