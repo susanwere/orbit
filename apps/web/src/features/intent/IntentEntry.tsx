@@ -1,7 +1,13 @@
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { PlanReview } from "../planning/PlanReview.js";
 import type { CreatedProject, ConnectedRepository } from "../projects/project-api.js";
-import type { ProjectIntentApi, ProjectPlan, StoredIntent, ExecutionStep, MuseJobStatus } from "./intent-api.js";
+import type {
+  ProjectIntentApi,
+  ProjectPlan,
+  StoredIntent,
+  ExecutionStep,
+  MuseJobStatus,
+} from "./intent-api.js";
 import "./intent-entry.css";
 
 interface IntentEntryProps {
@@ -105,7 +111,10 @@ export function IntentEntry({ project, api, onBack }: IntentEntryProps) {
     }
   }
 
-  async function actOnStep(step: ExecutionStep, action: "approve" | "retry" | "start" | "dispatch" | "job") {
+  async function actOnStep(
+    step: ExecutionStep,
+    action: "approve" | "retry" | "start" | "dispatch" | "job",
+  ) {
     if (stepActionPending) return;
     setStepActionPending(step.id);
     setExecutionError(null);
