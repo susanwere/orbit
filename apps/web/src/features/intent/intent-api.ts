@@ -54,6 +54,8 @@ export interface ProjectIntentApi {
   getExecutionSteps(projectId: string): Promise<readonly ExecutionStep[]>;
   approveExecutionStep(projectId: string, stepId: string): Promise<void>;
   authorizeExecutionRetry(projectId: string, stepId: string): Promise<void>;
+  createAgentSession(projectId: string, definitionId: string, workItemId: string, mission: string): Promise<string>;
+  bindExecutionSession(projectId: string, stepId: string, sessionId: string): Promise<void>;
   startAgentSession(projectId: string, sessionId: string): Promise<void>;
   dispatchMuse(projectId: string, sessionId: string): Promise<void>;
   getMuseJob(projectId: string, sessionId: string): Promise<MuseJobStatus | null>;
@@ -143,6 +145,21 @@ export function createIntentApi(
         `${path(id)}/execution/steps/${encodeURIComponent(stepId)}/authorize-retry`,
         "POST",
         { acknowledgeFailedAttempt: true },
+      );
+    },
+    createAgentSession: async (id, agentDefinitionId, workItemId, mission) =>
+      (
+        await request<{ session: { id: string } }>(`${path(id)}/agent-sessions/self`, "POST", {
+          agentDefinitionId,
+          workItemId,
+          mission,
+        })
+      ).session.id,
+    bindExecutionSession: async (id, stepId, sessionId) => {
+      await request(
+        `${path(id)}/execution/steps/${encodeURIComponent(stepId)}/bind-session`,
+        "POST",
+        { sessionId },
       );
     },
     startAgentSession: async (id, sessionId) => {
