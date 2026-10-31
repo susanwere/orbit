@@ -7,6 +7,7 @@ import type {
   StoredIntent,
   ExecutionStep,
   MuseJobStatus,
+  ApprovedAgent,
 } from "./intent-api.js";
 import "./intent-entry.css";
 
@@ -36,6 +37,8 @@ export function IntentEntry({ project, api, onBack }: IntentEntryProps) {
   const [museJobs, setMuseJobs] = useState<Record<string, MuseJobStatus | null>>({});
   const [githubRunIds, setGithubRunIds] = useState<Record<string, string>>({});
   const [agentDefinitionId, setAgentDefinitionId] = useState("");
+  const [approvedAgents, setApprovedAgents] = useState<readonly ApprovedAgent[]>([]);
+  const [agentCatalogError, setAgentCatalogError] = useState<string | null>(null);
   const [pendingSessionIds, setPendingSessionIds] = useState<Record<string, string>>({});
   const busy = phase === "loading" || phase === "saving" || phase === "planning";
 
@@ -105,6 +108,28 @@ export function IntentEntry({ project, api, onBack }: IntentEntryProps) {
       cancelled = true;
     };
   }, [api, project.id]);
+
+  useEffect(() => {
+    if (plan?.status !== "APPROVED") return;
+    let cancelled = false;
+    void api.getApprovedAgents(project.id)
+      .then((agents) => {
+        if (cancelled) return;
+        setApprovedAgents(agents);
+        setAgentCatalogError(null);
+        setAgentDefinitionId((current) =>
+          agents.some((agent) => agent.id === current)
+            ? current
+            : agents.length === 1 && agents[0]?.provider.toLowerCase() === "meta"
+              ? agents[0].id
+              : "",
+        );
+      })
+      .catch(() => {
+        if (!cancelled) setAgentCatalogError("Could not load approved agents.");
+      });
+    return () => { cancelled = true; };
+  }, [api, project.id, plan?.status]);
 
   async function generate() {
     setPhase("planning");
@@ -448,18 +473,27 @@ export function IntentEntry({ project, api, onBack }: IntentEntryProps) {
                 </button>
                 {executionSteps.some((step) => !step.agent_session_id) && (
                   <div>
-                    <label htmlFor="orbit-agent-definition">
-                      Approved Muse agent definition ID
-                    </label>
-                    <input
+                    <label htmlFor="orbit-agent-definition">Execution agent</label>
+                    <select
                       id="orbit-agent-definition"
                       value={agentDefinitionId}
                       onChange={(event) => setAgentDefinitionId(event.target.value)}
-                      placeholder="Approved coding agent ID"
-                    />
+                      disabled={approvedAgents.length === 0}
+                    >
+                      <option value="">Select an approved agent</option>
+                      {approvedAgents.map((agent) => (
+                        <option key={agent.id} value={agent.id}>
+                          {agent.name} ({agent.provider})
+                        </option>
+                      ))}
+                    </select>
+                    {approvedAgents.length === 0 && !agentCatalogError && (
+                      <p>No approved agents are registered for this project's repository.</p>
+                    )}
+                    {agentCatalogError && <p role="alert">{agentCatalogError}</p>}
                     <p>
-                      Sessions are created for your account with the approved agent's existing
-                      repository and path permissions.
+                      Only approved agents with access to this repository are listed. Credentials
+                      stay on the worker, and every session receives its own execution contract.
                     </p>
                   </div>
                 )}
