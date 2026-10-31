@@ -171,3 +171,9 @@
     width: 100%;
   }
 }
+
+.execution-dashboard { display: flex; flex-wrap: wrap; align-items: center; gap: .75rem; margin-top: 1rem; padding: 1rem; border: 1px solid #5385ce; border-radius: 12px; background: rgba(45, 94, 174, .15); }
+.execution-dashboard strong { flex-basis: 100%; }
+.execution-dashboard p { margin: 0; }
+.execution-dashboard button { padding: .65rem 1rem; border-radius: 9px; cursor: pointer; }
+.execution-dashboard button:focus-visible { outline: 3px solid #a59bf5; outline-offset: 3px; }
