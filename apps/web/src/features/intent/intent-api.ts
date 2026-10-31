@@ -60,6 +60,7 @@ export interface ProjectIntentApi {
   prepareExecution(projectId: string): Promise<unknown>;
   getExecutionSteps(projectId: string): Promise<readonly ExecutionStep[]>;
   getApprovedAgents(projectId: string): Promise<readonly ApprovedAgent[]>;
+  onboardMuse(projectId: string, repository: string): Promise<void>;
   approveExecutionStep(projectId: string, stepId: string): Promise<void>;
   authorizeExecutionRetry(projectId: string, stepId: string): Promise<void>;
   createAgentSession(
@@ -148,6 +149,9 @@ export function createIntentApi(
         })
       ).plan,
     prepareExecution: async (id) => request<unknown>(`${path(id)}/execution/prepare`, "POST"),
+    onboardMuse: async (id, repository) => {
+      await request(path(id) + "/approved-agents/muse", "POST", { repository, approved: true });
+    },
     getApprovedAgents: async (id) =>
       (await request<{ agents: ApprovedAgent[] }>(`${path(id)}/approved-agents`)).agents,
     getExecutionSteps: async (id) =>

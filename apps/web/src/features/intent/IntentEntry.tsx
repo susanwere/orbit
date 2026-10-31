@@ -39,6 +39,9 @@ export function IntentEntry({ project, api, onBack }: IntentEntryProps) {
   const [agentDefinitionId, setAgentDefinitionId] = useState("");
   const [approvedAgents, setApprovedAgents] = useState<readonly ApprovedAgent[]>([]);
   const [agentCatalogError, setAgentCatalogError] = useState<string | null>(null);
+  const [onboardingRepository, setOnboardingRepository] = useState("");
+  const [onboardingApproved, setOnboardingApproved] = useState(false);
+  const [onboardingBusy, setOnboardingBusy] = useState(false);
   const [pendingSessionIds, setPendingSessionIds] = useState<Record<string, string>>({});
   const busy = phase === "loading" || phase === "saving" || phase === "planning";
 
@@ -133,6 +136,25 @@ export function IntentEntry({ project, api, onBack }: IntentEntryProps) {
       cancelled = true;
     };
   }, [api, project.id, plan?.status]);
+
+  async function onboardMuse() {
+    if (!onboardingApproved || !onboardingRepository || onboardingBusy) return;
+    setOnboardingBusy(true);
+    setAgentCatalogError(null);
+    try {
+      await api.onboardMuse(project.id, onboardingRepository);
+      const agents = await api.getApprovedAgents(project.id);
+      setApprovedAgents(agents);
+      setAgentDefinitionId(agents.find((agent) => agent.provider === "meta")?.id ?? "");
+      setOnboardingApproved(false);
+    } catch (failure) {
+      setAgentCatalogError(
+        failure instanceof Error ? failure.message : "Could not authorize Muse Code.",
+      );
+    } finally {
+      setOnboardingBusy(false);
+    }
+  }
 
   async function generate() {
     setPhase("planning");
@@ -490,8 +512,42 @@ export function IntentEntry({ project, api, onBack }: IntentEntryProps) {
                         </option>
                       ))}
                     </select>
-                    {approvedAgents.length === 0 && !agentCatalogError && (
-                      <p>No approved agents are registered for this project's repository.</p>
+                    {approvedAgents.length === 0 && (
+                      <div className="execution-onboarding">
+                        <h4>Connect Meta Muse Code</h4>
+                        <p>
+                          Authorize Muse Code for a connected repository. Running code still
+                          requires plan and step approval.
+                        </p>
+                        <label htmlFor="muse-repository">Repository</label>
+                        <select
+                          id="muse-repository"
+                          value={onboardingRepository}
+                          onChange={(event) => setOnboardingRepository(event.target.value)}
+                        >
+                          <option value="">Choose a repository</option>
+                          {repositories.map((repository) => (
+                            <option key={repository.id} value={repository.full_name}>
+                              {repository.full_name}
+                            </option>
+                          ))}
+                        </select>
+                        <label>
+                          <input
+                            type="checkbox"
+                            checked={onboardingApproved}
+                            onChange={(event) => setOnboardingApproved(event.target.checked)}
+                          />
+                          I authorize Muse Code to modify the approved paths in this repository.
+                        </label>
+                        <button
+                          type="button"
+                          disabled={!onboardingApproved || !onboardingRepository || onboardingBusy}
+                          onClick={() => void onboardMuse()}
+                        >
+                          {onboardingBusy ? "Authorizing…" : "Authorize Muse Code"}
+                        </button>
+                      </div>
                     )}
                     {agentCatalogError && <p role="alert">{agentCatalogError}</p>}
                     <p>

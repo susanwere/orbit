@@ -10,6 +10,20 @@ export async function registerAgentSessionRoutes(
     museJobs?: MuseExecutionJobService;
   },
 ) {
+  app.post<{ Params: { projectId: string }; Body: { repository: string; approved: boolean } }>(
+    "/projects/:projectId/approved-agents/muse",
+    async (req, reply) => {
+      const principal = opts.auth.verify(req.headers.authorization);
+      if (req.body?.approved !== true)
+        return reply.status(400).send({ message: "Explicit authorization required." });
+      const agent = await opts.service.onboardMuse(
+        req.params.projectId,
+        principal.id,
+        req.body.repository,
+      );
+      return reply.status(agent.reused ? 200 : 201).send({ agent });
+    },
+  );
   app.get<{ Params: { projectId: string } }>(
     "/projects/:projectId/approved-agents",
     async (req) => {
