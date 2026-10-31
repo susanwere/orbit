@@ -103,7 +103,9 @@ export function IntentEntry({ project, api, onBack }: IntentEntryProps) {
       }
       if (repositoryResult?.status === "fulfilled") {
         setRepositories(repositoryResult.value);
-        setOnboardingRepository((selected) => selected || repositoryResult.value[0]?.full_name || "");
+        setOnboardingRepository(
+          (selected) => selected || repositoryResult.value[0]?.full_name || "",
+        );
         setRepositoryError(false);
       } else {
         setRepositoryError(true);
@@ -580,7 +582,13 @@ export function IntentEntry({ project, api, onBack }: IntentEntryProps) {
                         </label>
                         <button
                           type="button"
-                          disabled={!onboardingApproved || !onboardingRepository || onboardingBusy || repositoryLoading || repositoryError}
+                          disabled={
+                            !onboardingApproved ||
+                            !onboardingRepository ||
+                            onboardingBusy ||
+                            repositoryLoading ||
+                            repositoryError
+                          }
                           onClick={() => void onboardMuse()}
                         >
                           {onboardingBusy ? "Authorizing…" : "Authorize Muse Code"}
