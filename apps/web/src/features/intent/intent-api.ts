@@ -54,7 +54,12 @@ export interface ProjectIntentApi {
   getExecutionSteps(projectId: string): Promise<readonly ExecutionStep[]>;
   approveExecutionStep(projectId: string, stepId: string): Promise<void>;
   authorizeExecutionRetry(projectId: string, stepId: string): Promise<void>;
-  createAgentSession(projectId: string, definitionId: string, workItemId: string, mission: string): Promise<string>;
+  createAgentSession(
+    projectId: string,
+    definitionId: string,
+    workItemId: string,
+    mission: string,
+  ): Promise<string>;
   bindExecutionSession(projectId: string, stepId: string, sessionId: string): Promise<void>;
   startAgentSession(projectId: string, sessionId: string): Promise<void>;
   dispatchMuse(projectId: string, sessionId: string): Promise<void>;
