@@ -22,16 +22,34 @@ export class AgentSessionService {
   async onboardMuse(projectId: string, principalId: string, repository: string) {
     const actor = await this.auth.authorize(principalId, projectId, "review");
     if (actor.role !== "admin") throw new DomainError("forbidden", "Admin approval required.");
-    if (!/^[a-zA-Z0-9_.-]+\/[a-zA-Z0-9_.-]+$/.test(repository)) throw new DomainError("validation", "Invalid repository.");
+    if (!/^[a-zA-Z0-9_.-]+\/[a-zA-Z0-9_.-]+$/.test(repository))
+      throw new DomainError("validation", "Invalid repository.");
     const id = "muse_code_" + projectId.replace(/[^a-zA-Z0-9_-]/g, "_");
     return this.db.transaction(async (tx) => {
       await tx.query("SELECT pg_advisory_xact_lock(hashtextextended($1,0))", [id]);
-      const registered = await tx.query<Record<string, unknown>>("SELECT id FROM project_repositories WHERE organization_id=$1 AND project_id=$2 AND full_name=$3", [actor.organizationId, projectId, repository]);
-      if (!registered.rows[0]) throw new DomainError("forbidden", "Repository is not registered to project.");
-      const previous = await tx.query<{ status: string; version: number; definition: { allowedRepositories: string[] } } & Record<string, unknown>>("SELECT status,version,definition FROM orbit_agent_definition_versions WHERE organization_id=$1 AND id=$2 ORDER BY version DESC LIMIT 1", [actor.organizationId,id]);
+      const registered = await tx.query<Record<string, unknown>>(
+        "SELECT id FROM project_repositories WHERE organization_id=$1 AND project_id=$2 AND full_name=$3",
+        [actor.organizationId, projectId, repository],
+      );
+      if (!registered.rows[0])
+        throw new DomainError("forbidden", "Repository is not registered to project.");
+      const previous = await tx.query<
+        { status: string; version: number; definition: { allowedRepositories: string[] } } & Record<
+          string,
+          unknown
+        >
+      >(
+        "SELECT status,version,definition FROM orbit_agent_definition_versions WHERE organization_id=$1 AND id=$2 ORDER BY version DESC LIMIT 1",
+        [actor.organizationId, id],
+      );
       if (previous.rows[0]) {
         const current = previous.rows[0];
-        if (current.status !== "approved" || current.definition.allowedRepositories.length !== 1 || current.definition.allowedRepositories[0] !== repository) throw new DomainError("invalid_state", "Agent requires admin re-review.");
+        if (
+          current.status !== "approved" ||
+          current.definition.allowedRepositories.length !== 1 ||
+          current.definition.allowedRepositories[0] !== repository
+        )
+          throw new DomainError("invalid_state", "Agent requires admin re-review.");
         return { id, version: current.version, reused: true };
       }
       const definition = {
