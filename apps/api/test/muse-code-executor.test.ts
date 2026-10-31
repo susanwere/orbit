@@ -18,6 +18,7 @@ describe("Muse Code executor adapter", () => {
         expect(options.maxOutputBytes).toBe(2_000_000);
         expect(arguments_).not.toContain("--yolo");
         expect(arguments_).not.toContain("--disable-sandbox");
+        expect(arguments_).toContain("--disable-approval");
         expect(arguments_).toContain("--prompt-file");
         return {
           exitCode: 0,
@@ -26,7 +27,7 @@ describe("Muse Code executor adapter", () => {
       },
     });
     const result = await adapter.execute(request);
-    expect(args.slice(0, 2)).toEqual(["exec", "--json"]);
+    expect(args.slice(0, 3)).toEqual(["exec", "--disable-approval", "--json"]);
     expect(args).toContain("--max-model-steps");
     expect(result).toEqual({
       provider: "meta-muse-code",

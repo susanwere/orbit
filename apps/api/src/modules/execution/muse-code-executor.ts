@@ -54,6 +54,7 @@ export class MuseCodeCliExecutor implements EngineeringExecutor {
       const run = await this.runner.run(
         [
           "exec",
+          "--disable-approval",
           "--json",
           "--prompt-file",
           prompt,

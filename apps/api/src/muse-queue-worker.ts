@@ -36,9 +36,7 @@ async function main() {
       );
       const result = await worker.runNext(workspace);
       if (!result) return process.stdout.write("No eligible queued Muse execution.\n");
-      process.stdout.write(
-        `Muse outcome: ${result.status}; independent delivery and CI verification required.\n`,
-      );
+      process.stdout.write(`Muse job ${result.jobId} outcome: ${result.status}\n`);
       if (result.status !== "TURN_FINISHED" && result.status !== "LEASE_LOST") {
         process.exitCode = 1;
       }
