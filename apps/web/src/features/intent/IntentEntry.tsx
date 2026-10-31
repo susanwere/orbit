@@ -98,7 +98,9 @@ export function IntentEntry({ project, api, onBack }: IntentEntryProps) {
     try {
       setExecutionSteps(await api.getExecutionSteps(project.id));
     } catch (failure) {
-      setExecutionError(failure instanceof Error ? failure.message : "Could not load execution status.");
+      setExecutionError(
+        failure instanceof Error ? failure.message : "Could not load execution status.",
+      );
     }
   }
 
