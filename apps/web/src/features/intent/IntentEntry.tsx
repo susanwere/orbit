@@ -1,7 +1,13 @@
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { PlanReview } from "../planning/PlanReview.js";
 import type { CreatedProject, ConnectedRepository } from "../projects/project-api.js";
-import type { ProjectIntentApi, ProjectPlan, StoredIntent, ExecutionStep } from "./intent-api.js";
+import type {
+  ProjectIntentApi,
+  ProjectPlan,
+  StoredIntent,
+  ExecutionStep,
+  MuseJobStatus,
+} from "./intent-api.js";
 import "./intent-entry.css";
 
 interface IntentEntryProps {
@@ -26,6 +32,7 @@ export function IntentEntry({ project, api, onBack }: IntentEntryProps) {
   const [executionError, setExecutionError] = useState<string | null>(null);
   const [executionSteps, setExecutionSteps] = useState<readonly ExecutionStep[]>([]);
   const [stepActionPending, setStepActionPending] = useState<string | null>(null);
+  const [museJobs, setMuseJobs] = useState<Record<string, MuseJobStatus | null>>({});
   const busy = phase === "loading" || phase === "saving" || phase === "planning";
 
   const refresh = useCallback(async () => {
@@ -104,15 +111,23 @@ export function IntentEntry({ project, api, onBack }: IntentEntryProps) {
     }
   }
 
-  async function actOnStep(step: ExecutionStep, action: "approve" | "retry") {
+  async function actOnStep(
+    step: ExecutionStep,
+    action: "approve" | "retry" | "start" | "dispatch" | "job",
+  ) {
     if (stepActionPending) return;
     setStepActionPending(step.id);
     setExecutionError(null);
     try {
       if (action === "approve") {
         await api.approveExecutionStep(project.id, step.id);
-      } else {
+      } else if (action === "retry") {
         await api.authorizeExecutionRetry(project.id, step.id);
+      } else if (step.agent_session_id) {
+        if (action === "start") await api.startAgentSession(project.id, step.agent_session_id);
+        if (action === "dispatch") await api.dispatchMuse(project.id, step.agent_session_id);
+        const job = await api.getMuseJob(project.id, step.agent_session_id);
+        setMuseJobs((current) => ({ ...current, [step.agent_session_id!]: job }));
       }
       setExecutionSteps(await api.getExecutionSteps(project.id));
     } catch (failure) {
@@ -338,6 +353,46 @@ export function IntentEntry({ project, api, onBack }: IntentEntryProps) {
                               {stepActionPending === step.id ? "Approving…" : "Approve step"}
                             </button>
                           )}
+                        {step.agent_session_id &&
+                          step.blocker_reason === null &&
+                          (step.state === "READY" || step.state === "BLOCKED") && (
+                            <button
+                              type="button"
+                              disabled={Boolean(stepActionPending)}
+                              onClick={() => void actOnStep(step, "start")}
+                            >
+                              Start authorized session
+                            </button>
+                          )}
+                        {step.agent_session_id && step.state === "RUNNING" && (
+                          <button
+                            type="button"
+                            disabled={Boolean(stepActionPending)}
+                            onClick={() => void actOnStep(step, "dispatch")}
+                          >
+                            Queue Muse Code
+                          </button>
+                        )}
+                        {step.agent_session_id && (
+                          <button
+                            type="button"
+                            disabled={Boolean(stepActionPending)}
+                            onClick={() => void actOnStep(step, "job")}
+                          >
+                            Check Muse job
+                          </button>
+                        )}
+                        {step.agent_session_id && museJobs[step.agent_session_id] && (
+                          <p role="status">
+                            Muse job: {museJobs[step.agent_session_id]?.status}
+                            {museJobs[step.agent_session_id]?.github_pull_number
+                              ? ` · PR #${museJobs[step.agent_session_id]?.github_pull_number}`
+                              : ""}
+                            {museJobs[step.agent_session_id]?.failure_reason
+                              ? ` · ${museJobs[step.agent_session_id]?.failure_reason}`
+                              : ""}
+                          </p>
+                        )}
                         {step.state === "FAILED" && (
                           <button
                             type="button"

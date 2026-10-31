@@ -48,6 +48,19 @@ export async function registerAgentSessionRoutes(
   // Dispatch is explicit, authenticated, and only queues already-running
   // sessions whose approved step and ExecutionContract pass backend checks.
   if (opts.museJobs) {
+    app.get<{ Params: { projectId: string; sessionId: string } }>(
+      "/projects/:projectId/agent-sessions/:sessionId/muse-job",
+      async (req) => {
+        const principal = opts.auth.verify(req.headers.authorization);
+        return {
+          job: await opts.museJobs!.getStatus({
+            projectId: req.params.projectId,
+            sessionId: req.params.sessionId,
+            principalId: principal.id,
+          }),
+        };
+      },
+    );
     app.post<{ Params: { projectId: string; sessionId: string } }>(
       "/projects/:projectId/agent-sessions/:sessionId/dispatch-muse",
       async (req, reply) => {
