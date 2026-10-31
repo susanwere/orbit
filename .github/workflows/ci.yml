@@ -34,8 +34,6 @@ jobs:
           cache: npm
       - name: Install dependencies
         run: npm ci
-      - name: Diagnose provisioner formatting
-        run: npx prettier apps/api/src/provision-muse-agent.ts --write && git diff -- apps/api/src/provision-muse-agent.ts
       - name: Check source formatting
         run: npm run format:check
       - name: Build workspace dependencies
