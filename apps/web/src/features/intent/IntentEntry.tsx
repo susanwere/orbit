@@ -271,7 +271,11 @@ export function IntentEntry({ project, api, onBack }: IntentEntryProps) {
               </button>
             )}
             {executionSummary && <p role="status">{executionSummary}</p>}
-            {executionError && <p role="alert" className="intent-error">{executionError}</p>}
+            {executionError && (
+              <p role="alert" className="intent-error">
+                {executionError}
+              </p>
+            )}
           </div>
         )}
 
