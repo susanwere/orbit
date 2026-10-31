@@ -34,6 +34,8 @@ export function IntentEntry({ project, api, onBack }: IntentEntryProps) {
   const [stepActionPending, setStepActionPending] = useState<string | null>(null);
   const [museJobs, setMuseJobs] = useState<Record<string, MuseJobStatus | null>>({});
   const [githubRunId, setGithubRunId] = useState("");
+  const [agentDefinitionId, setAgentDefinitionId] = useState("");
+  const [pendingSessionIds, setPendingSessionIds] = useState<Record<string, string>>({});
   const busy = phase === "loading" || phase === "saving" || phase === "planning";
 
   const refresh = useCallback(async () => {
@@ -114,7 +116,7 @@ export function IntentEntry({ project, api, onBack }: IntentEntryProps) {
 
   async function actOnStep(
     step: ExecutionStep,
-    action: "approve" | "retry" | "start" | "dispatch" | "job",
+    action: "approve" | "retry" | "start" | "dispatch" | "job" | "create",
   ) {
     if (stepActionPending) return;
     setStepActionPending(step.id);
@@ -124,6 +126,46 @@ export function IntentEntry({ project, api, onBack }: IntentEntryProps) {
         await api.approveExecutionStep(project.id, step.id);
       } else if (action === "retry") {
         await api.authorizeExecutionRetry(project.id, step.id);
+      } else if (action === "create" && plan) {
+        if (!agentDefinitionId.trim()) {
+          throw new Error("Provide the ID of an approved Muse coding agent definition.");
+        }
+        let sessionId = pendingSessionIds[step.id];
+        if (!sessionId) {
+          const graph = plan.content as {
+            workItems?: {
+              key: string;
+              title: string;
+              description: string;
+              workflows: { steps: { title: string }[] }[];
+            }[];
+          } | null;
+          const workItem = graph?.workItems?.find((item) => item.key === step.work_item_key);
+          const stepTitle =
+            workItem?.workflows?.[step.workflow_index]?.steps?.[step.step_index]?.title;
+          const mission = [
+            workItem?.title ?? step.work_item_key,
+            workItem?.description ?? "Implement the approved work item.",
+            stepTitle ? `Approved step: ${stepTitle}` : "",
+            "Follow the approved execution contract and human gates.",
+          ]
+            .filter(Boolean)
+            .join("\n")
+            .slice(0, 2000);
+          sessionId = await api.createAgentSession(
+            project.id,
+            agentDefinitionId.trim(),
+            `work:${plan.id}:${step.work_item_key}`,
+            mission,
+          );
+          setPendingSessionIds((current) => ({ ...current, [step.id]: sessionId! }));
+        }
+        await api.bindExecutionSession(project.id, step.id, sessionId);
+        setPendingSessionIds((current) => {
+          const updated = { ...current };
+          delete updated[step.id];
+          return updated;
+        });
       } else if (step.agent_session_id) {
         if (action === "start") await api.startAgentSession(project.id, step.agent_session_id);
         if (action === "dispatch") await api.dispatchMuse(project.id, step.agent_session_id);
@@ -363,6 +405,23 @@ export function IntentEntry({ project, api, onBack }: IntentEntryProps) {
                 >
                   Refresh execution status
                 </button>
+                {executionSteps.some((step) => !step.agent_session_id) && (
+                  <div>
+                    <label htmlFor="orbit-agent-definition">
+                      Approved Muse agent definition ID
+                    </label>
+                    <input
+                      id="orbit-agent-definition"
+                      value={agentDefinitionId}
+                      onChange={(event) => setAgentDefinitionId(event.target.value)}
+                      placeholder="Approved coding agent ID"
+                    />
+                    <p>
+                      Sessions are created for your account with the approved agent's existing
+                      repository and path permissions.
+                    </p>
+                  </div>
+                )}
                 {executionSteps.length > 0 && (
                   <ol>
                     {executionSteps.map((step) => (
@@ -383,6 +442,20 @@ export function IntentEntry({ project, api, onBack }: IntentEntryProps) {
                               onClick={() => void actOnStep(step, "approve")}
                             >
                               {stepActionPending === step.id ? "Approving…" : "Approve step"}
+                            </button>
+                          )}
+                        {!step.agent_session_id &&
+                          step.state === "BLOCKED" &&
+                          step.blocker_reason !== "prerequisite_incomplete" &&
+                          step.blocker_reason !== "human_approval_required" && (
+                            <button
+                              type="button"
+                              disabled={Boolean(stepActionPending) || !agentDefinitionId.trim()}
+                              onClick={() => void actOnStep(step, "create")}
+                            >
+                              {pendingSessionIds[step.id]
+                                ? "Retry binding created session"
+                                : "Create & bind agent session"}
                             </button>
                           )}
                         {step.agent_session_id &&
