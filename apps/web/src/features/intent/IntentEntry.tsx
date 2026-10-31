@@ -572,7 +572,9 @@ export function IntentEntry({ project, api, onBack }: IntentEntryProps) {
                                 />
                                 <button
                                   type="button"
-                                  disabled={Boolean(stepActionPending) || !githubRunIds[step.id]?.trim()}
+                                  disabled={
+                                    Boolean(stepActionPending) || !githubRunIds[step.id]?.trim()
+                                  }
                                   onClick={() => void verifyCi(step)}
                                 >
                                   Verify GitHub CI
@@ -591,7 +593,8 @@ export function IntentEntry({ project, api, onBack }: IntentEntryProps) {
                             </button>
                           )}
                         </details>
-                      </li>                   ))}
+                      </li>
+                    ))}
                   </ol>
                 )}
               </section>
