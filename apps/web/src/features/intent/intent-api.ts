@@ -30,6 +30,18 @@ export interface ExecutionStep {
   readonly agent_session_id: string | null;
 }
 
+export interface MuseJobStatus {
+  readonly id: string;
+  readonly status: string;
+  readonly workflow_step_id: string;
+  readonly attempts: number;
+  readonly started_at: string | null;
+  readonly finished_at: string | null;
+  readonly failure_reason: string | null;
+  readonly github_repository: string | null;
+  readonly github_pull_number: number | null;
+}
+
 export interface ProjectIntentApi {
   getIntent(projectId: string): Promise<StoredIntent | null>;
   submitIntent(projectId: string, statement: string): Promise<StoredIntent>;
@@ -42,6 +54,9 @@ export interface ProjectIntentApi {
   getExecutionSteps(projectId: string): Promise<readonly ExecutionStep[]>;
   approveExecutionStep(projectId: string, stepId: string): Promise<void>;
   authorizeExecutionRetry(projectId: string, stepId: string): Promise<void>;
+  startAgentSession(projectId: string, sessionId: string): Promise<void>;
+  dispatchMuse(projectId: string, sessionId: string): Promise<void>;
+  getMuseJob(projectId: string, sessionId: string): Promise<MuseJobStatus | null>;
 }
 
 export interface ProjectIntentApiOptions {
@@ -123,6 +138,21 @@ export function createIntentApi(
         { acknowledgeFailedAttempt: true },
       );
     },
+    startAgentSession: async (id, sessionId) => {
+      await request(`${path(id)}/agent-sessions/${encodeURIComponent(sessionId)}/start`, "POST");
+    },
+    dispatchMuse: async (id, sessionId) => {
+      await request(
+        `${path(id)}/agent-sessions/${encodeURIComponent(sessionId)}/dispatch-muse`,
+        "POST",
+      );
+    },
+    getMuseJob: async (id, sessionId) =>
+      (
+        await request<{ job: MuseJobStatus | null }>(
+          `${path(id)}/agent-sessions/${encodeURIComponent(sessionId)}/muse-job`,
+        )
+      ).job,
     getRepositories: async (id) =>
       (await request<{ repositories: ConnectedRepository[] }>(`${path(id)}/repositories`))
         .repositories,
