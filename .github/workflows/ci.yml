@@ -34,6 +34,10 @@ jobs:
           cache: npm
       - name: Install dependencies
         run: npm ci
+      - name: Diagnose formatting
+        run: |
+          npx prettier apps/web/src/features/intent/IntentEntry.tsx --write
+          git diff -- apps/web/src/features/intent/IntentEntry.tsx
       - name: Check source formatting
         run: npm run format:check
       - name: Build workspace dependencies
