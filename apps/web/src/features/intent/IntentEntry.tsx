@@ -21,6 +21,9 @@ export function IntentEntry({ project, api, onBack }: IntentEntryProps) {
   const [error, setError] = useState<string | null>(null);
   const [repositoryError, setRepositoryError] = useState(false);
   const [reviewOpen, setReviewOpen] = useState(false);
+  const [executionPreparing, setExecutionPreparing] = useState(false);
+  const [executionSummary, setExecutionSummary] = useState<string | null>(null);
+  const [executionError, setExecutionError] = useState<string | null>(null);
   const busy = phase === "loading" || phase === "saving" || phase === "planning";
 
   const refresh = useCallback(async () => {
@@ -85,6 +88,27 @@ export function IntentEntry({ project, api, onBack }: IntentEntryProps) {
     } catch (failure) {
       setError(failure instanceof Error ? failure.message : "Planning failed. Try again.");
       setPhase("error");
+    }
+  }
+
+  async function prepareExecution() {
+    if (plan?.status !== "APPROVED" || executionPreparing) return;
+    setExecutionPreparing(true);
+    setExecutionError(null);
+    try {
+      await api.prepareExecution(project.id);
+      const steps = await api.getExecutionSteps(project.id);
+      const blocked = steps.filter((step) => step.blocker_reason !== null);
+      setExecutionSummary(
+        `Prepared ${steps.length} execution steps. ${blocked.length} have blockers. No agents have started.`,
+      );
+    } catch (failure) {
+      // An existing execution may already be prepared. Never retry silently.
+      setExecutionError(
+        failure instanceof Error ? failure.message : "Could not prepare execution.",
+      );
+    } finally {
+      setExecutionPreparing(false);
     }
   }
 
@@ -236,6 +260,18 @@ export function IntentEntry({ project, api, onBack }: IntentEntryProps) {
             <button type="button" className="cta-primary" onClick={() => setReviewOpen(true)}>
               {plan.status === "APPROVED" ? "View approved plan" : "Review proposed plan"}
             </button>
+            {plan.status === "APPROVED" && (
+              <button
+                type="button"
+                className="cta-primary"
+                onClick={() => void prepareExecution()}
+                disabled={executionPreparing || Boolean(executionSummary)}
+              >
+                {executionPreparing ? "Preparing execution…" : "Prepare execution"}
+              </button>
+            )}
+            {executionSummary && <p role="status">{executionSummary}</p>}
+            {executionError && <p role="alert" className="intent-error">{executionError}</p>}
           </div>
         )}
 
