@@ -112,7 +112,8 @@ export function IntentEntry({ project, api, onBack }: IntentEntryProps) {
   useEffect(() => {
     if (plan?.status !== "APPROVED") return;
     let cancelled = false;
-    void api.getApprovedAgents(project.id)
+    void api
+      .getApprovedAgents(project.id)
       .then((agents) => {
         if (cancelled) return;
         setApprovedAgents(agents);
@@ -128,7 +129,9 @@ export function IntentEntry({ project, api, onBack }: IntentEntryProps) {
       .catch(() => {
         if (!cancelled) setAgentCatalogError("Could not load approved agents.");
       });
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [api, project.id, plan?.status]);
 
   async function generate() {

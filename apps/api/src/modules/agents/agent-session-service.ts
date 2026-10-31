@@ -21,12 +21,14 @@ export class AgentSessionService {
   ) {}
   async listApproved(projectId: string, principalId: string) {
     const actor = await this.auth.authorize(principalId, projectId, "read");
-    const result = await this.db.query<{
-      id: string;
-      name: string;
-      provider: string;
-      version: number;
-    } & Record<string, unknown>>(
+    const result = await this.db.query<
+      {
+        id: string;
+        name: string;
+        provider: string;
+        version: number;
+      } & Record<string, unknown>
+    >(
       `SELECT d.id, d.definition->>'name' AS name,
               d.definition->>'provider' AS provider, d.version
        FROM orbit_agent_definition_versions d
