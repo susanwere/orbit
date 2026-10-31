@@ -166,3 +166,35 @@ describe("atomic session and step start", () => {
     expect(transacted).toBe(false);
   });
 });
+
+describe("approved project agent catalog", () => {
+  it("uses project authorization and returns only public approved definition metadata", async () => {
+    let sql = "";
+    let argumentsSeen: unknown[] = [];
+    const service = new AgentSessionService(
+      {
+        query: async (statement: string, args: unknown[]) => {
+          sql = statement;
+          argumentsSeen = args;
+          return {
+            rows: [
+              { id: "muse", name: "Muse Code", provider: "meta", version: 1 },
+            ],
+          };
+        },
+      } as never,
+      {
+        authorize: async () => ({ organizationId: "org", role: "member" }),
+      } as never,
+      {} as never,
+    );
+    const agents = await service.listApproved("project", "human");
+    expect(argumentsSeen).toEqual(["org", "project"]);
+    expect(sql).toContain("d.status='approved'");
+    expect(sql).toContain("MAX(latest.version)");
+    expect(sql).toContain("project_repositories");
+    expect(sql).toContain("allowedRepositories");
+    expect(agents).toEqual([{ id: "muse", name: "Muse Code", provider: "meta", version: 1 }]);
+    expect(JSON.stringify(agents)).not.toContain("META_API_KEY");
+  });
+});
