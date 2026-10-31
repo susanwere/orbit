@@ -35,7 +35,7 @@ jobs:
       - name: Install dependencies
         run: npm ci
       - name: Check source formatting
-        run: npx prettier --write apps/web/src/features/intent/IntentEntry.tsx && git diff -- apps/web/src/features/intent/IntentEntry.tsx
+        run: npm run format:check
       - name: Build workspace dependencies
         run: npm run build -w @orbit/domain && npm run build -w @orbit/db
       - name: Typecheck
