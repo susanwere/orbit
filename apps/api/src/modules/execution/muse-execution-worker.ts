@@ -26,6 +26,22 @@ export class MuseExecutionJobService {
     private readonly uuid: () => string = randomUUID,
   ) {}
 
+  async getStatus(input: { projectId: string; principalId: string; sessionId: string }) {
+    const actor = await this.authorization.authorize(input.principalId, input.projectId, "read");
+    const result = await this.db.query<Record<string, unknown>>(
+      `SELECT job.id,job.status,job.workflow_step_id,job.attempts,job.started_at,
+         job.finished_at,job.failure_reason,job.github_repository,job.github_pull_number
+       FROM muse_execution_jobs job
+       JOIN agent_sessions session ON session.id=job.agent_session_id
+         AND session.project_id=job.project_id AND session.organization_id=job.organization_id
+       WHERE job.project_id=$1 AND job.organization_id=$2
+         AND job.agent_session_id=$3
+       ORDER BY job.created_at DESC LIMIT 1`,
+      [actor.projectId, actor.organizationId, input.sessionId],
+    );
+    return result.rows[0] ?? null;
+  }
+
   async enqueue(input: { projectId: string; principalId: string; sessionId: string }) {
     const actor = await this.authorization.authorize(input.principalId, input.projectId, "review");
     const result = await this.db.query<Record<string, unknown>>(
