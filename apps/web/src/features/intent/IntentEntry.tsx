@@ -555,7 +555,9 @@ export function IntentEntry({ project, api, onBack }: IntentEntryProps) {
                                 >
                                   Review generated pull request
                                 </a>
-                                <label htmlFor={`github-run-${step.id}`}>GitHub Actions run ID</label>
+                                <label htmlFor={`github-run-${step.id}`}>
+                                  GitHub Actions run ID
+                                </label>
                                 <input
                                   id={`github-run-${step.id}`}
                                   type="number"
