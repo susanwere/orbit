@@ -10,6 +10,13 @@ export async function registerAgentSessionRoutes(
     museJobs?: MuseExecutionJobService;
   },
 ) {
+  app.get<{ Params: { projectId: string } }>(
+    "/projects/:projectId/approved-agents",
+    async (req) => {
+      const principal = opts.auth.verify(req.headers.authorization);
+      return { agents: await opts.service.listApproved(req.params.projectId, principal.id) };
+    },
+  );
   app.post<{
     Params: { projectId: string };
     Body: {

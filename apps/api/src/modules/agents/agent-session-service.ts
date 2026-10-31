@@ -19,6 +19,41 @@ export class AgentSessionService {
     private readonly snapshots: AgentContextSnapshotService,
     private readonly uuid: () => string = randomUUID,
   ) {}
+  async listApproved(projectId: string, principalId: string) {
+    const actor = await this.auth.authorize(principalId, projectId, "read");
+    const result = await this.db.query<
+      {
+        id: string;
+        name: string;
+        provider: string;
+        version: number;
+      } & Record<string, unknown>
+    >(
+      `SELECT d.id, d.definition->>'name' AS name,
+              d.definition->>'provider' AS provider, d.version
+       FROM orbit_agent_definition_versions d
+       WHERE d.organization_id=$1 AND d.status='approved'
+         AND d.version=(
+           SELECT MAX(latest.version)
+           FROM orbit_agent_definition_versions latest
+           WHERE latest.organization_id=d.organization_id AND latest.id=d.id
+         )
+         AND EXISTS (
+           SELECT 1 FROM project_repositories repo
+           WHERE repo.project_id=$2 AND repo.organization_id=$1
+             AND (d.definition->'allowedRepositories') ? repo.full_name
+         )
+       ORDER BY name, d.id`,
+      [actor.organizationId, projectId],
+    );
+    return result.rows.map(({ id, name, provider, version }) => ({
+      id,
+      name,
+      provider,
+      version,
+    }));
+  }
+
   async create(input: {
     projectId: string;
     requestedBy: string;

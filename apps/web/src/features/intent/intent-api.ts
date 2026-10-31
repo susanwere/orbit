@@ -18,6 +18,13 @@ export interface ProjectPlan {
   readonly content: unknown;
 }
 
+export interface ApprovedAgent {
+  readonly id: string;
+  readonly name: string;
+  readonly provider: string;
+  readonly version: number;
+}
+
 export interface ExecutionStep {
   readonly id: string;
   readonly state: string;
@@ -52,6 +59,7 @@ export interface ProjectIntentApi {
   getRepositories(projectId: string): Promise<readonly ConnectedRepository[]>;
   prepareExecution(projectId: string): Promise<unknown>;
   getExecutionSteps(projectId: string): Promise<readonly ExecutionStep[]>;
+  getApprovedAgents(projectId: string): Promise<readonly ApprovedAgent[]>;
   approveExecutionStep(projectId: string, stepId: string): Promise<void>;
   authorizeExecutionRetry(projectId: string, stepId: string): Promise<void>;
   createAgentSession(
@@ -140,6 +148,8 @@ export function createIntentApi(
         })
       ).plan,
     prepareExecution: async (id) => request<unknown>(`${path(id)}/execution/prepare`, "POST"),
+    getApprovedAgents: async (id) =>
+      (await request<{ agents: ApprovedAgent[] }>(`${path(id)}/approved-agents`)).agents,
     getExecutionSteps: async (id) =>
       (await request<{ steps: ExecutionStep[] }>(`${path(id)}/execution/steps`)).steps,
     approveExecutionStep: async (id, stepId) => {
