@@ -23,6 +23,11 @@ export interface ExecutionStep {
   readonly state: string;
   readonly blocker_reason: string | null;
   readonly work_item_key: string;
+  readonly workflow_index: number;
+  readonly step_index: number;
+  readonly approval_required: boolean;
+  readonly approved_at: string | null;
+  readonly agent_session_id: string | null;
 }
 
 export interface ProjectIntentApi {
@@ -35,6 +40,8 @@ export interface ProjectIntentApi {
   getRepositories(projectId: string): Promise<readonly ConnectedRepository[]>;
   prepareExecution(projectId: string): Promise<unknown>;
   getExecutionSteps(projectId: string): Promise<readonly ExecutionStep[]>;
+  approveExecutionStep(projectId: string, stepId: string): Promise<void>;
+  authorizeExecutionRetry(projectId: string, stepId: string): Promise<void>;
 }
 
 export interface ProjectIntentApiOptions {
@@ -106,6 +113,14 @@ export function createIntentApi(
     prepareExecution: async (id) => request<unknown>(`${path(id)}/execution/prepare`, "POST"),
     getExecutionSteps: async (id) =>
       (await request<{ steps: ExecutionStep[] }>(`${path(id)}/execution/steps`)).steps,
+    approveExecutionStep: async (id, stepId) => {
+      await request(`${path(id)}/execution/steps/${encodeURIComponent(stepId)}/approve`, "POST");
+    },
+    authorizeExecutionRetry: async (id, stepId) => {
+      await request(`${path(id)}/execution/steps/${encodeURIComponent(stepId)}/authorize-retry`, "POST", {
+        acknowledgeFailedAttempt: true,
+      });
+    },
     getRepositories: async (id) =>
       (await request<{ repositories: ConnectedRepository[] }>(`${path(id)}/repositories`))
         .repositories,
