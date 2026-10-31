@@ -33,6 +33,7 @@ export function IntentEntry({ project, api, onBack }: IntentEntryProps) {
   const [executionSteps, setExecutionSteps] = useState<readonly ExecutionStep[]>([]);
   const [stepActionPending, setStepActionPending] = useState<string | null>(null);
   const [museJobs, setMuseJobs] = useState<Record<string, MuseJobStatus | null>>({});
+  const [githubRunId, setGithubRunId] = useState("");
   const busy = phase === "loading" || phase === "saving" || phase === "planning";
 
   const refresh = useCallback(async () => {
@@ -132,6 +133,37 @@ export function IntentEntry({ project, api, onBack }: IntentEntryProps) {
       setExecutionSteps(await api.getExecutionSteps(project.id));
     } catch (failure) {
       setExecutionError(failure instanceof Error ? failure.message : "Step action failed.");
+    } finally {
+      setStepActionPending(null);
+    }
+  }
+
+  async function verifyCi(step: ExecutionStep) {
+    const job = step.agent_session_id ? museJobs[step.agent_session_id] : null;
+    const runId = Number(githubRunId);
+    if (
+      !job?.github_repository ||
+      !job.github_pull_number ||
+      !Number.isSafeInteger(runId) ||
+      runId <= 0
+    ) {
+      setExecutionError("Enter a valid GitHub Actions run ID for the delivered pull request.");
+      return;
+    }
+    if (stepActionPending) return;
+    setStepActionPending(step.id);
+    setExecutionError(null);
+    try {
+      await api.verifyGithubCi(
+        project.id,
+        step.id,
+        job.github_repository,
+        runId,
+        job.github_pull_number,
+      );
+      setExecutionSteps(await api.getExecutionSteps(project.id));
+    } catch (failure) {
+      setExecutionError(failure instanceof Error ? failure.message : "CI verification failed.");
     } finally {
       setStepActionPending(null);
     }
@@ -393,6 +425,36 @@ export function IntentEntry({ project, api, onBack }: IntentEntryProps) {
                               : ""}
                           </p>
                         )}
+                        {step.agent_session_id &&
+                          museJobs[step.agent_session_id]?.github_pull_number &&
+                          museJobs[step.agent_session_id]?.github_repository && (
+                            <div>
+                              <a
+                                href={`https://github.com/${museJobs[step.agent_session_id]?.github_repository}/pull/${museJobs[step.agent_session_id]?.github_pull_number}`}
+                                target="_blank"
+                                rel="noreferrer"
+                              >
+                                Review generated pull request
+                              </a>
+                              <label htmlFor={`github-run-${step.id}`}>GitHub Actions run ID</label>
+                              <input
+                                id={`github-run-${step.id}`}
+                                type="number"
+                                min="1"
+                                step="1"
+                                value={githubRunId}
+                                onChange={(event) => setGithubRunId(event.target.value)}
+                                placeholder="From the Actions run URL"
+                              />
+                              <button
+                                type="button"
+                                disabled={Boolean(stepActionPending) || !githubRunId.trim()}
+                                onClick={() => void verifyCi(step)}
+                              >
+                                Verify GitHub CI
+                              </button>
+                            </div>
+                          )}
                         {step.state === "FAILED" && (
                           <button
                             type="button"
