@@ -80,14 +80,19 @@ export function IntentEntry({ project, api, onBack }: IntentEntryProps) {
       if (intentResult.value) setStatement(intentResult.value.statement);
       setPlan(planResult.value);
       if (planResult.value?.status === "APPROVED") {
-        void api.getExecutionSteps(project.id).then((steps) => {
-          if (!cancelled) {
-            setExecutionSteps(steps);
-            setExecutionLoaded(true);
-          }
-        }).catch(() => {
-          if (!cancelled) setExecutionError("Could not load execution status. Refresh to retry.");
-        });
+        void api
+          .getExecutionSteps(project.id)
+          .then((steps) => {
+            if (!cancelled) {
+              setExecutionSteps(steps);
+              setExecutionLoaded(true);
+            }
+          })
+          .catch(() => {
+            if (!cancelled) {
+              setExecutionError("Could not load execution status. Refresh to retry.");
+            }
+          });
       }
       if (repositoryResult?.status === "fulfilled") {
         setRepositories(repositoryResult.value);
@@ -397,9 +402,24 @@ export function IntentEntry({ project, api, onBack }: IntentEntryProps) {
             {plan.status === "APPROVED" && (
               <div className="execution-dashboard" role="region" aria-label="Execution dashboard">
                 <strong>Workflow execution</strong>
-                <p role="status">{executionSteps.length ? `${executionSteps.filter((step) => step.state === "COMPLETED").length} of ${executionSteps.length} steps completed` : executionLoaded ? "No execution prepared" : "Loading execution status…"}</p>
-                <p>Prepare, authorize and dispatch work below. No agent runs without explicit approval.</p>
-                <button type="button" onClick={() => void loadExecutionSteps()} disabled={Boolean(stepActionPending)}>Refresh status</button>
+                <p role="status">
+                  {executionSteps.length
+                    ? `${executionSteps.filter((step) => step.state === "COMPLETED").length} of ${executionSteps.length} steps completed`
+                    : executionLoaded
+                      ? "No execution prepared"
+                      : "Loading execution status…"}
+                </p>
+                <p>
+                  Prepare, authorize and dispatch work below. No agent runs without explicit
+                  approval.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => void loadExecutionSteps()}
+                  disabled={Boolean(stepActionPending)}
+                >
+                  Refresh status
+                </button>
               </div>
             )}
             {plan.status === "APPROVED" && executionLoaded && executionSteps.length === 0 && (
