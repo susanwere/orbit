@@ -57,7 +57,13 @@ export interface ProjectIntentApi {
   startAgentSession(projectId: string, sessionId: string): Promise<void>;
   dispatchMuse(projectId: string, sessionId: string): Promise<void>;
   getMuseJob(projectId: string, sessionId: string): Promise<MuseJobStatus | null>;
-  verifyGithubCi(projectId: string, stepId: string, repository: string, runId: number, pullNumber: number): Promise<void>;
+  verifyGithubCi(
+    projectId: string,
+    stepId: string,
+    repository: string,
+    runId: number,
+    pullNumber: number,
+  ): Promise<void>;
 }
 
 export interface ProjectIntentApiOptions {
