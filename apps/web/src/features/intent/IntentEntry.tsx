@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { PlanReview } from "../planning/PlanReview.js";
 import type { CreatedProject, ConnectedRepository } from "../projects/project-api.js";
-import type { ProjectIntentApi, ProjectPlan, StoredIntent } from "./intent-api.js";
+import type { ProjectIntentApi, ProjectPlan, StoredIntent, ExecutionStep } from "./intent-api.js";
 import "./intent-entry.css";
 
 interface IntentEntryProps {
@@ -24,6 +24,8 @@ export function IntentEntry({ project, api, onBack }: IntentEntryProps) {
   const [executionPreparing, setExecutionPreparing] = useState(false);
   const [executionSummary, setExecutionSummary] = useState<string | null>(null);
   const [executionError, setExecutionError] = useState<string | null>(null);
+  const [executionSteps, setExecutionSteps] = useState<readonly ExecutionStep[]>([]);
+  const [stepActionPending, setStepActionPending] = useState<string | null>(null);
   const busy = phase === "loading" || phase === "saving" || phase === "planning";
 
   const refresh = useCallback(async () => {
@@ -91,6 +93,35 @@ export function IntentEntry({ project, api, onBack }: IntentEntryProps) {
     }
   }
 
+  async function loadExecutionSteps() {
+    setExecutionError(null);
+    try {
+      setExecutionSteps(await api.getExecutionSteps(project.id));
+    } catch (failure) {
+      setExecutionError(
+        failure instanceof Error ? failure.message : "Could not load execution status.",
+      );
+    }
+  }
+
+  async function actOnStep(step: ExecutionStep, action: "approve" | "retry") {
+    if (stepActionPending) return;
+    setStepActionPending(step.id);
+    setExecutionError(null);
+    try {
+      if (action === "approve") {
+        await api.approveExecutionStep(project.id, step.id);
+      } else {
+        await api.authorizeExecutionRetry(project.id, step.id);
+      }
+      setExecutionSteps(await api.getExecutionSteps(project.id));
+    } catch (failure) {
+      setExecutionError(failure instanceof Error ? failure.message : "Step action failed.");
+    } finally {
+      setStepActionPending(null);
+    }
+  }
+
   async function prepareExecution() {
     if (plan?.status !== "APPROVED" || executionPreparing) return;
     setExecutionPreparing(true);
@@ -98,6 +129,7 @@ export function IntentEntry({ project, api, onBack }: IntentEntryProps) {
     try {
       await api.prepareExecution(project.id);
       const steps = await api.getExecutionSteps(project.id);
+      setExecutionSteps(steps);
       const blocked = steps.filter((step) => step.blocker_reason !== null);
       setExecutionSummary(
         `Prepared ${steps.length} execution steps. ${blocked.length} have blockers. No agents have started.`,
@@ -269,6 +301,59 @@ export function IntentEntry({ project, api, onBack }: IntentEntryProps) {
               >
                 {executionPreparing ? "Preparing execution…" : "Prepare execution"}
               </button>
+            )}
+            {plan.status === "APPROVED" && (
+              <section aria-label="Execution step review">
+                <h3>Execution steps</h3>
+                <p>
+                  Review real backend statuses and approve only the required human gates. Approval
+                  does not start an agent.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => void loadExecutionSteps()}
+                  disabled={Boolean(stepActionPending)}
+                >
+                  Refresh execution status
+                </button>
+                {executionSteps.length > 0 && (
+                  <ol>
+                    {executionSteps.map((step) => (
+                      <li key={step.id}>
+                        <strong>
+                          {step.work_item_key} · Workflow {step.workflow_index + 1}, Step{" "}
+                          {step.step_index + 1}
+                        </strong>
+                        {" · "}
+                        {step.state}
+                        {step.blocker_reason && <span> · Blocked: {step.blocker_reason}</span>}
+                        {step.approval_required &&
+                          !step.approved_at &&
+                          step.state === "BLOCKED" && (
+                            <button
+                              type="button"
+                              disabled={Boolean(stepActionPending)}
+                              onClick={() => void actOnStep(step, "approve")}
+                            >
+                              {stepActionPending === step.id ? "Approving…" : "Approve step"}
+                            </button>
+                          )}
+                        {step.state === "FAILED" && (
+                          <button
+                            type="button"
+                            disabled={Boolean(stepActionPending)}
+                            onClick={() => void actOnStep(step, "retry")}
+                          >
+                            {stepActionPending === step.id
+                              ? "Authorizing…"
+                              : "Acknowledge failure & authorize retry"}
+                          </button>
+                        )}
+                      </li>
+                    ))}
+                  </ol>
+                )}
+              </section>
             )}
             {executionSummary && <p role="status">{executionSummary}</p>}
             {executionError && (
