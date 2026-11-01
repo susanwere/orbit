@@ -79,7 +79,7 @@ async function summarize(model: StructuredJsonClient, input: unknown): Promise<S
   );
 }
 async function githubEvidence(repository: string, token?: string): Promise<{ files: { path: string; text: string }[]; inspected: string[] }> {
-  if (!/^[A-Za-z0-9_.-]+\\/[A-Za-z0-9_.-]+$/.test(repository)) return { files: [], inspected: [] };
+  if (repository.split("/").length !== 2 || !repository.split("/").every((part) => /^[A-Za-z0-9_.-]+$/.test(part))) return { files: [], inspected: [] };
   const headers = {
     Accept: "application/vnd.github+json",
     "User-Agent": "Orbit-Knowledge",
@@ -90,7 +90,7 @@ async function githubEvidence(repository: string, token?: string): Promise<{ fil
   if (!metadata.ok) return { files: [], inspected: [] };
   const details = await metadata.json() as { default_branch?: string };
   const branch = details.default_branch;
-  if (!branch || !/^[a-zA-Z0-9._/-]+$/.test(branch)) return { files: [], inspected: [] };
+  if (!branch || !/^[a-zA-Z0-9._-]+$/.test(branch)) return { files: [], inspected: [] };
   const tree = await fetch(`${base}/git/trees/${encodeURIComponent(branch)}?recursive=1`, {
     headers, signal: AbortSignal.timeout(7_000),
   });
@@ -99,8 +99,8 @@ async function githubEvidence(repository: string, token?: string): Promise<{ fil
   const candidates = (manifest.tree ?? []).filter((entry) =>
     entry.type === "blob" &&
     (entry.size ?? 0) <= 30_000 &&
-    /(^|\\/)(README[^/]*|package.json|pyproject.toml|Cargo.toml|Gemfile|go.mod|tsconfig.json|vite.config.ts|next.config.js|next.config.ts|src\\/[^/]+\\.(tsx?|jsx?)|app\\/[^/]+\\.(tsx?|jsx?))$/i.test(entry.path) &&
-    !/(^|\\/)(node_modules|dist|build|vendor|\\.git)\\//.test(entry.path)
+    ["README", "package.json", "tsconfig.json", "pyproject.toml", "Cargo.toml", "Gemfile", "go.mod", "vite.config.ts"].some((name) => entry.path.endsWith(name) || entry.path.split("/").pop()?.startsWith("README")) &&
+    !entry.path.split("/").some((segment) => ["node_modules", "dist", "build", "vendor", ".git"].includes(segment))
   ).slice(0, 12);
   const files: { path: string; text: string }[] = [];
   for (const item of candidates) {
