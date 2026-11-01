@@ -46,3 +46,20 @@ describe("session store", () => {
     expect(subscriber).not.toHaveBeenCalled();
   });
 });
+
+it("retains identity during renewal but never authorizes an expired access token", () => {
+  let now = 0;
+  const sessionStore = createSessionStore(() => now, { retainIdentityDuringRenewal: true });
+  const session = {
+    accessToken: "short-lived",
+    principalId: "human",
+    organizationId: "org",
+    expiresAt: 1000,
+  };
+  sessionStore.setSession(session);
+  now = 1001;
+  expect(sessionStore.getSession()).toEqual(session);
+  expect(sessionStore.getAuthorizationHeader()).toBeUndefined();
+  sessionStore.setSession(null);
+  expect(sessionStore.getSession()).toBeNull();
+});

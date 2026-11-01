@@ -13,11 +13,14 @@ export async function exchangeIdentityToken(
   providerIdToken: string,
   fetchImplementation: typeof fetch = fetch,
 ): Promise<AuthenticatedSession> {
-  const response = await fetchImplementation(new URL("/auth/exchange", apiBaseUrl), {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ idToken: providerIdToken }),
-  });
+  const response = await withSessionLock(() =>
+    fetchImplementation(new URL("/auth/exchange", apiBaseUrl), {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ idToken: providerIdToken }),
+    }),
+  );
 
   if (!response.ok) {
     throw new Error(
@@ -27,7 +30,10 @@ export async function exchangeIdentityToken(
     );
   }
 
-  const payload: unknown = await response.json();
+  return parseSession(await response.json());
+}
+
+function parseSession(payload: unknown): AuthenticatedSession {
   if (
     !payload ||
     typeof payload !== "object" ||
@@ -52,4 +58,42 @@ export async function exchangeIdentityToken(
     organizationId: authenticatedResponse.organizationId,
     expiresAt: authenticatedResponse.expiresAt * 1000,
   };
+}
+
+let pendingRefresh: Promise<AuthenticatedSession | null> | undefined;
+export function refreshSession(apiBaseUrl: string): Promise<AuthenticatedSession | null> {
+  pendingRefresh ??= withSessionLock(() => requestRefresh(apiBaseUrl)).finally(() => {
+    pendingRefresh = undefined;
+  });
+  return pendingRefresh;
+}
+async function requestRefresh(apiBaseUrl: string): Promise<AuthenticatedSession | null> {
+  const response = await fetch(new URL("/auth/refresh", apiBaseUrl), {
+    method: "POST",
+    credentials: "include",
+    headers: { "X-Orbit-Session": "1" },
+  });
+  if (response.status === 401 || response.status === 403) return null;
+  if (!response.ok) throw new Error("Unable to restore your session. Please retry.");
+  return parseSession(await response.json());
+}
+
+export async function logoutSession(apiBaseUrl: string): Promise<void> {
+  await pendingRefresh?.catch(() => undefined);
+  const response = await withSessionLock(() =>
+    fetch(new URL("/auth/logout", apiBaseUrl), {
+      method: "POST",
+      credentials: "include",
+      headers: { "X-Orbit-Session": "1" },
+    }),
+  );
+  if (!response.ok) throw new Error("Sign-out could not finish. Please retry.");
+}
+
+/** Serialize cookie rotation across tabs when Web Locks are available. */
+async function withSessionLock<T>(operation: () => Promise<T>): Promise<T> {
+  if (typeof navigator !== "undefined" && navigator.locks) {
+    return navigator.locks.request("orbit-auth-session", operation);
+  }
+  return operation();
 }
