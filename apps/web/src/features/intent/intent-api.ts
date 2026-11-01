@@ -144,9 +144,7 @@ export interface ProjectIntentApi {
     projectId: string,
     file: { filename: string; mediaType: string; base64: string },
   ): Promise<{ id: string; original_filename: string }>;
-  getProjectDocuments(
-    projectId: string,
-  ): Promise<
+  getProjectDocuments(projectId: string): Promise<
     readonly {
       id: string;
       original_filename: string;
