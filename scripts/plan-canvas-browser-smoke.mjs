@@ -188,13 +188,110 @@ try {
   await page.getByRole("region", { name: "Work item configuration", exact: true }).waitFor();
   assert.equal(mutations.length, 0, "Selecting nodes must not modify or execute the plan");
   await page.getByRole("button", { name: "Workflow", exact: true }).click();
-  await page.getByText("Plan details and work item management", { exact: true }).click();
+  assert.equal(
+    await page.getByText("Plan details and work item management", { exact: true }).count(),
+    0,
+  );
+  const planDetailsToggle = page.locator(".canvas-sidebar-items > summary");
+  assert.equal(await planDetailsToggle.textContent(), "Plan details");
+  await planDetailsToggle.click();
+  assert.equal(
+    await page
+      .locator(".canvas-sidebar")
+      .getByRole("button", { name: /Work Items/ })
+      .isVisible(),
+    true,
+    "Work Items remains outside the collapsed Plan details group",
+  );
+  assert.equal(
+    await page.getByRole("button", { name: "Proposed Outcome", exact: true }).isVisible(),
+    false,
+  );
+  await planDetailsToggle.press("Enter");
+  assert.equal(
+    await page.getByRole("button", { name: "Proposed Outcome", exact: true }).isVisible(),
+    true,
+  );
+  await page.getByRole("button", { name: "Proposed Outcome", exact: true }).click();
+  assert.equal(
+    await page
+      .getByRole("button", { name: "Proposed Outcome", exact: true })
+      .getAttribute("aria-current"),
+    "page",
+  );
+  assert.equal(await page.locator(".canvas-plan-section textarea").count(), 0);
+  await page.getByRole("button", { name: "Edit", exact: true }).click();
+  await page.getByLabel("Proposed outcome", { exact: true }).fill("A discarded edit");
+  await page.getByRole("button", { name: "Cancel", exact: true }).click();
+  assert.equal(
+    await page.locator(".canvas-plan-section-card .canvas-plan-section-text").textContent(),
+    graph.summary,
+  );
+  assert.equal(mutations.length, 0, "Cancel must discard locally without saving");
+  await page.screenshot({
+    path: "/tmp/orbit-plan-canvas/proposed-outcome-desktop.png",
+    fullPage: true,
+  });
+  await page.setViewportSize({ width: 375, height: 812 });
+  assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
+  await page.screenshot({
+    path: "/tmp/orbit-plan-canvas/proposed-outcome-mobile.png",
+    fullPage: true,
+  });
+  await page.setViewportSize({ width: 1665, height: 945 });
+  await page
+    .locator(".canvas-plan-related")
+    .getByRole("button", { name: /Original Intent/ })
+    .click();
+  await page.getByRole("region", { name: "Original Intent", exact: true }).waitFor();
+  assert.equal(
+    await page.locator(".canvas-plan-section textarea").count(),
+    0,
+    "Original intent remains immutable",
+  );
+  await page
+    .locator(".canvas-sidebar")
+    .getByRole("button", { name: "Guardrails", exact: true })
+    .click();
+  await page.getByRole("button", { name: "Edit", exact: true }).click();
+  await page.getByLabel("Guardrails (one per line)", { exact: true }).fill("Keep keyboard access");
+  await page.getByLabel("Guardrails (one per line)", { exact: true }).press("End");
+  await page.getByLabel("Guardrails (one per line)", { exact: true }).press("Enter");
+  await page
+    .getByLabel("Guardrails (one per line)", { exact: true })
+    .pressSequentially("Keep contrast");
+  assert.equal(
+    await page.getByLabel("Guardrails (one per line)", { exact: true }).inputValue(),
+    "Keep keyboard access\nKeep contrast",
+  );
+  await page.getByRole("button", { name: "Cancel", exact: true }).click();
+  await page
+    .locator(".canvas-sidebar")
+    .getByRole("button", { name: /Work Items/ })
+    .click();
+  await page.getByRole("button", { name: "+ Add work item", exact: true }).click();
+  await page.getByRole("region", { name: "Work item configuration", exact: true }).waitFor();
+  await page.getByRole("button", { name: "Proposed Outcome", exact: true }).click();
+  await page.getByRole("button", { name: "Edit", exact: true }).click();
+  await page.getByRole("button", { name: "Cancel", exact: true }).click();
+  assert.equal(mutations.length, 0, "New work items remain local until saved");
+  await page.getByRole("button", { name: "Edit", exact: true }).click();
   await page
     .getByLabel("Proposed outcome", { exact: true })
     .fill("Build an accessible jobs viewer");
   await page.getByRole("button", { name: "Save changes", exact: true }).click();
+  await page.getByRole("button", { name: "Edit", exact: true }).waitFor();
+  assert.equal(
+    await page.locator(".canvas-plan-section textarea").count(),
+    0,
+    "Successful save returns to text view",
+  );
   await page.getByRole("button", { name: "Approve plan", exact: true }).click();
   await page.getByText("Plan approved", { exact: true }).waitFor();
+  assert.equal(await page.locator(".canvas-plan-section textarea").count(), 0);
+  assert.equal(await page.getByRole("button", { name: "Edit", exact: true }).count(), 0);
+  assert.equal(await page.getByRole("button", { name: "Save changes", exact: true }).count(), 0);
+  await page.getByRole("button", { name: "Workflow", exact: true }).click();
   assert.equal(mutations.length, 2, "Plan edits and approval must not start execution");
   await page.setViewportSize({ width: 375, height: 812 });
   await page.getByRole("button", { name: "Fit graph to view", exact: true }).click();
