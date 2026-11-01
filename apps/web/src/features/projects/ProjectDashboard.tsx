@@ -60,6 +60,9 @@ export function ProjectDashboard({ api, onOpen, onCreate, onHome }: Props) {
   const matches = projects.filter((project) =>
     project.name.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase()),
   );
+  const orderedMatches = [...matches].sort(
+    (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+  );
   return (
     <main className="project-dashboard">
       <aside className="project-dashboard-sidebar" aria-label="Workspace navigation">
@@ -69,35 +72,41 @@ export function ProjectDashboard({ api, onOpen, onCreate, onHome }: Props) {
           onClick={onHome}
           aria-label="Orbit home"
         >
-          ◈ Orbit
+          <span className="project-dashboard-brand-mark" aria-hidden="true" /> Orbit
         </button>
         <button type="button" className="project-dashboard-home-link" onClick={onHome}>
-          ⌂ &nbsp; Home
+          <span aria-hidden="true">⌂</span> Home
         </button>
-        <span className="project-dashboard-current">▦ &nbsp; Projects</span>
-        <p>Intent-led engineering, with humans in control.</p>
+        <span className="project-dashboard-current"><span aria-hidden="true">▦</span> Projects</span>
+        <p>From intent to working software.</p>
       </aside>
       <section className="project-dashboard-main" aria-labelledby="project-dashboard-heading">
         <header className="project-dashboard-header">
           <div>
             <p className="project-dashboard-eyebrow">YOUR WORKSPACE</p>
             <h1 id="project-dashboard-heading">Projects</h1>
-            <p>Pick up where you left off or start something new.</p>
+            <p>A home for everything you're building.</p>
           </div>
           <button className="project-dashboard-create" type="button" onClick={onCreate}>
-            + New project
+            ＋ New project
           </button>
         </header>
-        <label className="project-dashboard-search-label" htmlFor="project-search">
-          Search projects
-        </label>
-        <input
-          id="project-search"
-          className="project-dashboard-search"
-          placeholder="Search by project name…"
-          value={query}
-          onChange={(event) => setQuery(event.target.value)}
-        />
+        <div className="project-dashboard-toolbar">
+          <div>
+            <h2>Your projects</h2>
+            <p>Pick up where you left off.</p>
+          </div>
+          <label className="project-dashboard-search-wrap">
+            <span className="project-dashboard-sr-only">Search projects</span>
+            <input
+              id="project-search"
+              className="project-dashboard-search"
+              placeholder="⌕  Search projects…"
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+            />
+          </label>
+        </div>
         {loading ? <p role="status">Loading projects…</p> : null}
         {error ? (
           <div role="alert" className="project-dashboard-error">
@@ -122,7 +131,7 @@ export function ProjectDashboard({ api, onOpen, onCreate, onHome }: Props) {
           <p role="status">No matching projects in the loaded results.</p>
         ) : null}
         <div className="project-dashboard-grid">
-          {matches.map((project) => (
+          {orderedMatches.map((project) => (
             <button
               type="button"
               className="project-dashboard-card"
@@ -130,11 +139,11 @@ export function ProjectDashboard({ api, onOpen, onCreate, onHome }: Props) {
               onClick={() => onOpen(project)}
             >
               <span className="project-dashboard-card-icon" aria-hidden="true">
-                ◈
+                <span className="project-dashboard-card-mark" />
               </span>
               <strong>{project.name}</strong>
               <small>Created {new Date(project.created_at).toLocaleDateString()}</small>
-              <span className="project-dashboard-card-link">Open project →</span>
+              <span className="project-dashboard-card-link">Open project ↗</span>
             </button>
           ))}
         </div>

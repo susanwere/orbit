@@ -63,7 +63,7 @@ export function AuthenticatedProjectApp({
 
   return (
     <>
-      <nav aria-label="Account">
+      <nav aria-label="Account" className="orbit-account-nav"><details className="orbit-account-menu"><summary>Account ▾</summary>
         <button
           type="button"
           disabled={isSigningOut}
@@ -78,7 +78,7 @@ export function AuthenticatedProjectApp({
           }}
         >
           Sign out
-        </button>
+        </button></details>
       </nav>
       {signOutError && <p role="alert">{signOutError}</p>}
       <App
