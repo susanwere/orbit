@@ -1,0 +1,29 @@
+name: Format context review branch (temporary)
+on:
+  push:
+    branches: [feat/knowledge-review-lifecycle]
+    paths:
+      - .github/workflows/format-knowledge-review-temporary.yml
+permissions:
+  contents: write
+jobs:
+  format:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/knowledge-review-lifecycle
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npx prettier --write apps/api/src/modules/context/project-knowledge-routes.ts apps/api/src/modules/planning/planning-routes.ts apps/web/src/features/intent/intent-api.ts apps/web/src/features/planning/ProjectContextDocuments.tsx
+      - run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add apps/api/src/modules/context/project-knowledge-routes.ts apps/api/src/modules/planning/planning-routes.ts apps/web/src/features/intent/intent-api.ts apps/web/src/features/planning/ProjectContextDocuments.tsx
+          if ! git diff --cached --quiet; then
+            git commit -m "style: apply pinned Prettier for context review"
+            git push origin HEAD:feat/knowledge-review-lifecycle
+          fi
