@@ -134,7 +134,10 @@ async function githubEvidence(
   for (const item of candidates) {
     const response = await fetch(
       `https://api.github.com/repos/${repository}/contents/${item.path.split("/").map(encodeURIComponent).join("/")}?ref=${encodeURIComponent(branch)}`,
-      { headers: { ...headers, Accept: "application/vnd.github.raw+json" }, signal: AbortSignal.timeout(7_000) },
+      {
+        headers: { ...headers, Accept: "application/vnd.github.raw+json" },
+        signal: AbortSignal.timeout(7_000),
+      },
     );
     if (!response.ok) continue;
     const content = (await response.text()).slice(0, 5_000);
@@ -179,7 +182,10 @@ export async function registerProjectKnowledgeRoutes(
       const documents = [];
       for (const row of sources.rows) {
         const bytes = await storage.get(row.storage_key);
-        const hash = (await import("node:crypto")).createHash("sha256").update(bytes).digest("hex");
+        const hash = (await import("node:crypto"))
+          .createHash("sha256")
+          .update(bytes)
+          .digest("hex");
         if (hash !== row.sha256)
           throw new DomainError("validation", "Source integrity verification failed.");
         const extracted = await extractDocumentText(row.media_type, bytes);
