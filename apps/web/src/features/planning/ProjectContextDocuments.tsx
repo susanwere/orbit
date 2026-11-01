@@ -130,7 +130,17 @@ export function ProjectContextDocuments({
               {repository.summary ? (
                 <p>{repository.summary.summary}</p>
               ) : (
-                <p>README unavailable. Repository not analyzed.</p>
+                <p>No accessible repository evidence was found.</p>
+              )}
+              {repository.inspected.length > 0 && (
+                <div>
+                  <h4>Inspected files ({repository.inspected.length})</h4>
+                  <ul>
+                    {repository.inspected.map((path) => (
+                      <li key={path}>{path}</li>
+                    ))}
+                  </ul>
+                </div>
               )}
             </div>
           ))}
@@ -185,7 +195,7 @@ export function ProjectContextDocuments({
       )}
       <p className="orbit-detail-muted">
         Document excerpts are used for Muse planning. Knowledge snapshots are generated on demand;
-        repository analysis currently reads the accessible README, not the entire source tree.
+        repository analysis samples accessible manifests and README files, not the entire source tree.
       </p>
     </section>
   );
