@@ -1,0 +1,25 @@
+name: Temporary formatting for intent attachments
+on:
+  push:
+    branches: [feat/intent-multiple-document-attachments]
+permissions:
+  contents: write
+jobs:
+  format:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/intent-multiple-document-attachments
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx prettier --write apps/api/src/modules/intent/original-intent-routes.ts apps/web/src/features/intent/IntentEntry.tsx apps/web/src/features/intent/intent-api.ts
+      - name: Commit formatted sources
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add apps/api/src/modules/intent/original-intent-routes.ts apps/web/src/features/intent/IntentEntry.tsx apps/web/src/features/intent/intent-api.ts
+          git diff --cached --quiet || (git commit -m "style: format intent attachments" && git push)
