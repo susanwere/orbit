@@ -16,7 +16,13 @@ the API for a short-lived Orbit access token. The client never signs JWTs.
 4. Configure a randomly generated server-only `ORBIT_AUTH_SECRET` of at least
    32 characters and set `ORBIT_AUTH_ISSUER` to an issuer name under your control.
    Never reuse the Google client secret as the Orbit signing key.
-5. Provision an Orbit organization and human principal. Link the *trusted Google
+5. Run `npm run db:migrate` before deploying the API (migration
+   `022_refresh_sessions.sql` creates the server-managed sessions table). Set
+   `ORBIT_WEB_ORIGINS` to a comma-separated list of exact permitted frontend
+   origins, without trailing slashes. Local defaults are `http://localhost:5173`
+   and `http://127.0.0.1:5173`; include other ports explicitly when needed.
+   Set `NODE_ENV=production` behind HTTPS to enable Secure cookies.
+6. Provision an Orbit organization and human principal. Link the *trusted Google
    subject* (not an unverified email address) to that principal in
    `principal_oidc_identities`:
 
@@ -48,11 +54,51 @@ Keep local environment files untracked; never commit signing secrets or API keys
 - Orbit API tokens are short lived (default 15 minutes), scoped to an existing
   human principal and organization, and stored in browser memory rather than
   localStorage.
-- Sign-out clears the current browser token, and session expiration denies API
-  calls. Browser sign-out does **not** revoke previously issued stateless tokens;
-  server-side token revocation and renewal are follow-up production requirements.
-- Configure HTTPS and restrict trusted frontend origins for production. The
-  current API CORS configuration is permissive and must be hardened before
-  exposure on a public origin.
+- The browser restores sessions using an opaque HttpOnly, SameSite=Strict cookie
+  scoped to `/auth`; production uses a Secure cookie with the `__Secure-` prefix.
+  Frontend and API must share the same site and scheme (for example
+  `app.example.com` and `api.example.com`). Locally, use `localhost` for both or
+  `127.0.0.1` for both; mixing the two prevents cookie delivery. The client uses
+  credentialed fetch; CORS allows only `ORBIT_WEB_ORIGINS`.
+- Refresh credentials contain 256 random bits and only their SHA-256 hashes are
+  persisted. Each refresh atomically consumes and replaces the credential without
+  extending its seven-day absolute expiry. Reuse, expiry, deleted principals and
+  removed identity links are rejected. Database-backed sessions survive API restarts.
+- Renewal runs one minute before token expiry and when a background tab becomes
+  visible. Requests within a tab share one refresh; Web Locks serialize cookie
+  operations across tabs where supported. Transient renewal failures retry every
+  ten seconds without granting access with expired tokens. Initial restoration
+  failures show an explicit retry state instead of prompting Google repeatedly.
+- Sign-out revokes the refresh credential before clearing local identity. A failed
+  logout shows a retry error. Account exchange revokes the previous browser cookie.
+  Already-issued stateless bearer tokens remain valid for at most their original
+  15-minute lifetime; this change does not add an immediate access-token denylist.
+- Refresh/logout require a custom request header and validate supplied Origin;
+  authentication responses use `Cache-Control: no-store`. Refresh returns 401 for
+  missing, expired or revoked sessions. Project 403 responses retain the session;
+  project 401 responses retain the existing stale-account protection.
+- To revoke a user's refresh sessions administratively, delete from
+  `auth_refresh_sessions` using their `principal_id`. Periodically remove rows
+  where `expires_at <= NOW()` as routine database maintenance. No scheduler or
+  infrastructure is required for expiry enforcement.
 - Use an approved OIDC application and configure accounts yourself. CI tests
   use simulated cryptographic keys and never provision a real Google account.
+
+## Verification
+
+Run the root format, typecheck, test and build commands. Set `TEST_DATABASE_URL`
+to an isolated migrated PostgreSQL database to include refresh rotation/replay,
+expiry, logout, application restart, concurrent refresh, identity removal, and
+origin/CSRF integration tests alongside existing tenant-isolation tests.
+
+For the focused mocked browser journey, install Playwright in your test environment
+and its Chromium browser (`npx playwright install chromium`), start Vite on port
+5174 with a public test `VITE_GOOGLE_CLIENT_ID` and
+`VITE_API_BASE_URL=http://127.0.0.1:4000`, then run
+`node scripts/auth-session-browser-smoke.mjs`. Screenshots are saved under
+`/tmp/orbit-auth-smoke`. The test simulates Google and API responses; it does not
+verify real Google credentials. Live approved-account verification is still required
+for ORB-64 before declaring deployment verification complete.
+
+This implementation follows ORB-68 and the session lifecycle follow-up to ORB-54,
+with deployment verification tracked in ORB-64.

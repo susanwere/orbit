@@ -15,10 +15,13 @@ try {
     reducedMotion: "reduce",
   });
 
+  page.setDefaultTimeout(10000);
+
   const corsHeaders = {
-    "access-control-allow-origin": "*",
+    "access-control-allow-origin": frontendOrigin,
+    "access-control-allow-credentials": "true",
     "access-control-allow-methods": "GET, POST, PATCH, OPTIONS",
-    "access-control-allow-headers": "authorization, content-type",
+    "access-control-allow-headers": "authorization, content-type, x-orbit-session",
   };
 
   await page.route("https://accounts.google.com/gsi/client", async (route) => {
@@ -48,6 +51,12 @@ try {
     });
   });
 
+  await page.route(`${apiOrigin}/auth/refresh`, (route) =>
+    route.fulfill({ status: 401, headers: corsHeaders, body: "{}" }),
+  );
+  await page.route(`${apiOrigin}/auth/logout`, (route) =>
+    route.fulfill({ status: 204, headers: corsHeaders }),
+  );
   await page.route(`${apiOrigin}/auth/exchange`, async (route) => {
     if (route.request().method() === "OPTIONS") {
       await route.fulfill({ status: 204, headers: corsHeaders });
@@ -70,13 +79,21 @@ try {
     });
   });
 
-  await page.route(`${apiOrigin}/projects`, async (route) => {
+  await page.route(/\/projects(?:\?.*)?$/, async (route) => {
     if (route.request().method() === "OPTIONS") {
       await route.fulfill({ status: 204, headers: corsHeaders });
       return;
     }
 
     assert.equal(route.request().headers().authorization, "Bearer ci-orbit-access-token");
+    if (route.request().method() === "GET") {
+      await route.fulfill({
+        contentType: "application/json",
+        headers: corsHeaders,
+        body: JSON.stringify({ projects: [], nextCursor: null }),
+      });
+      return;
+    }
     assert.equal(route.request().postDataJSON().name, "HN Jobs Viewer");
 
     await route.fulfill({
@@ -150,6 +167,7 @@ try {
     assumptions: ["Existing React project"],
   };
   let approved = false;
+  let proposalExists = false;
   let revision = 1;
   await page.route(`${apiOrigin}/projects/project-1/plan/approve`, async (route) => {
     assert.equal(route.request().headers().authorization, "Bearer ci-orbit-access-token");
@@ -178,11 +196,12 @@ try {
       return;
     }
     assert.equal(route.request().headers().authorization, "Bearer ci-orbit-access-token");
+    if (method === "POST") proposalExists = true;
     if (method === "PATCH") {
       const body = route.request().postDataJSON();
       assert.equal(body.expectedRevision, revision);
-      assert.equal(body.content.workItems[0].title, "Responsive job list");
-      proposal.workItems[0].title = body.content.workItems[0].title;
+      assert.equal(body.content.summary, "Build an accessible responsive job list");
+      proposal.summary = body.content.summary;
       revision++;
     }
     await route.fulfill({
@@ -191,7 +210,7 @@ try {
       headers: corsHeaders,
       body: JSON.stringify({
         plan:
-          method === "GET"
+          method === "GET" && !proposalExists
             ? null
             : {
                 id: "proposed-plan-1",
@@ -217,10 +236,11 @@ try {
   });
 
   await page.goto(frontendOrigin, { waitUntil: "domcontentloaded" });
-  await page.getByRole("heading", { name: "Sign in to Orbit" }).waitFor();
+  await page.getByRole("heading", { name: "Welcome to Orbit" }).waitFor();
   await page.getByRole("button", { name: "Continue with Google" }).click();
   await page.getByRole("button", { name: "Sign out" }).waitFor();
-  await page.getByRole("button", { name: "View projects" }).click();
+  await page.getByRole("heading", { name: "Projects", exact: true }).waitFor();
+  await page.getByRole("button", { name: "+ New project" }).click();
   await page.getByRole("heading", { name: "Start with intent." }).waitFor();
 
   await page.getByLabel("Project name").fill("HN Jobs Viewer");
@@ -230,20 +250,21 @@ try {
   await page.getByRole("button", { name: "Save intent & propose plan" }).click();
   await page.getByText("Proposed plan ready").waitFor();
   await page.getByRole("button", { name: "Review proposed plan" }).click();
-  await page.getByRole("heading", { name: "Review the proposed plan." }).waitFor();
-  await page.getByLabel("Work item title").fill("Responsive job list");
+  await page.getByRole("heading", { name: "Workflow canvas" }).waitFor();
+  await page.getByText("Plan details and work item management", { exact: true }).click();
+  await page.getByLabel("Proposed outcome").fill("Build an accessible responsive job list");
   await page.getByRole("button", { name: "Save changes" }).click();
   await page.getByRole("button", { name: "Approve plan" }).click();
-  await page.getByText("Plan approved by a human.").waitFor();
+  await page.getByText("Plan approved", { exact: true }).waitFor();
 
   await page.screenshot({
-    path: "docs/images/orbit-authenticated-project-creation.png",
+    path: "/tmp/orbit-authenticated-project-creation.png",
     fullPage: true,
     animations: "disabled",
   });
 
   await page.getByRole("button", { name: "Sign out" }).click();
-  await page.getByRole("heading", { name: "Sign in to Orbit" }).waitFor();
+  await page.getByRole("heading", { name: "Welcome to Orbit" }).waitFor();
   assert.equal(await page.getByRole("button", { name: "View projects" }).count(), 0);
 
   console.log(

@@ -126,6 +126,10 @@ const app = await buildApp({
       ? {
           database,
           identityVerifier,
+          allowedOrigins: (
+            process.env.ORBIT_WEB_ORIGINS ?? "http://localhost:5173,http://127.0.0.1:5173"
+          ).split(","),
+          secureCookies: process.env.NODE_ENV === "production",
           tokenIssuer: new OrbitAccessTokenIssuer({
             secret: process.env.ORBIT_AUTH_SECRET,
             issuer: process.env.ORBIT_AUTH_ISSUER,

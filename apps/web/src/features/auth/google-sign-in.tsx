@@ -1,3 +1,4 @@
+import "./sign-in.css";
 import { useEffect, useRef, useState } from "react";
 import type { SessionStore } from "./session-store.js";
 import { exchangeIdentityToken } from "./auth-api.js";
@@ -13,7 +14,10 @@ interface GoogleIdentityClient {
         client_id: string;
         callback: (credential: IdentityCredential) => void;
       }): void;
-      renderButton(container: HTMLElement, options: { theme: string; size: string }): void;
+      renderButton(
+        container: HTMLElement,
+        options: { theme: string; size: string; width?: number; shape?: string },
+      ): void;
       disableAutoSelect(): void;
     };
   };
@@ -33,6 +37,7 @@ export interface GoogleSignInProps {
 export function GoogleSignIn({ clientId, apiBaseUrl, sessionStore }: GoogleSignInProps) {
   const buttonContainer = useRef<HTMLDivElement>(null);
   const [authenticationError, setAuthenticationError] = useState<string | null>(null);
+  const [isGoogleReady, setIsGoogleReady] = useState(false);
   const [isAuthenticating, setIsAuthenticating] = useState(false);
 
   useEffect(() => {
@@ -75,9 +80,12 @@ export function GoogleSignIn({ clientId, apiBaseUrl, sessionStore }: GoogleSignI
         },
       });
       browserWindow.google.accounts.id.renderButton(buttonContainer.current, {
-        theme: "outline",
+        theme: "filled_blue",
         size: "large",
+        width: Math.min(400, buttonContainer.current.clientWidth),
+        shape: "rectangular",
       });
+      setIsGoogleReady(true);
     };
 
     scriptElement.addEventListener("load", initializeGoogleSignIn);
@@ -93,12 +101,115 @@ export function GoogleSignIn({ clientId, apiBaseUrl, sessionStore }: GoogleSignI
   }, [apiBaseUrl, clientId, sessionStore]);
 
   return (
-    <main aria-labelledby="orbit-sign-in-heading">
-      <h1 id="orbit-sign-in-heading">Sign in to Orbit</h1>
-      <p>Use an approved Google account to access your organization's projects.</p>
-      <div ref={buttonContainer} aria-label="Google sign-in" />
-      {isAuthenticating && <p role="status">Verifying your identity…</p>}
-      {authenticationError && <p role="alert">{authenticationError}</p>}
+    <main className="orbit-sign-in" aria-labelledby="orbit-sign-in-heading">
+      <div className="sign-in-orbit sign-in-orbit-left" aria-hidden="true">
+        <i />
+        <i />
+      </div>
+      <div className="sign-in-orbit sign-in-orbit-right" aria-hidden="true">
+        <i />
+      </div>
+      <section className="sign-in-card">
+        <div className="sign-in-brand">
+          <span className="sign-in-mark" aria-hidden="true" />
+          Orbit
+        </div>
+        <h1 id="orbit-sign-in-heading">Welcome to Orbit</h1>
+        <p className="sign-in-subtitle">
+          Plan, review, and execute software projects
+          <br className="sign-in-desktop-break" /> with AI agents and your team.
+        </p>
+        <div className="sign-in-action" aria-busy={isAuthenticating}>
+          <div
+            ref={buttonContainer}
+            aria-label="Google sign-in"
+            {...{ inert: isAuthenticating ? "" : undefined }}
+          />
+          {!isGoogleReady && !authenticationError && <p role="status">Loading Google sign-in…</p>}
+        </div>
+        {isAuthenticating && <p role="status">Verifying your identity…</p>}
+        {authenticationError && (
+          <p className="sign-in-error" role="alert">
+            {authenticationError}
+          </p>
+        )}
+        <div className="sign-in-divider" aria-hidden="true">
+          <span />
+          or
+          <span />
+        </div>
+        <p className="sign-in-explanation">
+          Use an approved Google account to access
+          <br className="sign-in-desktop-break" /> your organization's projects.
+        </p>
+      </section>
+      <ul className="sign-in-benefits" aria-label="What you can do with Orbit">
+        <li>
+          <span className="sign-in-benefit-icon" aria-hidden="true">
+            <svg
+              width="32"
+              height="32"
+              viewBox="0 0 32 32"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinejoin="round"
+            >
+              <path d="m3 10 13-7 13 7-13 7-13-7Zm0 6 13 7 13-7M3 22l13 7 13-7" />
+            </svg>
+          </span>
+          <div>
+            <h2>Turn ideas into plans</h2>
+            <p>
+              Break complex goals into
+              <br /> clear, connected work.
+            </p>
+          </div>
+        </li>
+        <li>
+          <span className="sign-in-benefit-icon" aria-hidden="true">
+            <svg
+              width="32"
+              height="32"
+              viewBox="0 0 32 32"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinejoin="round"
+            >
+              <path d="M18 2 4 19h10l-1 11 15-18H18l2-10Z" />
+            </svg>
+          </span>
+          <div>
+            <h2>Collaborate with AI agents</h2>
+            <p>
+              Review proposals, approve
+              <br /> work, and see real progress.
+            </p>
+          </div>
+        </li>
+        <li>
+          <span className="sign-in-benefit-icon" aria-hidden="true">
+            <svg
+              width="32"
+              height="32"
+              viewBox="0 0 32 32"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+            >
+              <path d="M3 29V16h5v13m5 0V10h5v19m5 0V3h5v26H2" />
+            </svg>
+          </span>
+          <div>
+            <h2>Ship with confidence</h2>
+            <p>
+              Keep humans in the loop with
+              <br /> audit trails and evidence.
+            </p>
+          </div>
+        </li>
+      </ul>
     </main>
   );
 }

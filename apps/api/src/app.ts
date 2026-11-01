@@ -81,7 +81,10 @@ export interface AppOptions {
 export async function buildApp(options: AppOptions = {}) {
   const app = Fastify({ logger: false });
 
-  await app.register(cors, { origin: true });
+  await app.register(cors, {
+    origin: [...(options.authExchange?.allowedOrigins ?? [])],
+    credentials: true,
+  });
 
   app.setErrorHandler((error: Error, _request, reply) => {
     if (error instanceof DomainError) {

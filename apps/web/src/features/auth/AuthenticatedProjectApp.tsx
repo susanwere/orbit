@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useSyncExternalStore } from "react";
+import { useMemo, useState, useSyncExternalStore } from "react";
 import { App } from "../../App.js";
 import { createProjectApi } from "../projects/project-api.js";
 import { createIntentApi } from "../intent/intent-api.js";
@@ -7,7 +7,7 @@ import type { SessionStore } from "./session-store.js";
 interface AuthenticatedProjectAppProps {
   readonly sessionStore: SessionStore;
   readonly apiBaseUrl: string;
-  readonly onSignOut?: () => void;
+  readonly onSignOut?: () => void | Promise<void>;
 }
 
 /**
@@ -19,32 +19,13 @@ export function AuthenticatedProjectApp({
   apiBaseUrl,
   onSignOut,
 }: AuthenticatedProjectAppProps) {
+  const [signOutError, setSignOutError] = useState<string | null>(null);
+  const [isSigningOut, setIsSigningOut] = useState(false);
   const authenticatedSession = useSyncExternalStore(
     sessionStore.subscribe,
     sessionStore.getSession,
     () => null,
   );
-
-  useEffect(() => {
-    if (!authenticatedSession) {
-      return;
-    }
-
-    const remainingSessionMilliseconds = authenticatedSession.expiresAt - Date.now();
-    if (remainingSessionMilliseconds <= 0) {
-      sessionStore.getSession();
-      return;
-    }
-
-    const expirationTimer = window.setTimeout(
-      () => {
-        sessionStore.getSession();
-      },
-      Math.min(remainingSessionMilliseconds, 2_147_483_647),
-    );
-
-    return () => window.clearTimeout(expirationTimer);
-  }, [authenticatedSession, sessionStore]);
 
   const projectApi = useMemo(
     () =>
@@ -85,14 +66,21 @@ export function AuthenticatedProjectApp({
       <nav aria-label="Account">
         <button
           type="button"
+          disabled={isSigningOut}
           onClick={() => {
-            onSignOut?.();
-            sessionStore.setSession(null);
+            setIsSigningOut(true);
+            setSignOutError(null);
+            void Promise.resolve()
+              .then(() => onSignOut?.())
+              .then(() => sessionStore.setSession(null))
+              .catch(() => setSignOutError("Sign-out could not finish. Please retry."))
+              .finally(() => setIsSigningOut(false));
           }}
         >
           Sign out
         </button>
       </nav>
+      {signOutError && <p role="alert">{signOutError}</p>}
       <App
         key={`${authenticatedSession.organizationId}:${authenticatedSession.principalId}`}
         projectApi={projectApi}

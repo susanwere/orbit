@@ -1,0 +1,238 @@
+.orbit-sign-in {
+  min-height: 100svh;
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 100px 32px 40px;
+  color: #f5f7ff;
+  background:
+    radial-gradient(ellipse at 0% 55%, #12316d80, transparent 30%),
+    radial-gradient(ellipse at 100% 100%, #12316d90, transparent 32%),
+    radial-gradient(ellipse at 0% 0%, #102b5480, transparent 34%), #050d18;
+}
+.orbit-sign-in::before {
+  content: "";
+  position: absolute;
+  inset: 30px 5%;
+  z-index: -2;
+  background-image: radial-gradient(#547ca74d 1px, transparent 1px);
+  background-size: 29px 29px;
+  mask-image: linear-gradient(#000, #0009 80%, transparent);
+}
+.sign-in-card {
+  width: min(100%, 610px);
+  padding: 62px 52px 60px;
+  border: 1px solid #33588999;
+  border-radius: 22px;
+  background: linear-gradient(145deg, #0a1528e6, #070e1be6);
+  box-shadow: 0 20px 70px #0004;
+  text-align: center;
+}
+.sign-in-brand {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  font-size: 44px;
+  font-weight: 650;
+  margin-bottom: 34px;
+}
+.sign-in-mark {
+  width: 58px;
+  height: 58px;
+  border-radius: 50%;
+  border: 14px solid #087dff;
+  background: #061021;
+  box-shadow:
+    inset 3px 3px 8px #0009,
+    0 0 20px #087dff22;
+  border-right-color: #229eff;
+  border-bottom-color: #214ff3;
+}
+.sign-in-card h1 {
+  font-size: clamp(28px, 3vw, 36px);
+  margin: 0 0 16px;
+  letter-spacing: -0.8px;
+}
+.sign-in-subtitle {
+  font-size: 20px;
+  line-height: 1.5;
+  color: #b0bdd5;
+  margin: 0 0 40px;
+}
+.sign-in-action {
+  min-height: 46px;
+  display: flex;
+  justify-content: center;
+  border-radius: 10px;
+  background: linear-gradient(120deg, #007aff, #2148f2);
+  padding: 8px;
+}
+.sign-in-action > div {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+}
+.sign-in-action[aria-busy="true"] {
+  opacity: 0.6;
+}
+.sign-in-action:focus-within {
+  outline: 3px solid #92c9ff;
+  outline-offset: 5px;
+}
+.sign-in-divider {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  color: #aab8d2;
+  margin: 34px 0;
+}
+.sign-in-divider span {
+  flex: 1;
+  height: 1px;
+  background: #29425f;
+}
+.sign-in-explanation {
+  color: #aab8d2;
+  font-size: 17px;
+  line-height: 1.6;
+  margin: 0;
+}
+.sign-in-error {
+  color: #ffb7bd;
+  line-height: 1.5;
+}
+.sign-in-benefits {
+  display: flex;
+  justify-content: space-between;
+  gap: 48px;
+  padding: 0;
+  list-style: none;
+  width: min(100%, 1290px);
+  margin: 70px 0 0;
+}
+.sign-in-benefits li {
+  display: flex;
+  gap: 30px;
+  flex: 1;
+}
+.sign-in-benefits li + li {
+  border-left: 1px solid #263951;
+  padding-left: 48px;
+}
+.sign-in-benefits h2 {
+  font-size: 18px;
+  margin: 6px 0 10px;
+}
+.sign-in-benefits p {
+  font-size: 17px;
+  color: #aab8d2;
+  line-height: 1.5;
+  margin: 0;
+}
+.sign-in-benefit-icon {
+  display: grid;
+  place-items: center;
+  flex: 0 0 65px;
+  height: 65px;
+  font-size: 36px;
+  color: #54acff;
+  border: 1px solid #0788ff;
+  border-radius: 13px;
+  background: #09244366;
+}
+.sign-in-orbit {
+  position: absolute;
+  z-index: -1;
+  width: 660px;
+  height: 660px;
+  border: 1px solid #2357b280;
+  border-radius: 50%;
+}
+.sign-in-orbit-left {
+  left: -335px;
+  top: -95px;
+  box-shadow: 0 25px 35px -30px #1761ff;
+}
+.sign-in-orbit-right {
+  right: -395px;
+  bottom: -55px;
+}
+.sign-in-orbit i {
+  position: absolute;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 30% 20%, #128cff, #173cbb 70%);
+  box-shadow: 0 0 30px #086aff66;
+  left: 89%;
+  top: 28%;
+}
+.sign-in-orbit i + i {
+  width: 12px;
+  height: 12px;
+  left: 110%;
+  top: 45%;
+}
+.sign-in-orbit-right i {
+  width: 18px;
+  height: 18px;
+  left: 1%;
+  top: 35%;
+}
+@media (max-width: 1000px) {
+  .sign-in-benefits {
+    gap: 24px;
+  }
+  .sign-in-benefits li {
+    gap: 16px;
+  }
+  .sign-in-benefits li + li {
+    padding-left: 24px;
+  }
+  .sign-in-benefit-icon {
+    flex-basis: 44px;
+    height: 44px;
+  }
+}
+@media (max-width: 720px) {
+  .orbit-sign-in {
+    padding: 40px 20px;
+  }
+  .sign-in-card {
+    padding: 36px 22px;
+  }
+  .sign-in-brand {
+    font-size: 36px;
+  }
+  .sign-in-subtitle {
+    font-size: 17px;
+  }
+  .sign-in-desktop-break {
+    display: none;
+  }
+  .sign-in-benefits {
+    flex-direction: column;
+    width: min(100%, 400px);
+    margin-top: 40px;
+    gap: 26px;
+  }
+  .sign-in-benefits li + li {
+    border: 0;
+    padding: 0;
+  }
+  .sign-in-benefits h2 {
+    margin-top: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .orbit-sign-in *,
+  .orbit-sign-in *::before {
+    animation: none !important;
+    transition: none !important;
+  }
+}

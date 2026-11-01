@@ -19,12 +19,19 @@ export interface SessionStore {
 }
 
 /** In-memory session state; signing out removes the token from memory. */
-export function createSessionStore(currentTime: () => number = Date.now): SessionStore {
+export function createSessionStore(
+  currentTime: () => number = Date.now,
+  options: { readonly retainIdentityDuringRenewal?: boolean } = {},
+): SessionStore {
   let activeSession: AuthenticatedSession | null = null;
   const listeners = new Set<SessionListener>();
 
   function readSession(): AuthenticatedSession | null {
-    if (activeSession && activeSession.expiresAt <= currentTime()) {
+    if (
+      !options.retainIdentityDuringRenewal &&
+      activeSession &&
+      activeSession.expiresAt <= currentTime()
+    ) {
       activeSession = null;
       listeners.forEach((listener) => listener(null));
     }
@@ -49,7 +56,9 @@ export function createSessionStore(currentTime: () => number = Date.now): Sessio
     },
     getAuthorizationHeader() {
       const session = readSession();
-      return session ? `Bearer ${session.accessToken}` : undefined;
+      return session && session.expiresAt > currentTime()
+        ? `Bearer ${session.accessToken}`
+        : undefined;
     },
   };
 }
