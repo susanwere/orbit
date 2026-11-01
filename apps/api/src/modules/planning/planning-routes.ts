@@ -131,7 +131,25 @@ export async function registerPlanningRoutes(
               intent.id,
             )
           : [];
+        const latestKnowledge = await db.query<
+          { revision: number; content: unknown } & Record<string, unknown>
+        >(
+          "SELECT revision,content FROM project_knowledge_snapshots WHERE organization_id=$1 AND project_id=$2 ORDER BY revision DESC LIMIT 1",
+          [actor.organizationId, actor.projectId],
+        );
+        const knowledgeContent = latestKnowledge.rows[0]?.content as
+          | { summary?: { summary?: string; architecture?: string } }
+          | undefined;
+        const projectKnowledge =
+          knowledgeContent?.summary?.summary && knowledgeContent.summary.architecture
+            ? {
+                revision: latestKnowledge.rows[0]!.revision,
+                summary: knowledgeContent.summary.summary.slice(0, 3000),
+                architecture: knowledgeContent.summary.architecture.slice(0, 3000),
+              }
+            : undefined;
         const proposed = await planner.propose({
+          ...(projectKnowledge ? { projectKnowledge } : {}),
           sourceDocuments,
           originalIntent: intent.statement,
           knownDecisions: decisions.rows.map((row) => row.title + ": " + row.rationale),

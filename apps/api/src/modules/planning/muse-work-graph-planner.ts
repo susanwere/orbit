@@ -26,6 +26,7 @@ export interface ProposedWorkGraph {
 }
 
 export interface PlanningInput {
+  readonly projectKnowledge?: { summary: string; architecture: string; revision: number };
   readonly sourceDocuments?: readonly {
     id: string;
     version: number;
@@ -231,6 +232,7 @@ export class MuseWorkGraphPlanner implements WorkGraphPlanner {
         originalIntent: input.originalIntent,
         knownDecisions: input.knownDecisions.slice(0, 20).map((s) => s.slice(0, 500)),
         knownConstraints: input.knownConstraints.slice(0, 20).map((s) => s.slice(0, 500)),
+        ...(input.projectKnowledge ? { projectKnowledge: input.projectKnowledge } : {}),
         ...(input.sourceDocuments?.length
           ? {
               sourceDocuments: input.sourceDocuments.slice(0, 10).map((doc) => ({
