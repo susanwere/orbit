@@ -74,13 +74,14 @@ export async function registerOriginalIntentRoutes(
         throw new DomainError("validation", "Provide up to 10 distinct document IDs.");
       }
       const id = randomUUID();
-      const insert = async (executor: Pick<SqlDatabase, "query">) => executor.query<IntentRow>(
-        `INSERT INTO intents(id,organization_id,project_id,statement,created_by_principal_id)
+      const insert = async (executor: Pick<SqlDatabase, "query">) =>
+        executor.query<IntentRow>(
+          `INSERT INTO intents(id,organization_id,project_id,statement,created_by_principal_id)
          VALUES($1,$2,$3,$4,$5)
          ON CONFLICT (project_id) DO NOTHING
          RETURNING id,organization_id,project_id,statement,created_by_principal_id,created_at`,
-        [id, access.organizationId, access.projectId, statement.trim(), principal.id],
-      );
+          [id, access.organizationId, access.projectId, statement.trim(), principal.id],
+        );
       const result = documentIds.length
         ? await db.transaction(async (tx) => {
             const owned = await tx.query<{ id: string; version: number } & Record<string, unknown>>(
@@ -89,7 +90,10 @@ export async function registerOriginalIntentRoutes(
               [access.organizationId, access.projectId, documentIds],
             );
             if (owned.rows.length !== documentIds.length)
-              throw new DomainError("validation", "One or more documents do not belong to this project.");
+              throw new DomainError(
+                "validation",
+                "One or more documents do not belong to this project.",
+              );
             const created = await insert(tx);
             if (created.rows[0]) {
               await tx.query(
