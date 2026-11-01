@@ -1,0 +1,257 @@
+/** Canvas-only visual regression; authenticated API responses are deterministic fixtures. */
+import assert from "node:assert/strict";
+import { mkdir } from "node:fs/promises";
+import { chromium } from "playwright";
+const frontendOrigin = process.env.PROJECT_SMOKE_WEB_ORIGIN ?? "http://127.0.0.1:5174";
+const apiOrigin = "http://127.0.0.1:4000";
+const project = {
+  id: "canvas-project",
+  organization_id: "org",
+  name: "private-4",
+  created_at: "2026-11-01T10:00:00Z",
+};
+const intent = {
+  id: "canvas-intent",
+  organization_id: "org",
+  project_id: project.id,
+  statement: "Build a jobs viewer with accessible navigation.",
+  created_at: "2026-11-01T10:00:00Z",
+};
+const graph = {
+  summary: "Build a jobs viewer",
+  workItems: [
+    {
+      key: "JOBS-1",
+      title: "Jobs viewer",
+      description: "Display jobs accessibly",
+      dependsOn: [],
+      workflows: [
+        {
+          name: "Implementation",
+          steps: [
+            { title: "Review requirements", executor: "human", requiresApproval: true },
+            { title: "Implement viewer", executor: "agent", requiresApproval: false },
+          ],
+        },
+      ],
+    },
+    {
+      key: "JOBS-2",
+      title: "Verify accessibility",
+      description: "Review keyboard navigation",
+      dependsOn: ["JOBS-1"],
+      workflows: [
+        {
+          name: "Review",
+          steps: [{ title: "Verify controls", executor: "human", requiresApproval: true }],
+        },
+      ],
+    },
+  ],
+  guardrails: ["Accessible controls"],
+  decisionsToReview: [],
+  assumptions: [],
+};
+let savedPlan = {
+  id: "canvas-plan",
+  project_id: project.id,
+  original_intent_id: intent.id,
+  status: "READY_FOR_REVIEW",
+  failure_reason: null,
+  revision: 1,
+  content: graph,
+};
+const mutations = [];
+const browser = await chromium.launch({
+  headless: true,
+  args: ["--use-gl=angle", "--use-angle=swiftshader", "--enable-webgl"],
+});
+await mkdir("/tmp/orbit-plan-canvas", { recursive: true });
+try {
+  const page = await browser.newPage({
+    viewport: { width: 1665, height: 945 },
+    reducedMotion: "reduce",
+  });
+  page.setDefaultTimeout(10000);
+  await page.route(`${apiOrigin}/**`, async (route) => {
+    const request = route.request();
+    const path = new URL(request.url()).pathname;
+    const headers = {
+      "access-control-allow-origin": frontendOrigin,
+      "access-control-allow-credentials": "true",
+      "access-control-allow-methods": "GET,POST,PATCH,OPTIONS",
+      "access-control-allow-headers": "authorization,content-type,x-orbit-session",
+    };
+    const respond = (status, payload) =>
+      route.fulfill({
+        status,
+        headers,
+        contentType: "application/json",
+        body: JSON.stringify(payload),
+      });
+    if (request.method() === "OPTIONS") return route.fulfill({ status: 204, headers });
+    if (path === "/auth/refresh")
+      return respond(200, {
+        accessToken: "canvas-fixture-token",
+        principalId: "human",
+        organizationId: "org",
+        expiresAt: Math.floor(Date.now() / 1000) + 900,
+      });
+    assert.equal(request.headers().authorization, "Bearer canvas-fixture-token");
+    if (request.method() !== "GET") mutations.push(path);
+    if (path === "/projects") return respond(200, { projects: [project], nextCursor: null });
+    if (path.endsWith("/intent")) return respond(200, { intent });
+    if (path.endsWith("/plan/approve")) {
+      assert.equal(request.postDataJSON().expectedRevision, 2);
+      savedPlan = { ...savedPlan, status: "APPROVED", revision: 3 };
+      return respond(200, { plan: savedPlan });
+    }
+    if (path.endsWith("/plan")) {
+      if (request.method() === "PATCH") {
+        assert.equal(request.postDataJSON().expectedRevision, 1);
+        savedPlan = { ...savedPlan, content: request.postDataJSON().content, revision: 2 };
+      }
+      return respond(200, { plan: savedPlan });
+    }
+    if (path.endsWith("/repositories")) return respond(200, { repositories: [] });
+    if (path.endsWith("/approved-agents")) return respond(200, { agents: [] });
+    if (path.endsWith("/execution/steps")) return respond(200, { steps: [] });
+    if (path.endsWith("/tasks")) return respond(200, { tasks: [] });
+    return respond(404, {});
+  });
+  await page.goto(frontendOrigin);
+  await page.getByRole("button", { name: /private-4 Created/ }).click();
+  await page.getByRole("heading", { name: "What do you want to build?", exact: true }).waitFor();
+  assert.equal(
+    await page.locator(".intent-page").count(),
+    1,
+    "Intent page must retain its original surface",
+  );
+  await page.getByRole("button", { name: "Review proposed plan", exact: true }).click();
+  await page.getByRole("heading", { name: "Workflow Canvas", exact: true }).waitFor();
+  await page.getByRole("button", { name: "Zoom in", exact: true }).waitFor();
+  assert.equal(
+    await page.locator(".orbit-workspace-toolbar").count(),
+    0,
+    "Canvas header must be removed",
+  );
+  assert.equal(
+    await page
+      .getByRole("navigation", { name: "Account", exact: true })
+      .evaluate((menu) => Boolean(menu.closest(".canvas-sidebar-account"))),
+    true,
+  );
+  await page.getByText("Account ▾", { exact: true }).click();
+  await page.getByRole("button", { name: "Sign out", exact: true }).waitFor();
+  await page.getByText("Account ▾", { exact: true }).click();
+
+  await page.getByRole("button", { name: /^WORK ITEM Jobs viewer/ }).waitFor();
+  assert.equal(mutations.length, 0, "Opening the canvas must remain read-only");
+  await page.getByRole("button", { name: "Zoom in", exact: true }).click();
+  await page.getByText("120%", { exact: true }).waitFor();
+  await page.getByRole("button", { name: "Zoom out", exact: true }).click();
+  await page.getByText("100%", { exact: true }).waitFor();
+  await page.getByRole("button", { name: "Pan canvas", exact: true }).click();
+  assert.equal(
+    await page
+      .getByRole("button", { name: "Pan canvas", exact: true })
+      .getAttribute("aria-pressed"),
+    "false",
+  );
+  await page.getByRole("button", { name: "Pan canvas", exact: true }).click();
+  await page.getByRole("button", { name: "Fit graph to view", exact: true }).click();
+  assert.match(await page.getByLabel("Canvas zoom", { exact: true }).textContent(), /\d+%/);
+  await page.getByRole("button", { name: "Composer", exact: true }).click();
+  await page.getByLabel("Canvas project idea", { exact: true }).fill("A composer preview draft");
+  assert.equal(
+    await page.getByRole("button", { name: "Composer", exact: true }).getAttribute("aria-current"),
+    "page",
+  );
+  assert.equal(
+    await page.getByRole("button", { name: "Generate plan", exact: true }).isDisabled(),
+    true,
+  );
+  await page.screenshot({ path: "/tmp/orbit-plan-canvas/composer-sidebar.png", fullPage: true });
+  await page.getByRole("button", { name: "Workflow", exact: true }).click();
+  assert.equal(await page.getByLabel("Canvas project idea", { exact: true }).count(), 0);
+  await page.getByRole("button", { name: "Composer", exact: true }).click();
+  assert.equal(
+    await page.getByLabel("Canvas project idea", { exact: true }).inputValue(),
+    "A composer preview draft",
+  );
+  assert.equal(mutations.length, 0, "Opening or editing Composer must not change intent or plans");
+  await page.getByRole("button", { name: "Workflow", exact: true }).click();
+  await page.mouse.move(1300, 130);
+  await page.screenshot({ path: "/tmp/orbit-plan-canvas/desktop.png", fullPage: true });
+  await page.getByText("Accessible node list", { exact: true }).click();
+  await page.getByRole("button", { name: "Jobs viewer · work", exact: true }).click();
+  await page.getByRole("region", { name: "Work item configuration", exact: true }).waitFor();
+  assert.equal(mutations.length, 0, "Selecting nodes must not modify or execute the plan");
+  await page.getByRole("button", { name: "Workflow", exact: true }).click();
+  await page.getByText("Plan details and work item management", { exact: true }).click();
+  await page
+    .getByLabel("Proposed outcome", { exact: true })
+    .fill("Build an accessible jobs viewer");
+  await page.getByRole("button", { name: "Save changes", exact: true }).click();
+  await page.getByRole("button", { name: "Approve plan", exact: true }).click();
+  await page.getByText("Plan approved", { exact: true }).waitFor();
+  assert.equal(mutations.length, 2, "Plan edits and approval must not start execution");
+  await page.setViewportSize({ width: 375, height: 812 });
+  await page.getByRole("button", { name: "Fit graph to view", exact: true }).click();
+  await page.screenshot({ path: "/tmp/orbit-plan-canvas/mobile.png", fullPage: true });
+  assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
+  await page.getByRole("button", { name: "← Intent", exact: true }).click();
+  await page.getByRole("heading", { name: "What do you want to build?", exact: true }).waitFor();
+  assert.equal(await page.locator(".intent-page").count(), 1);
+  assert.equal(
+    await page
+      .getByRole("navigation", { name: "Account", exact: true })
+      .evaluate((menu) => Boolean(menu.closest(".canvas-sidebar-account"))),
+    false,
+    "Intent must retain its original Account placement",
+  );
+
+  assert.equal(
+    await page.getByLabel("Your original intent", { exact: true }).inputValue(),
+    intent.statement,
+  );
+  const emptyPage = await browser.newPage({
+    viewport: { width: 1665, height: 945 },
+    reducedMotion: "reduce",
+  });
+  let emptyCanvasApiRequests = 0;
+  emptyPage.on("request", (request) => {
+    if (request.url().startsWith(apiOrigin)) emptyCanvasApiRequests++;
+  });
+  await emptyPage.goto(`${frontendOrigin}/canvas-preview.html`);
+  await emptyPage.getByLabel("Canvas project idea", { exact: true }).waitFor();
+  await emptyPage.screenshot({ path: "/tmp/orbit-plan-canvas/empty-desktop.png", fullPage: true });
+  await emptyPage
+    .getByLabel("Canvas project idea", { exact: true })
+    .fill("An editable canvas idea for later");
+  assert.equal(
+    await emptyPage.getByLabel("Canvas project idea", { exact: true }).inputValue(),
+    "An editable canvas idea for later",
+  );
+  assert.equal(
+    await emptyPage.getByRole("button", { name: "Generate plan", exact: true }).isDisabled(),
+    true,
+  );
+  assert.equal(
+    emptyCanvasApiRequests,
+    0,
+    "The future canvas composer must not mutate intent or plans",
+  );
+  await emptyPage.setViewportSize({ width: 375, height: 812 });
+  await emptyPage.screenshot({ path: "/tmp/orbit-plan-canvas/empty-mobile.png", fullPage: true });
+  assert.equal(
+    await emptyPage.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
+    true,
+  );
+  await emptyPage.close();
+  console.log(
+    "Canvas-only redesign: unchanged Intent page, real graph nodes, zoom/pan/fit controls, read-only selection, edit/approval, desktop/mobile and return navigation passed.",
+  );
+} finally {
+  await browser.close();
+}

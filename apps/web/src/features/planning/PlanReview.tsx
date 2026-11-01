@@ -1,8 +1,13 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useCanvasExecution } from "./use-canvas-execution.js";
+import { CanvasComposer } from "./CanvasComposer.js";
+import { CanvasSidebar } from "./CanvasSidebar.js";
+import "../projects/project-dashboard.css";
 import { WorkGraphCanvas } from "./WorkGraphCanvas.js";
 import type { CreatedProject } from "../projects/project-api.js";
 import type { ProjectIntentApi, ProjectPlan, StoredIntent } from "../intent/intent-api.js";
 import "./plan-review.css";
+import "./canvas-theme.css";
 
 type Executor = "human" | "agent" | "system";
 interface Step {
@@ -77,16 +82,31 @@ function readGraph(value: unknown): WorkGraph | null {
 interface Props {
   readonly project: CreatedProject;
   readonly originalIntent: StoredIntent | null;
-  readonly plan: ProjectPlan;
+  readonly plan: ProjectPlan | null;
+  readonly isLoading?: boolean;
   readonly api: ProjectIntentApi;
   readonly onBack: () => void;
   readonly onUpdated: (plan: ProjectPlan) => void;
 }
 
-export function PlanReview({ project, originalIntent, plan, api, onBack, onUpdated }: Props) {
-  const [graph, setGraph] = useState<WorkGraph | null>(() => readGraph(plan.content));
-  const [revision, setRevision] = useState(plan.revision);
-  const [status, setStatus] = useState(plan.status);
+export function PlanReview(props: Props) {
+  return <ProjectPlanCanvas key={props.project.id} {...props} />;
+}
+
+function ProjectPlanCanvas({
+  project,
+  originalIntent,
+  plan,
+  api,
+  onBack,
+  onUpdated,
+  isLoading = false,
+}: Props) {
+  const [canvasSection, setCanvasSection] = useState<"workflow" | "composer">("workflow");
+  const [canvasDraftIdea, setCanvasDraftIdea] = useState("");
+  const [graph, setGraph] = useState<WorkGraph | null>(() => readGraph(plan?.content));
+  const [revision, setRevision] = useState(plan?.revision ?? 0);
+  const [status, setStatus] = useState<ProjectPlan["status"] | null>(plan?.status ?? null);
   const [dirty, setDirty] = useState(false);
   const [selectedItemKey, setSelectedItemKey] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<"overview" | "workflows" | "dependencies">(
@@ -96,12 +116,31 @@ export function PlanReview({ project, originalIntent, plan, api, onBack, onUpdat
   const [selectedStep, setSelectedStep] = useState<number | null>(null);
   const [editing, setEditing] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [isIntentOpen, setIsIntentOpen] = useState(false);
+  const [planningFailure, setPlanningFailure] = useState(plan?.failure_reason ?? null);
   const [error, setError] = useState<string | null>(null);
+  useEffect(() => {
+    if (isLoading || dirty) return;
+    setGraph(readGraph(plan?.content));
+    setRevision(plan?.revision ?? 0);
+    setStatus(plan?.status ?? null);
+    setPlanningFailure(plan?.failure_reason ?? null);
+  }, [plan, isLoading, dirty]);
   const selectedItem = graph?.workItems.find((item) => item.key === selectedItemKey);
   const approved = status === "APPROVED";
-  const canEdit = !approved && !busy;
+  const { executionSteps, museJobs, executionError, refreshExecution } = useCanvasExecution(
+    api,
+    project.id,
+    approved && !isLoading,
+  );
+  const canEdit = status === "READY_FOR_REVIEW" && !busy;
+  const showComposer =
+    !isLoading && (canvasSection === "composer" || (!originalIntent && status === null));
+  const planningPending = status === "GENERATING";
+  const canGeneratePlan = Boolean(originalIntent) && (status === null || status === "FAILED");
   const selectedIndex = graph?.workItems.findIndex((item) => item.key === selectedItemKey) ?? -1;
   const openItem = (key: string) => {
+    setCanvasSection("workflow");
     setSelectedItemKey(key);
     setActiveTab("workflows");
     setSelectedWorkflow(null);
@@ -112,6 +151,15 @@ export function PlanReview({ project, originalIntent, plan, api, onBack, onUpdat
   const currentWorkflow =
     selectedWorkflow === null ? null : selectedItem?.workflows[selectedWorkflow];
   const currentStep = selectedStep === null ? null : currentWorkflow?.steps[selectedStep];
+  const selectedExecutionStep = executionSteps.find(
+    (step) =>
+      step.work_item_key === selectedItemKey &&
+      step.workflow_index === selectedWorkflow &&
+      step.step_index === selectedStep,
+  );
+  const selectedJob = selectedExecutionStep?.agent_session_id
+    ? museJobs[selectedExecutionStep.agent_session_id]
+    : null;
   const change = (next: WorkGraph) => {
     setGraph(next);
     setDirty(true);
@@ -140,13 +188,13 @@ export function PlanReview({ project, originalIntent, plan, api, onBack, onUpdat
       const current = await api.getPlan(project.id);
       if (!current) throw new Error("The plan is not available.");
       const latestGraph = readGraph(current.content);
-      if (!latestGraph) throw new Error("The plan has an unsupported shape.");
       setGraph(latestGraph);
       setSelectedItemKey((key) =>
-        latestGraph.workItems.some((item) => item.key === key) ? key : null,
+        latestGraph?.workItems.some((item) => item.key === key) ? key : null,
       );
       setRevision(current.revision);
       setStatus(current.status);
+      setPlanningFailure(current.failure_reason);
       setDirty(false);
       onUpdated(current);
     } catch (cause) {
@@ -155,6 +203,28 @@ export function PlanReview({ project, originalIntent, plan, api, onBack, onUpdat
       setBusy(false);
     }
   }
+  async function retryPlanning() {
+    if (!canGeneratePlan || busy || isLoading) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const generatedPlan = await api.generatePlan(project.id);
+      setGraph(readGraph(generatedPlan.content));
+      setRevision(generatedPlan.revision);
+      setStatus(generatedPlan.status);
+      setPlanningFailure(generatedPlan.failure_reason);
+      onUpdated(generatedPlan);
+    } catch (failure) {
+      setError(
+        failure instanceof Error
+          ? failure.message
+          : "Planning failed. Your original intent is still saved.",
+      );
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function save() {
     if (!graph || !canEdit || !dirty) return;
     setBusy(true);
@@ -173,7 +243,7 @@ export function PlanReview({ project, originalIntent, plan, api, onBack, onUpdat
     }
   }
   async function approve() {
-    if (busy || dirty || approved || !graph) return;
+    if (busy || dirty || !graph || status !== "READY_FOR_REVIEW") return;
     setBusy(true);
     setError(null);
     try {
@@ -190,40 +260,77 @@ export function PlanReview({ project, originalIntent, plan, api, onBack, onUpdat
 
   return (
     <main className="orbit-workspace">
-      <aside className="orbit-workspace-nav" aria-label="Project navigation">
-        <a className="orbit-workspace-mark" href="#plan-heading" aria-label="Orbit workspace">
-          ◈
-        </a>
-        <span className="orbit-workspace-nav-label">Workspace</span>
-        <button type="button" className="orbit-workspace-nav-action" onClick={onBack}>
-          ← Intent
-        </button>
-        <div className="orbit-workspace-nav-group">
-          <span>PROJECT</span>
-          <strong>{project.name}</strong>
-        </div>
-        <div className="orbit-workspace-nav-group">
-          <span>PLANNING</span>
-          <strong>Workflows</strong>
-          <small>{graph?.workItems.length ?? 0} work items</small>
-        </div>
-        <p className="orbit-workspace-nav-note">
-          Approval records human acceptance. Agent execution is separate.
-        </p>
-      </aside>
+      <CanvasSidebar
+        projectName={project.name}
+        workItems={graph?.workItems ?? []}
+        selectedItemKey={selectedItemKey}
+        approved={approved}
+        hasPlan={Boolean(originalIntent) || status !== null}
+        isComposerOpen={showComposer}
+        onOpenComposer={() => {
+          setCanvasSection("composer");
+          setSelectedItemKey(null);
+          setIsIntentOpen(false);
+        }}
+        onBack={onBack}
+        onSelectItem={openItem}
+        onOverview={() => {
+          setCanvasSection("workflow");
+          setSelectedItemKey(null);
+          setSelectedWorkflow(null);
+          setSelectedStep(null);
+          setEditing(false);
+        }}
+      />
       <div className="orbit-workspace-main">
-        <header className="orbit-workspace-toolbar">
-          <div>
-            <span className="orbit-workspace-breadcrumb">
-              ORBIT / {project.name} / {selectedItem ? selectedItem.key : "WORKFLOW"}
-            </span>
-            <h1 id="plan-heading">{selectedItem ? selectedItem.title : "Workflow canvas"}</h1>
+        <div className="canvas-ambient-orbits" aria-hidden="true">
+          <div className="project-dashboard-orbit project-dashboard-orbit-left">
+            <i />
           </div>
-          <span className="orbit-workspace-state">
-            {approved ? "Approved" : dirty ? "Unsaved changes" : "Proposed plan"}
-          </span>
-        </header>
-        {selectedItem && graph ? (
+          <div className="project-dashboard-orbit project-dashboard-orbit-right">
+            <i />
+          </div>
+        </div>
+        <h1 id="plan-heading" className="canvas-heading-accessible">
+          {selectedItem ? selectedItem.title : "Workflow Canvas"}
+        </h1>
+        {isIntentOpen && originalIntent && (
+          <section
+            className="canvas-intent-detail"
+            role="region"
+            aria-label="Saved Original Intent"
+          >
+            <button
+              type="button"
+              onClick={() => setIsIntentOpen(false)}
+              aria-label="Close original intent"
+            >
+              ×
+            </button>
+            <h2>Original Intent</h2>
+            <p>{originalIntent.statement}</p>
+            <small>Saved · immutable</small>
+            {originalIntent.created_at && (
+              <p>
+                <time dateTime={originalIntent.created_at}>
+                  {new Date(originalIntent.created_at).toLocaleString()}
+                </time>
+              </p>
+            )}
+          </section>
+        )}
+        {isLoading ? (
+          <p className="canvas-loading" role="status">
+            Loading workflow…
+          </p>
+        ) : showComposer ? (
+          <CanvasComposer
+            isPreview={Boolean(originalIntent) || status !== null}
+            draftIdea={canvasDraftIdea}
+            onDraftChange={setCanvasDraftIdea}
+            onOpenIntent={onBack}
+          />
+        ) : selectedItem && graph ? (
           <section
             className="orbit-detail-page orbit-detail-page--canvas"
             aria-label="Work item configuration"
@@ -259,7 +366,7 @@ export function PlanReview({ project, originalIntent, plan, api, onBack, onUpdat
                 </p>
               </div>
               <div className="orbit-detail-heading-actions">
-                {!approved && (
+                {status === "READY_FOR_REVIEW" && graph && (
                   <button
                     type="button"
                     className="orbit-detail-back"
@@ -416,6 +523,41 @@ export function PlanReview({ project, originalIntent, plan, api, onBack, onUpdat
                         ← All steps
                       </button>
                       <h3>{currentStep.title}</h3>
+                      {selectedExecutionStep && (
+                        <section className="canvas-step-evidence" aria-label="Execution evidence">
+                          <p>Execution: {selectedExecutionStep.state}</p>
+                          {selectedExecutionStep.blocker_reason && (
+                            <p>
+                              Blocked: {selectedExecutionStep.blocker_reason.replaceAll("_", " ")}
+                            </p>
+                          )}
+                          {selectedExecutionStep.agent_session_id && (
+                            <p>Agent session: {selectedExecutionStep.agent_session_id}</p>
+                          )}
+                          {selectedJob && <p>Muse turn: {selectedJob.status}</p>}
+                          {selectedJob?.github_repository && selectedJob.github_pull_number && (
+                            <a
+                              href={`https://github.com/${selectedJob.github_repository}/pull/${selectedJob.github_pull_number}`}
+                              target="_blank"
+                              rel="noreferrer"
+                            >
+                              Review PR #{selectedJob.github_pull_number}
+                            </a>
+                          )}
+                          {selectedJob?.github_ci_state && (
+                            <p>GitHub CI: {selectedJob.github_ci_state}</p>
+                          )}
+                          {selectedJob?.github_ci_url && (
+                            <a href={selectedJob.github_ci_url} target="_blank" rel="noreferrer">
+                              Review CI evidence
+                            </a>
+                          )}
+                          <button type="button" onClick={onBack}>
+                            Open authorized execution controls on Intent
+                          </button>
+                        </section>
+                      )}
+
                       <p>
                         {currentStep.requiresApproval
                           ? "Human approval required"
@@ -626,16 +768,89 @@ export function PlanReview({ project, originalIntent, plan, api, onBack, onUpdat
 
             <div className="orbit-workspace-stage-head">
               <span>PROJECT WORK GRAPH</span>
-              <strong>{graph?.workItems.length ?? 0} proposed work items</strong>
+              <strong>
+                {graph?.workItems.length ?? 0} {approved ? "approved" : "proposed"} work items
+              </strong>
             </div>
-            {graph ? (
+            {(originalIntent || graph) &&
+              (planningPending || status === "FAILED" || canGeneratePlan || error) && (
+                <div className="canvas-planning-notice">
+                  {planningPending && (
+                    <p role="status">
+                      Muse Spark is generating the plan. No execution has started.
+                    </p>
+                  )}
+                  {status === "FAILED" && (
+                    <p role="alert">
+                      {planningFailure ?? "Planning failed. Your original intent is still saved."}
+                    </p>
+                  )}
+                  {canGeneratePlan && (
+                    <button
+                      type="button"
+                      disabled={busy}
+                      onClick={() => {
+                        void retryPlanning();
+                      }}
+                    >
+                      {busy
+                        ? "Requesting plan…"
+                        : status === "FAILED"
+                          ? "Retry planning"
+                          : "Generate plan"}
+                    </button>
+                  )}
+                  {planningPending && (
+                    <button
+                      type="button"
+                      disabled={busy}
+                      onClick={() => {
+                        void latest();
+                      }}
+                    >
+                      Check planning status
+                    </button>
+                  )}
+                </div>
+              )}
+            {approved && (
+              <div className="canvas-execution-status">
+                <span>
+                  {executionSteps.length
+                    ? `${executionSteps.filter((step) => step.state === "COMPLETED").length} of ${executionSteps.length} steps completed`
+                    : "No materialized execution steps"}
+                </span>
+                <button type="button" onClick={refreshExecution}>
+                  Refresh execution status
+                </button>
+                {executionError && <p role="alert">{executionError}</p>}
+              </div>
+            )}
+            {originalIntent || graph ? (
               <WorkGraphCanvas
-                items={graph.workItems}
+                items={graph?.workItems ?? []}
                 intent={originalIntent?.statement ?? "Original intent"}
                 approved={approved}
+                onSelectDetail={(workItemKey, workflowIndex, stepIndex) => {
+                  openItem(workItemKey);
+                  setSelectedWorkflow(workflowIndex);
+                  setSelectedStep(stepIndex ?? null);
+                }}
+                executionSteps={executionSteps}
+                museJobs={museJobs}
+                planLabel={
+                  planningPending
+                    ? "Planning in progress"
+                    : status === "FAILED"
+                      ? "Planning failed · original intent saved"
+                      : status === null
+                        ? "Original intent saved"
+                        : undefined
+                }
                 selectedItemKey={null}
                 onSelect={(key) => {
                   if (key) openItem(key);
+                  else setIsIntentOpen(true);
                 }}
               />
             ) : (
@@ -645,57 +860,65 @@ export function PlanReview({ project, originalIntent, plan, api, onBack, onUpdat
             )}
           </section>
         )}
-        <footer className="orbit-plan-footer">
-          <div>
-            <strong>
-              {approved
-                ? "Plan approved"
-                : dirty
-                  ? "You have unsaved changes"
-                  : "Review the proposed plan"}
-            </strong>
-            <small>Human approval does not start agents or execute code.</small>
-            {error && (
-              <p role="alert" className="intent-error">
-                {error}
-              </p>
-            )}
-          </div>
-          <div className="orbit-plan-footer-actions">
-            <button
-              type="button"
-              disabled={busy}
-              onClick={() => {
-                void latest();
-              }}
-            >
-              Reload latest
-            </button>
-            {!approved && (
-              <>
-                <button
-                  type="button"
-                  disabled={busy || !dirty}
-                  onClick={() => {
-                    void save();
-                  }}
-                >
-                  Save changes
-                </button>
-                <button
-                  type="button"
-                  className="cta-primary"
-                  disabled={busy || dirty || !graph}
-                  onClick={() => {
-                    void approve();
-                  }}
-                >
-                  Approve plan
-                </button>
-              </>
-            )}
-          </div>
-        </footer>
+        {!isLoading && !showComposer && (
+          <footer id="canvas-plan-actions" className="orbit-plan-footer">
+            <div>
+              <strong>
+                {status === "GENERATING"
+                  ? "Planning in progress"
+                  : status === "FAILED"
+                    ? "Planning failed"
+                    : status === null
+                      ? "Original intent saved"
+                      : approved
+                        ? "Plan approved"
+                        : dirty
+                          ? "You have unsaved changes"
+                          : "Review the proposed plan"}
+              </strong>
+              <small>Human approval does not start agents or execute code.</small>
+              {error && (
+                <p role="alert" className="intent-error">
+                  {error}
+                </p>
+              )}
+            </div>
+            <div className="orbit-plan-footer-actions">
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => {
+                  void latest();
+                }}
+              >
+                Reload latest
+              </button>
+              {status === "READY_FOR_REVIEW" && graph && (
+                <>
+                  <button
+                    type="button"
+                    disabled={busy || !dirty}
+                    onClick={() => {
+                      void save();
+                    }}
+                  >
+                    Save changes
+                  </button>
+                  <button
+                    type="button"
+                    className="cta-primary"
+                    disabled={busy || dirty || !graph}
+                    onClick={() => {
+                      void approve();
+                    }}
+                  >
+                    Approve plan
+                  </button>
+                </>
+              )}
+            </div>
+          </footer>
+        )}
       </div>
     </main>
   );

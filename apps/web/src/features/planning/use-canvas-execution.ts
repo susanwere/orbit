@@ -1,0 +1,48 @@
+import { useCallback, useEffect, useState } from "react";
+import type { ExecutionStep, MuseJobStatus, ProjectIntentApi } from "../intent/intent-api.js";
+import { loadExecutionStatus } from "../intent/execution-status.js";
+
+/** Read-only status projection. Opening or refreshing the canvas never queues execution. */
+export function useCanvasExecution(api: ProjectIntentApi, projectId: string, enabled: boolean) {
+  const [executionSteps, setExecutionSteps] = useState<readonly ExecutionStep[]>([]);
+  const [museJobs, setMuseJobs] = useState<Record<string, MuseJobStatus | null>>({});
+  const [executionError, setExecutionError] = useState<string | null>(null);
+  const [refreshAttempt, setRefreshAttempt] = useState(0);
+  const refreshExecution = useCallback(() => setRefreshAttempt((attempt) => attempt + 1), []);
+  useEffect(() => {
+    let active = true;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    setExecutionSteps([]);
+    setMuseJobs({});
+    setExecutionError(null);
+    if (!enabled) return;
+    const refresh = async () => {
+      try {
+        const status = await loadExecutionStatus(api, projectId);
+        if (!active) return;
+        setExecutionSteps(status.steps);
+        setMuseJobs(status.jobs);
+        setExecutionError(
+          status.jobRefreshFailed
+            ? "Some agent statuses could not refresh. Refresh execution status to retry."
+            : null,
+        );
+        if (status.steps.some((step) => step.state === "RUNNING") || status.jobRefreshFailed)
+          timer = setTimeout(() => {
+            void refresh();
+          }, 2000);
+      } catch {
+        if (active)
+          setExecutionError(
+            "Could not refresh execution status. The saved plan is still available.",
+          );
+      }
+    };
+    void refresh();
+    return () => {
+      active = false;
+      clearTimeout(timer);
+    };
+  }, [api, projectId, enabled, refreshAttempt]);
+  return { executionSteps, museJobs, executionError, refreshExecution };
+}
