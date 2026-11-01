@@ -103,11 +103,16 @@ const originalIntent: OriginalIntentOptions | undefined = auth
   ? { auth, db: database, authorization: new ProjectAuthorizationService(database) }
   : undefined;
 
+const documentStorage = new LocalDocumentStorage(
+  process.env.ORBIT_DOCUMENT_STORAGE_DIR ?? ".orbit-documents",
+);
+
 const planning: PlanningRouteOptions | undefined = auth
   ? {
       auth,
       db: database,
       authorization: new ProjectAuthorizationService(database),
+      documentStorage,
       planner: process.env.MODEL_API_KEY
         ? new MuseWorkGraphPlanner(
             new MetaModelApiClient({
@@ -126,9 +131,7 @@ const app = await buildApp({
           db: database,
           auth,
           authorization: new ProjectAuthorizationService(database),
-          storage: new LocalDocumentStorage(
-            process.env.ORBIT_DOCUMENT_STORAGE_DIR ?? ".orbit-documents",
-          ),
+          storage: documentStorage,
         }
       : undefined,
   planning,
