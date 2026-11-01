@@ -6,10 +6,7 @@ import type { SqlDatabase } from "@orbit/db";
 import type { FastifyInstance } from "fastify";
 import type { AuthVerifier } from "../auth/verified-principal.js";
 import type { ProjectAuthorizationService } from "../projects/project-authorization.js";
-import {
-  validateProposedWorkGraph,
-  type WorkGraphPlanner,
-} from "./muse-work-graph-planner.js";
+import { validateProposedWorkGraph, type WorkGraphPlanner } from "./muse-work-graph-planner.js";
 
 export interface PlanningRouteOptions {
   readonly db: SqlDatabase;

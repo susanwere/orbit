@@ -122,8 +122,7 @@ async function githubEvidence(
           "go.mod",
           "vite.config.ts",
         ].some(
-          (name) =>
-            entry.path.endsWith(name) || entry.path.split("/").pop()?.startsWith("README"),
+          (name) => entry.path.endsWith(name) || entry.path.split("/").pop()?.startsWith("README"),
         ) &&
         !entry.path
           .split("/")
@@ -182,10 +181,7 @@ export async function registerProjectKnowledgeRoutes(
       const documents = [];
       for (const row of sources.rows) {
         const bytes = await storage.get(row.storage_key);
-        const hash = (await import("node:crypto"))
-          .createHash("sha256")
-          .update(bytes)
-          .digest("hex");
+        const hash = (await import("node:crypto")).createHash("sha256").update(bytes).digest("hex");
         if (hash !== row.sha256)
           throw new DomainError("validation", "Source integrity verification failed.");
         const extracted = await extractDocumentText(row.media_type, bytes);
@@ -211,7 +207,11 @@ export async function registerProjectKnowledgeRoutes(
           fullName: repo.full_name,
           inspected: evidence.inspected,
           summary: evidence.files.length
-            ? await summarize(model, { kind: "repository", repository: repo.full_name, files: evidence.files })
+            ? await summarize(model, {
+                kind: "repository",
+                repository: repo.full_name,
+                files: evidence.files,
+              })
             : null,
         });
       }

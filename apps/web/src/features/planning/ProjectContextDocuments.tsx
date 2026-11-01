@@ -195,7 +195,8 @@ export function ProjectContextDocuments({
       )}
       <p className="orbit-detail-muted">
         Document excerpts are used for Muse planning. Knowledge snapshots are generated on demand;
-        repository analysis samples accessible manifests and README files, not the entire source tree.
+        repository analysis samples accessible manifests and README files, not the entire source
+        tree.
       </p>
     </section>
   );
