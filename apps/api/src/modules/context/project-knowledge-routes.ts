@@ -78,8 +78,15 @@ async function summarize(model: StructuredJsonClient, input: unknown): Promise<S
     }),
   );
 }
-async function githubEvidence(repository: string, token?: string): Promise<{ files: { path: string; text: string }[]; inspected: string[] }> {
-  if (repository.split("/").length !== 2 || !repository.split("/").every((part) => /^[A-Za-z0-9_.-]+$/.test(part))) return { files: [], inspected: [] };
+async function githubEvidence(
+  repository: string,
+  token?: string,
+): Promise<{ files: { path: string; text: string }[]; inspected: string[] }> {
+  if (
+    repository.split("/").length !== 2 ||
+    !repository.split("/").every((part) => /^[A-Za-z0-9_.-]+$/.test(part))
+  )
+    return { files: [], inspected: [] };
   const headers = {
     Accept: "application/vnd.github+json",
     "User-Agent": "Orbit-Knowledge",
@@ -88,26 +95,47 @@ async function githubEvidence(repository: string, token?: string): Promise<{ fil
   const base = `https://api.github.com/repos/${repository}`;
   const metadata = await fetch(base, { headers, signal: AbortSignal.timeout(7_000) });
   if (!metadata.ok) return { files: [], inspected: [] };
-  const details = await metadata.json() as { default_branch?: string };
+  const details = (await metadata.json()) as { default_branch?: string };
   const branch = details.default_branch;
   if (!branch || !/^[a-zA-Z0-9._-]+$/.test(branch)) return { files: [], inspected: [] };
   const tree = await fetch(`${base}/git/trees/${encodeURIComponent(branch)}?recursive=1`, {
-    headers, signal: AbortSignal.timeout(7_000),
+    headers,
+    signal: AbortSignal.timeout(7_000),
   });
   if (!tree.ok) return { files: [], inspected: [] };
-  const manifest = await tree.json() as { tree?: { path: string; type: string; size?: number }[]; truncated?: boolean };
-  const candidates = (manifest.tree ?? []).filter((entry) =>
-    entry.type === "blob" &&
-    (entry.size ?? 0) <= 30_000 &&
-    ["README", "package.json", "tsconfig.json", "pyproject.toml", "Cargo.toml", "Gemfile", "go.mod", "vite.config.ts"].some((name) => entry.path.endsWith(name) || entry.path.split("/").pop()?.startsWith("README")) &&
-    !entry.path.split("/").some((segment) => ["node_modules", "dist", "build", "vendor", ".git"].includes(segment))
-  ).slice(0, 12);
+  const manifest = (await tree.json()) as {
+    tree?: { path: string; type: string; size?: number }[];
+    truncated?: boolean;
+  };
+  const candidates = (manifest.tree ?? [])
+    .filter(
+      (entry) =>
+        entry.type === "blob" &&
+        (entry.size ?? 0) <= 30_000 &&
+        [
+          "README",
+          "package.json",
+          "tsconfig.json",
+          "pyproject.toml",
+          "Cargo.toml",
+          "Gemfile",
+          "go.mod",
+          "vite.config.ts",
+        ].some(
+          (name) =>
+            entry.path.endsWith(name) || entry.path.split("/").pop()?.startsWith("README"),
+        ) &&
+        !entry.path
+          .split("/")
+          .some((segment) => ["node_modules", "dist", "build", "vendor", ".git"].includes(segment)),
+    )
+    .slice(0, 12);
   const files: { path: string; text: string }[] = [];
   for (const item of candidates) {
-    const response = await fetch(`https://raw.githubusercontent.com/${repository}/${encodeURIComponent(branch)}/${item.path.split("/").map(encodeURIComponent).join("/")}`, {
-      headers: token ? { Authorization: `Bearer ${token}`, "User-Agent": "Orbit-Knowledge" } : { "User-Agent": "Orbit-Knowledge" },
-      signal: AbortSignal.timeout(7_000),
-    });
+    const response = await fetch(
+      `https://api.github.com/repos/${repository}/contents/${item.path.split("/").map(encodeURIComponent).join("/")}?ref=${encodeURIComponent(branch)}`,
+      { headers: { ...headers, Accept: "application/vnd.github.raw+json" }, signal: AbortSignal.timeout(7_000) },
+    );
     if (!response.ok) continue;
     const content = (await response.text()).slice(0, 5_000);
     files.push({ path: item.path, text: content });
@@ -175,9 +203,9 @@ export async function registerProjectKnowledgeRoutes(
         const evidence = await githubEvidence(repo.full_name, githubToken);
         repositories.push({
           fullName: repo.full_name,
-          inspected: Boolean(readme),
-          summary: readme
-            ? await summarize(model, { kind: "repository", repository: repo.full_name, readme })
+          inspected: evidence.inspected,
+          summary: evidence.files.length
+            ? await summarize(model, { kind: "repository", repository: repo.full_name, files: evidence.files })
             : null,
         });
       }
