@@ -31,6 +31,7 @@ type Phase = "loading" | "ready" | "saving" | "planning" | "error";
 export function IntentEntry({ project, api, onBack }: IntentEntryProps) {
   const [statement, setStatement] = useState("");
   const [attachmentFiles, setAttachmentFiles] = useState<File[]>([]);
+  const [uploadedDocumentIds, setUploadedDocumentIds] = useState<Record<string, string>>({});
   const [savedDocuments, setSavedDocuments] = useState<
     readonly { id: string; original_filename: string; media_type: string; size_bytes: number }[]
   >([]);
@@ -591,8 +592,14 @@ export function IntentEntry({ project, api, onBack }: IntentEntryProps) {
     setPhase("saving");
     setError(null);
     try {
-      const uploaded = [];
+      const uploaded: { id: string; original_filename: string }[] = [];
       for (const file of attachmentFiles) {
+        const identity = `${file.name}:${file.size}:${file.lastModified}`;
+        const existingId = uploadedDocumentIds[identity];
+        if (existingId) {
+          uploaded.push({ id: existingId, original_filename: file.name });
+          continue;
+        }
         const mediaType = file.name.toLowerCase().endsWith(".md")
           ? "text/markdown"
           : file.name.toLowerCase().endsWith(".txt")
@@ -604,6 +611,7 @@ export function IntentEntry({ project, api, onBack }: IntentEntryProps) {
           base64: await encodeDocument(file),
         });
         uploaded.push(stored);
+        setUploadedDocumentIds((previous) => ({ ...previous, [identity]: stored.id }));
       }
       const saved = await api.submitIntent(
         project.id,
@@ -686,7 +694,9 @@ export function IntentEntry({ project, api, onBack }: IntentEntryProps) {
                   disabled={busy}
                   onChange={(event) => {
                     const incoming = Array.from(event.target.files ?? []);
-                    const next = [...attachmentFiles, ...incoming];
+                    const next = [...attachmentFiles, ...incoming].filter((file, index, all) =>
+                      all.findIndex((other) => other.name === file.name && other.size === file.size && other.lastModified === file.lastModified) === index,
+                    );
                     if (
                       next.length > 10 ||
                       next.some((file) => file.size > 5 * 1024 * 1024 || file.size === 0)
@@ -749,7 +759,7 @@ export function IntentEntry({ project, api, onBack }: IntentEntryProps) {
             )}
             <div className="intent-actions">
               {!intent && (
-                <button type="submit" className="cta-primary" disabled={busy || !statement.trim()}>
+                <button type="submit" className="cta-primary" disabled={busy || !statement.trim() || Boolean(attachmentError)}>
                   {phase === "saving" ? "Saving intent…" : "Save intent & propose plan"}
                 </button>
               )}
