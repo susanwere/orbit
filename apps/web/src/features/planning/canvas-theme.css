@@ -66,7 +66,7 @@
   gap: 16px;
 }
 .canvas-sidebar nav :is(button, a),
-.canvas-sidebar-items > div > details > summary {
+.canvas-sidebar-items > summary {
   display: flex;
   align-items: center;
   gap: 12px;
@@ -95,15 +95,11 @@
   border-top: 1px solid #392a4c;
   padding-top: 14px;
 }
-.canvas-sidebar-items > summary {
-  display: flex;
-  justify-content: space-between;
-  color: #c9bfdc;
-  padding: 4px 12px 14px;
-  cursor: pointer;
-  font-size: 13px;
-}
 .canvas-sidebar-items > summary::after {
+  margin-left: auto;
+  content: "›";
+}
+.canvas-sidebar-items[open] > summary::after {
   content: "⌄";
 }
 .canvas-sidebar summary {
@@ -333,7 +329,7 @@
     padding-inline: 10px;
   }
   .canvas-sidebar nav :is(button, a),
-  .canvas-sidebar-items > div > details > summary {
+  .canvas-sidebar-items > summary {
     padding-inline: 10px;
     gap: 8px;
   }
@@ -605,7 +601,19 @@
   right: -370px;
 }
 .canvas-ambient-orbits .project-dashboard-orbit i {
+  --project-orbit-duration: 48s;
   box-shadow: 0 0 26px var(--orbit-sphere-glow);
+}
+.canvas-ambient-orbits .project-dashboard-orbit-left i + i {
+  --project-orbit-start: 8%;
+  --project-orbit-duration: 72s;
+}
+.canvas-ambient-orbits .project-dashboard-orbit-right i {
+  --project-orbit-duration: 64s;
+}
+.canvas-ambient-orbits .project-dashboard-orbit-right i + i {
+  --project-orbit-start: 46%;
+  --project-orbit-duration: 88s;
 }
 @media (max-width: 760px) {
   .canvas-composer-input {
@@ -843,7 +851,7 @@
 }
 .canvas-sidebar-account {
   flex: 0 0 auto;
-  margin-top: 0;
+  margin-top: auto;
 }
 .canvas-sidebar-account .orbit-account-nav {
   position: static;
@@ -919,4 +927,266 @@
     width: auto;
     margin: 12px 20px;
   }
+}
+
+/* Focused plan context replaces the former dropdown above the graph. */
+.orbit-workspace .canvas-sidebar {
+  overflow-y: auto;
+}
+.canvas-sidebar nav {
+  gap: 8px;
+}
+.canvas-section-nav-icon {
+  display: inline-grid;
+  place-items: center;
+  flex: 0 0 21px;
+  color: #d6b8ff;
+  font-size: 21px;
+}
+.canvas-sidebar nav button small {
+  margin-left: auto;
+  color: #b5a7cb;
+  font-size: 11px;
+}
+.canvas-plan-section {
+  width: min(100% - 80px, 1120px);
+  min-height: calc(100svh - 115px);
+  margin: 0 auto;
+  padding: 80px 0 64px;
+}
+.canvas-plan-section-heading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+.canvas-plan-section-heading .canvas-empty-spark {
+  font-size: 36px;
+}
+.canvas-plan-section-heading h2 {
+  margin: 0 0 14px;
+  font-size: clamp(25px, 2.6vw, 36px);
+  letter-spacing: -0.7px;
+}
+.canvas-plan-section-heading p {
+  margin: 0;
+  color: #c9bfdc;
+  font-size: 17px;
+  line-height: 1.6;
+}
+.canvas-plan-section-status {
+  display: flex;
+  justify-content: flex-end;
+  margin: 12px 0 26px;
+}
+.canvas-plan-section-status > span {
+  padding: 10px 18px;
+  border: 1px solid #664084;
+  border-radius: 15px;
+  background: #29153c66;
+  color: #d7b5f5;
+  font-size: 13px;
+}
+.canvas-plan-section-card {
+  padding: 28px;
+  border: 1px solid #805b9e;
+  border-radius: 18px;
+  background: linear-gradient(125deg, #21162bd9, #151021d9);
+  box-shadow: 0 16px 60px #0002;
+}
+.canvas-plan-section-card label,
+.canvas-plan-section h3 {
+  display: block;
+  margin: 0 0 18px;
+  font-size: 15px;
+  font-weight: 600;
+}
+.canvas-plan-section-card label > span {
+  margin-left: 10px;
+  color: #d3b6f3;
+}
+.canvas-plan-section-card textarea {
+  width: 100%;
+  min-height: 134px;
+  padding: 16px 22px;
+  border: 1px solid #9e6ad3;
+  border-radius: 13px;
+  background: #10112080;
+  color: #f5efff;
+  font: inherit;
+  font-size: 17px;
+  line-height: 1.6;
+  resize: vertical;
+}
+.canvas-plan-section-card textarea:disabled {
+  opacity: 0.8;
+}
+.canvas-plan-section-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-top: 24px;
+}
+.canvas-plan-section-actions p {
+  margin: 0;
+  color: #cdbbe6;
+  font-size: 14px;
+}
+.canvas-plan-section-actions > div {
+  display: flex;
+  gap: 14px;
+}
+.canvas-plan-section button {
+  padding: 12px 20px;
+  border: 1px solid #8e64b1;
+  border-radius: 12px;
+  background: #151020;
+  color: #f5eeff;
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+.canvas-plan-section button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.canvas-plan-section .canvas-section-primary {
+  border-color: #ab70ef;
+  background: linear-gradient(#954fe9, #6124c4);
+  box-shadow: 0 0 16px #9c4bff26;
+}
+.canvas-section-save-note {
+  display: block;
+  margin-top: 14px;
+  color: #cdbbe6;
+}
+.canvas-plan-section-text {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  color: #e4d9ef;
+  font-size: 17px;
+  line-height: 1.7;
+}
+.canvas-plan-related {
+  margin-top: 28px;
+  border-top: 1px solid #574064;
+  padding-top: 24px;
+}
+.canvas-plan-related > div {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 16px;
+}
+.canvas-plan-related button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 17px;
+  text-align: left;
+  background: #20152f99;
+  border-color: #664780;
+}
+.canvas-plan-related button > span:first-child {
+  color: #d6b1f7;
+  font-size: 24px;
+}
+.canvas-plan-related button > span:nth-child(2) {
+  flex: 1;
+}
+.canvas-plan-related small,
+.canvas-section-work-items small {
+  display: block;
+  margin-top: 6px;
+  color: #c6b7db;
+  font-size: 12px;
+}
+.canvas-section-work-items {
+  display: grid;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+.canvas-section-work-items button {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  text-align: left;
+}
+@media (max-width: 640px) {
+  .canvas-plan-section {
+    width: calc(100% - 32px);
+    padding: 36px 0;
+  }
+  .canvas-plan-section-heading p {
+    font-size: 14px;
+  }
+  .canvas-plan-section-card {
+    padding: 20px;
+  }
+  .canvas-plan-section-card textarea {
+    padding: 14px;
+    font-size: 15px;
+  }
+  .canvas-plan-section-actions > div {
+    margin-left: auto;
+  }
+}
+.orbit-workspace .canvas-sidebar {
+  gap: 16px;
+}
+.canvas-sidebar nav :is(button, a),
+.canvas-sidebar-items > summary {
+  min-height: 38px;
+  padding-block: 9px;
+}
+
+.canvas-plan-card-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+.canvas-plan-card-heading h3 {
+  margin: 0;
+}
+.canvas-plan-section-card .canvas-plan-inline-editor {
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+.orbit-workspace .canvas-plan-inline-editor:focus-visible {
+  outline: none;
+}
+.canvas-plan-section-card:has(.canvas-plan-inline-editor:focus-visible) {
+  outline: 2px solid #c399ff;
+  outline-offset: 3px;
+}
+
+.canvas-sidebar-items > .canvas-plan-links {
+  display: grid;
+  gap: 3px;
+  margin: 6px 0 6px 26px;
+  padding-left: 8px;
+  border-left: 1px solid #49325f;
+}
+.canvas-sidebar .canvas-plan-links > button {
+  width: 100%;
+  min-width: 0;
+  min-height: 36px;
+  padding: 8px;
+  gap: 9px;
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+.canvas-plan-links .canvas-section-nav-icon {
+  flex-basis: 18px;
+}
+.canvas-plan-links .canvas-section-nav-icon svg {
+  width: 18px;
+  height: 18px;
+  flex-basis: 18px;
 }

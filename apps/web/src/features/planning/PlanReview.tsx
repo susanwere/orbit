@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useCanvasExecution } from "./use-canvas-execution.js";
 import { CanvasComposer } from "./CanvasComposer.js";
+import { PlanSection, type PlanSectionKey } from "./PlanSection.js";
 import { CanvasSidebar } from "./CanvasSidebar.js";
 import "../projects/project-dashboard.css";
 import { WorkGraphCanvas } from "./WorkGraphCanvas.js";
@@ -26,7 +27,7 @@ interface WorkItem {
   dependsOn: string[];
   workflows: Workflow[];
 }
-interface WorkGraph {
+export interface WorkGraph {
   summary: string;
   workItems: WorkItem[];
   guardrails: string[];
@@ -102,7 +103,9 @@ function ProjectPlanCanvas({
   onUpdated,
   isLoading = false,
 }: Props) {
-  const [canvasSection, setCanvasSection] = useState<"workflow" | "composer">("workflow");
+  const [canvasSection, setCanvasSection] = useState<"workflow" | "composer" | PlanSectionKey>(
+    "workflow",
+  );
   const [canvasDraftIdea, setCanvasDraftIdea] = useState("");
   const [graph, setGraph] = useState<WorkGraph | null>(() => readGraph(plan?.content));
   const [revision, setRevision] = useState(plan?.revision ?? 0);
@@ -136,6 +139,8 @@ function ProjectPlanCanvas({
   const canEdit = status === "READY_FOR_REVIEW" && !busy;
   const showComposer =
     !isLoading && (canvasSection === "composer" || (!originalIntent && status === null));
+  const projectSection =
+    canvasSection !== "workflow" && canvasSection !== "composer" ? canvasSection : null;
   const planningPending = status === "GENERATING";
   const canGeneratePlan = Boolean(originalIntent) && (status === null || status === "FAILED");
   const selectedIndex = graph?.workItems.findIndex((item) => item.key === selectedItemKey) ?? -1;
@@ -175,10 +180,7 @@ function ProjectPlanCanvas({
     if (!graph) return;
     change({
       ...graph,
-      [name]: value
-        .split("\n")
-        .map((s) => s.trim())
-        .filter(Boolean),
+      [name]: value.split("\n"),
     });
   };
   async function latest() {
@@ -226,18 +228,27 @@ function ProjectPlanCanvas({
   }
 
   async function save() {
-    if (!graph || !canEdit || !dirty) return;
+    if (!graph || !canEdit || !dirty) return false;
     setBusy(true);
     setError(null);
     try {
-      const updated = await api.updatePlan(project.id, revision, graph);
+      const normalizeList = (entries: string[]) =>
+        entries.map((entry) => entry.trim()).filter(Boolean);
+      const updated = await api.updatePlan(project.id, revision, {
+        ...graph,
+        guardrails: normalizeList(graph.guardrails),
+        decisionsToReview: normalizeList(graph.decisionsToReview),
+        assumptions: normalizeList(graph.assumptions),
+      });
       setRevision(updated.revision);
       setStatus(updated.status);
       setGraph(readGraph(updated.content));
       setDirty(false);
       onUpdated(updated);
+      return true;
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Could not save the plan.");
+      return false;
     } finally {
       setBusy(false);
     }
@@ -258,6 +269,39 @@ function ProjectPlanCanvas({
     }
   }
 
+  function addWorkItem() {
+    if (!graph || !canEdit || graph.workItems.length >= 30) return;
+    const keys = new Set(graph.workItems.map((item) => item.key));
+    let index = 1;
+    while (keys.has(`NEW-${index}`)) index++;
+    const key = `NEW-${index}`;
+    change({
+      ...graph,
+      workItems: [
+        ...graph.workItems,
+        {
+          key,
+          title: "New work item",
+          description: "Describe the expected outcome",
+          dependsOn: [],
+          workflows: [
+            {
+              name: "Implementation",
+              steps: [
+                {
+                  title: "Complete work item",
+                  executor: "human",
+                  requiresApproval: true,
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    });
+    openItem(key);
+  }
+
   return (
     <main className="orbit-workspace">
       <CanvasSidebar
@@ -267,13 +311,19 @@ function ProjectPlanCanvas({
         approved={approved}
         hasPlan={Boolean(originalIntent) || status !== null}
         isComposerOpen={showComposer}
+        activeSection={projectSection}
+        hasGraph={Boolean(graph)}
+        onOpenSection={(section) => {
+          setCanvasSection(section);
+          setSelectedItemKey(null);
+          setIsIntentOpen(false);
+        }}
         onOpenComposer={() => {
           setCanvasSection("composer");
           setSelectedItemKey(null);
           setIsIntentOpen(false);
         }}
         onBack={onBack}
-        onSelectItem={openItem}
         onOverview={() => {
           setCanvasSection("workflow");
           setSelectedItemKey(null);
@@ -286,8 +336,10 @@ function ProjectPlanCanvas({
         <div className="canvas-ambient-orbits" aria-hidden="true">
           <div className="project-dashboard-orbit project-dashboard-orbit-left">
             <i />
+            <i />
           </div>
           <div className="project-dashboard-orbit project-dashboard-orbit-right">
+            <i />
             <i />
           </div>
         </div>
@@ -329,6 +381,28 @@ function ProjectPlanCanvas({
             draftIdea={canvasDraftIdea}
             onDraftChange={setCanvasDraftIdea}
             onOpenIntent={onBack}
+          />
+        ) : projectSection ? (
+          <PlanSection
+            key={projectSection}
+            section={projectSection}
+            graph={graph}
+            originalIntent={originalIntent}
+            approved={approved}
+            canEdit={canEdit}
+            dirty={dirty}
+            busy={busy}
+            onSectionChange={setCanvasSection}
+            onSummaryChange={(summary) => graph && change({ ...graph, summary })}
+            onListChange={editList}
+            onCancel={() => {
+              setGraph(readGraph(plan?.content));
+              setDirty(false);
+              setError(null);
+            }}
+            onSave={save}
+            onSelectItem={openItem}
+            onAddItem={addWorkItem}
           />
         ) : selectedItem && graph ? (
           <section
@@ -689,83 +763,6 @@ function ProjectPlanCanvas({
           </section>
         ) : (
           <section className="orbit-full-canvas" aria-label="Plan overview">
-            {graph && (
-              <details className="orbit-plan-settings">
-                <summary>Plan details and work item management</summary>
-                <div className="orbit-plan-settings-content">
-                  {originalIntent && (
-                    <p className="orbit-detail-muted">
-                      <strong>Original intent (immutable):</strong> {originalIntent.statement}
-                    </p>
-                  )}
-                  <label htmlFor="plan-summary">Proposed outcome</label>
-                  <textarea
-                    id="plan-summary"
-                    rows={3}
-                    maxLength={2000}
-                    value={graph.summary}
-                    disabled={!canEdit}
-                    onChange={(event) => change({ ...graph, summary: event.target.value })}
-                  />
-                  {(
-                    [
-                      ["guardrails", "Proposed guardrails"],
-                      ["decisionsToReview", "Decisions requiring review"],
-                      ["assumptions", "Assumptions"],
-                    ] as const
-                  ).map(([key, title]) => (
-                    <div key={key}>
-                      <label htmlFor={`plan-${key}`}>{title} (one per line)</label>
-                      <textarea
-                        id={`plan-${key}`}
-                        rows={3}
-                        value={graph[key].join("\n")}
-                        disabled={!canEdit}
-                        onChange={(event) => editList(key, event.target.value)}
-                      />
-                    </div>
-                  ))}
-                  <button
-                    type="button"
-                    disabled={!canEdit || graph.workItems.length >= 30}
-                    onClick={() => {
-                      const keys = new Set(graph.workItems.map((item) => item.key));
-                      let index = 1;
-                      while (keys.has(`NEW-${index}`)) index++;
-                      const key = `NEW-${index}`;
-                      change({
-                        ...graph,
-                        workItems: [
-                          ...graph.workItems,
-                          {
-                            key,
-                            title: "New work item",
-                            description: "Describe the expected outcome",
-                            dependsOn: [],
-                            workflows: [
-                              {
-                                name: "Implementation",
-                                steps: [
-                                  {
-                                    title: "Complete work item",
-                                    executor: "human",
-                                    requiresApproval: true,
-                                  },
-                                ],
-                              },
-                            ],
-                          },
-                        ],
-                      });
-                      openItem(key);
-                    }}
-                  >
-                    + Add work item
-                  </button>
-                </div>
-              </details>
-            )}
-
             <div className="orbit-workspace-stage-head">
               <span>PROJECT WORK GRAPH</span>
               <strong>
@@ -895,15 +892,17 @@ function ProjectPlanCanvas({
               </button>
               {status === "READY_FOR_REVIEW" && graph && (
                 <>
-                  <button
-                    type="button"
-                    disabled={busy || !dirty}
-                    onClick={() => {
-                      void save();
-                    }}
-                  >
-                    Save changes
-                  </button>
+                  {!projectSection && (
+                    <button
+                      type="button"
+                      disabled={busy || !dirty}
+                      onClick={() => {
+                        void save();
+                      }}
+                    >
+                      Save changes
+                    </button>
+                  )}
                   <button
                     type="button"
                     className="cta-primary"

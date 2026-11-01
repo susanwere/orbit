@@ -1,3 +1,4 @@
+import { planSections, PlanSectionIcon, type PlanSectionKey } from "./PlanSection.js";
 import { AccountMenuHost } from "../auth/AccountMenuHost.js";
 
 interface CanvasSidebarProps {
@@ -7,10 +8,12 @@ interface CanvasSidebarProps {
   readonly approved: boolean;
   readonly hasPlan: boolean;
   readonly isComposerOpen: boolean;
+  readonly activeSection: PlanSectionKey | null;
+  readonly hasGraph: boolean;
+  readonly onOpenSection: (section: PlanSectionKey) => void;
   readonly onOpenComposer: () => void;
   readonly onBack: () => void;
   readonly onOverview: () => void;
-  readonly onSelectItem: (key: string) => void;
 }
 
 /** Canvas navigation only. Execution remains available through the existing Intent page. */
@@ -21,10 +24,12 @@ export function CanvasSidebar({
   approved,
   hasPlan,
   isComposerOpen,
+  activeSection,
+  hasGraph,
+  onOpenSection,
   onOpenComposer,
   onBack,
   onOverview,
-  onSelectItem,
 }: CanvasSidebarProps) {
   return (
     <aside className="orbit-workspace-nav canvas-sidebar" aria-label="Project navigation">
@@ -46,7 +51,7 @@ export function CanvasSidebar({
         <button
           type="button"
           className="canvas-sidebar-workflow"
-          aria-current={!selectedItemKey && !isComposerOpen ? "page" : undefined}
+          aria-current={!selectedItemKey && !isComposerOpen && !activeSection ? "page" : undefined}
           onClick={onOverview}
         >
           <SidebarIcon kind="workflow" />
@@ -61,72 +66,73 @@ export function CanvasSidebar({
           Composer
         </button>
         <details className="canvas-sidebar-items" open>
-          <summary>Project</summary>
-          <div>
-            <details>
-              <summary>
-                <SidebarIcon kind="items" />
-                Work Items <small>{workItems.length}</small>
-              </summary>
-              <ul>
-                {workItems.map((item) => (
-                  <li key={item.key}>
-                    <button
-                      type="button"
-                      aria-current={selectedItemKey === item.key ? "page" : undefined}
-                      onClick={() => onSelectItem(item.key)}
-                    >
-                      {item.title}
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            </details>
-            {hasPlan ? (
-              <a
-                href="#canvas-plan-actions"
-                onClick={(event) => {
-                  event.preventDefault();
-                  onOverview();
-                  requestAnimationFrame(() =>
-                    document
-                      .getElementById("canvas-plan-actions")
-                      ?.scrollIntoView({ block: "end" }),
-                  );
-                }}
+          <summary>
+            <SidebarIcon kind="plan" />
+            Plan details
+          </summary>
+          <div className="canvas-plan-links">
+            {planSections.map(({ key, title }) => (
+              <button
+                key={key}
+                type="button"
+                disabled={key !== "original-intent" && !hasGraph}
+                aria-current={activeSection === key ? "page" : undefined}
+                onClick={() => onOpenSection(key)}
               >
-                <SidebarIcon kind="approvals" />
-                Approvals
-              </a>
-            ) : (
-              <button type="button" disabled>
-                <SidebarIcon kind="approvals" />
-                Approvals
+                <span className="canvas-section-nav-icon" aria-hidden="true">
+                  <PlanSectionIcon section={key} />
+                </span>
+                {title}
               </button>
-            )}
-            <button
-              type="button"
-              onClick={onBack}
-              disabled={!approved}
-              title="Open the Intent page to use existing execution controls"
-            >
-              <SidebarIcon kind="execution" />
-              Executions
-            </button>
-            <button
-              type="button"
-              onClick={onBack}
-              title="Open the Intent page to view connected repositories"
-            >
-              <SidebarIcon kind="repository" />
-              Repositories
-            </button>
+            ))}
           </div>
         </details>
+        <button
+          type="button"
+          disabled={!hasGraph}
+          aria-current={activeSection === "work-items" ? "page" : undefined}
+          onClick={() => onOpenSection("work-items")}
+        >
+          <SidebarIcon kind="items" /> Work Items <small>{workItems.length}</small>
+        </button>
+        {hasPlan ? (
+          <a
+            href="#canvas-plan-actions"
+            onClick={(event) => {
+              event.preventDefault();
+              onOverview();
+              requestAnimationFrame(() =>
+                document.getElementById("canvas-plan-actions")?.scrollIntoView({ block: "end" }),
+              );
+            }}
+          >
+            <SidebarIcon kind="approvals" />
+            Approvals
+          </a>
+        ) : (
+          <button type="button" disabled>
+            <SidebarIcon kind="approvals" />
+            Approvals
+          </button>
+        )}
+        <button
+          type="button"
+          onClick={onBack}
+          disabled={!approved}
+          title="Open the Intent page to use existing execution controls"
+        >
+          <SidebarIcon kind="execution" />
+          Executions
+        </button>
+        <button
+          type="button"
+          onClick={onBack}
+          title="Open the Intent page to view connected repositories"
+        >
+          <SidebarIcon kind="repository" />
+          Repositories
+        </button>
       </nav>
-      <p className="orbit-workspace-nav-note">
-        Approval records human acceptance. Agent execution is separate.
-      </p>
       <AccountMenuHost />
     </aside>
   );
@@ -137,6 +143,7 @@ function SidebarIcon({
 }: {
   readonly kind:
     | "project"
+    | "plan"
     | "workflow"
     | "items"
     | "approvals"
@@ -145,6 +152,7 @@ function SidebarIcon({
     | "composer";
 }) {
   const paths = {
+    plan: "M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6Zm0 0v6h6M8 12h8M8 16h8",
     composer: "m15 4 5 5M4 20l4-1L21 6a2 2 0 0 0-5-5L3 14l-1 7 7-1",
     project: "m12 2 9 5v10l-9 5-9-5V7l9-5Zm0 10 9-5M12 12 3 7m9 5v10",
     workflow:
