@@ -125,7 +125,11 @@ export class TaskAutomationService {
         : report.summary.slice(0, 400);
       await this.database.query(
         `UPDATE project_tasks SET last_error=$3,updated_at=now() WHERE id=$1 AND project_id=$2 AND state='ACTIVE'`,
-        [task.id, projectId, `CI failed: ${failureHint} (run #${report.runs?.[0]?.id ?? ""}). Muse will retry, or you can edit the prompt and Execute to fix it, or create a follow-up task.`],
+        [
+          task.id,
+          projectId,
+          `CI failed: ${failureHint} (run #${report.runs?.[0]?.id ?? ""}). Muse will retry, or you can edit the prompt and Execute to fix it, or create a follow-up task.`,
+        ],
       );
       // Still proceed with auto-repair — user intervention is optional,
       // not blocking. The task remains ACTIVE with CI state FAILED.

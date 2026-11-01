@@ -27,7 +27,9 @@ describe("Muse Code executor adapter", () => {
       },
     });
     const result = await adapter.execute(request);
-    expect(args.slice(0, 3)).toEqual(["exec", "--disable-approval", "--json"]);
+    expect(args.slice(0, 2)).toEqual(["exec", "--disable-approval"]);
+    expect(args).toContain("--trust-workspace");
+    expect(args).toContain("--json");
     expect(args).toContain("--max-model-steps");
     expect(result).toEqual({
       provider: "meta-muse-code",
