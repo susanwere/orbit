@@ -1,0 +1,31 @@
+name: Format context branch (temporary)
+on:
+  push:
+    branches: [feat/context-understanding-v1]
+    paths:
+      - .github/workflows/format-context-temporary.yml
+permissions:
+  contents: write
+jobs:
+  format:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/context-understanding-v1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - name: Apply repository-pinned Prettier
+        run: npx prettier --write apps/api/src/modules/context/project-knowledge-routes.ts apps/api/src/modules/planning/planning-routes.ts apps/web/src/features/planning/ProjectContextDocuments.tsx
+      - name: Commit formatting
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add apps/api/src/modules/context/project-knowledge-routes.ts apps/api/src/modules/planning/planning-routes.ts apps/web/src/features/planning/ProjectContextDocuments.tsx
+          if ! git diff --cached --quiet; then
+            git commit -m "style: apply pinned Prettier to context implementation"
+            git push origin HEAD:feat/context-understanding-v1
+          fi
