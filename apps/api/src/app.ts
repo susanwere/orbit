@@ -3,6 +3,7 @@ import {
   type ProjectDocumentRouteOptions,
 } from "./modules/documents/project-document-routes.js";
 import cors from "@fastify/cors";
+import { registerMuseVoiceRoutes, type MuseVoiceOptions } from "./modules/voice/muse-voice-routes.js";
 import {
   registerProjectKnowledgeRoutes,
   type KnowledgeOptions,
@@ -86,11 +87,13 @@ export interface AppOptions {
   readonly tasks?: TaskRouteOptions;
   readonly projectDocuments?: ProjectDocumentRouteOptions;
   readonly knowledge?: KnowledgeOptions;
+  readonly museVoice?: MuseVoiceOptions;
 }
 
 export async function buildApp(options: AppOptions = {}) {
   const app = Fastify({ logger: false });
   if (options.knowledge) await registerProjectKnowledgeRoutes(app, options.knowledge);
+  if (options.museVoice) await registerMuseVoiceRoutes(app, options.museVoice);
 
   await app.register(cors, {
     origin: [...(options.authExchange?.allowedOrigins ?? [])],
