@@ -144,6 +144,17 @@ export interface ProjectIntentApi {
     projectId: string,
     file: { filename: string; mediaType: string; base64: string },
   ): Promise<{ id: string; original_filename: string }>;
+  getProjectDocuments(projectId: string): Promise<
+    readonly {
+      id: string;
+      original_filename: string;
+      media_type: string;
+      size_bytes: number;
+      version: number;
+      processing_status: string;
+      created_at: string;
+    }[]
+  >;
   getIntentDocuments(
     projectId: string,
   ): Promise<
@@ -254,6 +265,20 @@ export function createIntentApi(
       (await request<{ intent: StoredIntent | null }>(`${path(id)}/intent`)).intent,
     uploadDocument: (id, file) =>
       request<{ id: string; original_filename: string }>(`${path(id)}/documents`, "POST", file),
+    getProjectDocuments: async (id) =>
+      (
+        await request<{
+          documents: {
+            id: string;
+            original_filename: string;
+            media_type: string;
+            size_bytes: number;
+            version: number;
+            processing_status: string;
+            created_at: string;
+          }[];
+        }>(`${path(id)}/documents`)
+      ).documents,
     getIntentDocuments: async (id) =>
       (
         await request<{
