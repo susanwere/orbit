@@ -63,22 +63,25 @@ export function AuthenticatedProjectApp({
 
   return (
     <>
-      <nav aria-label="Account" className="orbit-account-nav"><details className="orbit-account-menu"><summary>Account ▾</summary>
-        <button
-          type="button"
-          disabled={isSigningOut}
-          onClick={() => {
-            setIsSigningOut(true);
-            setSignOutError(null);
-            void Promise.resolve()
-              .then(() => onSignOut?.())
-              .then(() => sessionStore.setSession(null))
-              .catch(() => setSignOutError("Sign-out could not finish. Please retry."))
-              .finally(() => setIsSigningOut(false));
-          }}
-        >
-          Sign out
-        </button></details>
+      <nav aria-label="Account" className="orbit-account-nav">
+        <details className="orbit-account-menu">
+          <summary>Account ▾</summary>
+          <button
+            type="button"
+            disabled={isSigningOut}
+            onClick={() => {
+              setIsSigningOut(true);
+              setSignOutError(null);
+              void Promise.resolve()
+                .then(() => onSignOut?.())
+                .then(() => sessionStore.setSession(null))
+                .catch(() => setSignOutError("Sign-out could not finish. Please retry."))
+                .finally(() => setIsSigningOut(false));
+            }}
+          >
+            Sign out
+          </button>
+        </details>
       </nav>
       {signOutError && <p role="alert">{signOutError}</p>}
       <App

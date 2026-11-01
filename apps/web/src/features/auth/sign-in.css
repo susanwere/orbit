@@ -9,10 +9,7 @@
   justify-content: center;
   padding: 100px 32px 40px;
   color: #f5f7ff;
-  background:
-    radial-gradient(ellipse at 0% 55%, #12316d80, transparent 30%),
-    radial-gradient(ellipse at 100% 100%, #12316d90, transparent 32%),
-    radial-gradient(ellipse at 0% 0%, #102b5480, transparent 34%), #050d18;
+  background: var(--orbit-page-background);
 }
 .orbit-sign-in::before {
   content: "";
@@ -45,13 +42,13 @@
   width: 58px;
   height: 58px;
   border-radius: 50%;
-  border: 14px solid #087dff;
-  background: #061021;
+  border: 14px solid var(--orbit-brand-color);
+  background: #0c0819;
   box-shadow:
     inset 3px 3px 8px #0009,
-    0 0 20px #087dff22;
-  border-right-color: #229eff;
-  border-bottom-color: #214ff3;
+    0 0 20px var(--orbit-brand-glow);
+  border-right-color: var(--orbit-brand-highlight);
+  border-bottom-color: var(--orbit-brand-depth);
 }
 .sign-in-card h1 {
   font-size: clamp(26px, 3vw, 32px);
@@ -146,7 +143,7 @@
   z-index: -1;
   width: 660px;
   height: 660px;
-  border: 1px solid #2357b280;
+  border: 1px solid var(--orbit-track-color);
   border-radius: 50%;
 }
 .sign-in-orbit-left {
@@ -163,8 +160,8 @@
   width: 48px;
   height: 48px;
   border-radius: 50%;
-  background: radial-gradient(circle at 30% 20%, #128cff, #173cbb 70%);
-  box-shadow: 0 0 30px #086aff66;
+  background: var(--orbit-sphere-background);
+  box-shadow: 0 0 30px var(--orbit-sphere-glow);
   left: 0;
   top: 0;
   offset-path: circle(330px at 330px 330px);

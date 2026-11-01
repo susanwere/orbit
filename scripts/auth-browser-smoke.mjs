@@ -238,9 +238,9 @@ try {
   await page.goto(frontendOrigin, { waitUntil: "domcontentloaded" });
   await page.getByRole("heading", { name: "Welcome to Orbit" }).waitFor();
   await page.getByRole("button", { name: "Continue with Google" }).click();
-  await page.getByRole("button", { name: "Sign out" }).waitFor();
+  await page.getByText("Account ▾", { exact: true }).waitFor();
   await page.getByRole("heading", { name: "Projects", exact: true }).waitFor();
-  await page.getByRole("button", { name: "+ New project" }).click();
+  await page.getByRole("button", { name: "New project", exact: true }).click();
   await page.getByRole("heading", { name: "Start with intent." }).waitFor();
 
   await page.getByLabel("Project name").fill("HN Jobs Viewer");
@@ -263,7 +263,10 @@ try {
     animations: "disabled",
   });
 
-  await page.getByRole("button", { name: "Sign out" }).click();
+  if (!(await page.getByRole("button", { name: "Sign out", exact: true }).isVisible())) {
+    await page.getByText("Account ▾", { exact: true }).click();
+  }
+  await page.getByRole("button", { name: "Sign out", exact: true }).click();
   await page.getByRole("heading", { name: "Welcome to Orbit" }).waitFor();
   assert.equal(await page.getByRole("button", { name: "View projects" }).count(), 0);
 

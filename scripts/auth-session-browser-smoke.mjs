@@ -115,10 +115,16 @@ try {
   assert.equal(exchangeCount, 2, "Reload must not prompt for Google again");
   assert.ok(refreshCount >= 3);
   logoutFails = true;
-  await page.getByRole("button", { name: "Sign out" }).click();
+  if (!(await page.getByRole("button", { name: "Sign out", exact: true }).isVisible())) {
+    await page.getByText("Account ▾", { exact: true }).click();
+  }
+  await page.getByRole("button", { name: "Sign out", exact: true }).click();
   await page.getByRole("alert").filter({ hasText: "Sign-out could not finish" }).waitFor();
   logoutFails = false;
-  await page.getByRole("button", { name: "Sign out" }).click();
+  if (!(await page.getByRole("button", { name: "Sign out", exact: true }).isVisible())) {
+    await page.getByText("Account ▾", { exact: true }).click();
+  }
+  await page.getByRole("button", { name: "Sign out", exact: true }).click();
   await page.getByRole("heading", { name: "Welcome to Orbit" }).waitFor();
   await page.reload();
   await page.getByRole("heading", { name: "Welcome to Orbit" }).waitFor();
