@@ -34,6 +34,10 @@ jobs:
           cache: npm
       - name: Install dependencies
         run: npm ci
+      - name: Diagnose task formatting
+        run: |
+          npx prettier apps/api/src/modules/tasks/task-automation-service.ts --write
+          git diff -- apps/api/src/modules/tasks/task-automation-service.ts
       - name: Check source formatting
         run: npm run format:check
       - name: Build workspace dependencies
