@@ -1,8 +1,11 @@
+import { useRef, useState } from "react";
+
 interface CanvasComposerProps {
   readonly isPreview?: boolean;
   readonly draftIdea: string;
   readonly onDraftChange: (draftIdea: string) => void;
   readonly onOpenIntent: () => void;
+  readonly onSubmitIntent?: (statement: string, files: readonly File[]) => Promise<void>;
 }
 
 /** Editable canvas draft. Generation remains on Intent until this entry point is connected. */
@@ -11,7 +14,27 @@ export function CanvasComposer({
   draftIdea,
   onDraftChange,
   onOpenIntent,
+  onSubmitIntent,
 }: CanvasComposerProps) {
+  const [attachments, setAttachments] = useState<File[]>([]);
+  const [submitting, setSubmitting] = useState(false);
+  const [submissionError, setSubmissionError] = useState<string | null>(null);
+  const fileInput = useRef<HTMLInputElement>(null);
+  const ready = !isPreview && Boolean(draftIdea.trim()) && draftIdea.length <= 10000 && !submitting && Boolean(onSubmitIntent);
+
+  async function submit() {
+    if (!ready || !onSubmitIntent) return;
+    setSubmitting(true);
+    setSubmissionError(null);
+    try {
+      await onSubmitIntent(draftIdea.trim(), attachments);
+    } catch (cause) {
+      setSubmissionError(cause instanceof Error ? cause.message : "Could not submit intent.");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
   return (
     <section className="canvas-empty-state" aria-labelledby="canvas-empty-heading">
       <div
@@ -77,6 +100,40 @@ export function CanvasComposer({
           aria-describedby="canvas-draft-help"
         />
       </div>
+      {!isPreview && (
+        <div className="canvas-composer-attachments">
+          <input
+            ref={fileInput}
+            type="file"
+            accept=".pdf,.docx,.md,.txt"
+            multiple
+            disabled={submitting}
+            aria-label="Attach supporting documents"
+            onChange={(event) => {
+              const incoming = Array.from(event.target.files ?? []);
+              const combined = [...attachments, ...incoming].filter((file, index, all) =>
+                all.findIndex((item) => item.name === file.name && item.size === file.size && item.lastModified === file.lastModified) === index,
+              );
+              const validExtension = /\.(pdf|docx|md|txt)$/i;
+              if (combined.length > 10 || combined.some((file) => !validExtension.test(file.name) || file.size < 1 || file.size > 5 * 1024 * 1024)) {
+                setSubmissionError("Choose up to 10 PDF, DOCX, Markdown or TXT files, 5 MB each.");
+              } else {
+                setAttachments(combined);
+                setSubmissionError(null);
+              }
+              event.target.value = "";
+            }}
+          />
+          {attachments.map((file, index) => (
+            <span key={file.name + file.lastModified + index} className="canvas-attachment-chip">
+              {file.name}
+              <button type="button" disabled={submitting} aria-label={`Remove ${file.name}`}
+                onClick={() => setAttachments((items) => items.filter((_, i) => i !== index))}>×</button>
+            </span>
+          ))}
+        </div>
+      )}
+      {submissionError && <p className="intent-error" role="alert">{submissionError}</p>}
       <div className="canvas-composer-actions">
         <button
           type="button"
@@ -102,10 +159,11 @@ export function CanvasComposer({
         <button
           type="button"
           className="canvas-composer-generate"
-          disabled
+          onClick={() => { void submit(); }}
+          disabled={!ready}
           aria-describedby="canvas-draft-help"
         >
-          <span aria-hidden="true">✦</span> Generate plan
+          <span aria-hidden="true">✦</span> {submitting ? "Submitting…" : "Generate plan"}
         </button>
       </div>
       <p id="canvas-draft-help" className="canvas-empty-help">
@@ -113,11 +171,7 @@ export function CanvasComposer({
           "Preview only. Your saved intent and plan are unchanged."
         ) : (
           <>
-            Draft not saved. For now, generate a plan on the{" "}
-            <button type="button" onClick={onOpenIntent}>
-              Intent page
-            </button>
-            .
+            Attach supporting documents and generate your plan here.
           </>
         )}
       </p>
