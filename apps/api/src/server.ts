@@ -126,7 +126,9 @@ const app = await buildApp({
           db: database,
           auth,
           authorization: new ProjectAuthorizationService(database),
-          storage: new LocalDocumentStorage(process.env.ORBIT_DOCUMENT_STORAGE_DIR ?? ".orbit-documents"),
+          storage: new LocalDocumentStorage(
+            process.env.ORBIT_DOCUMENT_STORAGE_DIR ?? ".orbit-documents",
+          ),
         }
       : undefined,
   planning,
