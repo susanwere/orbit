@@ -121,12 +121,12 @@ const planning: PlanningRouteOptions | undefined = auth
 
 const app = await buildApp({
   projectDocuments:
-    auth && process.env.ORBIT_DOCUMENT_STORAGE_DIR
+    auth && (process.env.NODE_ENV !== "production" || process.env.ORBIT_DOCUMENT_STORAGE_DIR)
       ? {
           db: database,
           auth,
           authorization: new ProjectAuthorizationService(database),
-          storage: new LocalDocumentStorage(process.env.ORBIT_DOCUMENT_STORAGE_DIR),
+          storage: new LocalDocumentStorage(process.env.ORBIT_DOCUMENT_STORAGE_DIR ?? ".orbit-documents"),
         }
       : undefined,
   planning,
