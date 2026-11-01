@@ -3,7 +3,10 @@ import {
   type ProjectDocumentRouteOptions,
 } from "./modules/documents/project-document-routes.js";
 import cors from "@fastify/cors";
-import { registerProjectKnowledgeRoutes, type KnowledgeOptions } from "./modules/context/project-knowledge-routes.js";
+import {
+  registerProjectKnowledgeRoutes,
+  type KnowledgeOptions,
+} from "./modules/context/project-knowledge-routes.js";
 import {
   registerPlanningRoutes,
   type PlanningRouteOptions,

@@ -125,14 +125,21 @@ const planning: PlanningRouteOptions | undefined = auth
   : undefined;
 
 const app = await buildApp({
-  knowledge: auth ? {
-    auth,
-    db: database,
-    authorization: new ProjectAuthorizationService(database),
-    storage: documentStorage,
-    githubToken: process.env.ORBIT_GITHUB_EVIDENCE_TOKEN,
-    model: process.env.MODEL_API_KEY ? new MetaModelApiClient({ apiKey: process.env.MODEL_API_KEY, baseUrl: process.env.MODEL_API_BASE_URL }) : undefined,
-  } : undefined,
+  knowledge: auth
+    ? {
+        auth,
+        db: database,
+        authorization: new ProjectAuthorizationService(database),
+        storage: documentStorage,
+        githubToken: process.env.ORBIT_GITHUB_EVIDENCE_TOKEN,
+        model: process.env.MODEL_API_KEY
+          ? new MetaModelApiClient({
+              apiKey: process.env.MODEL_API_KEY,
+              baseUrl: process.env.MODEL_API_BASE_URL,
+            })
+          : undefined,
+      }
+    : undefined,
   projectDocuments:
     auth && (process.env.NODE_ENV !== "production" || process.env.ORBIT_DOCUMENT_STORAGE_DIR)
       ? {

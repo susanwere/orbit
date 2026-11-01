@@ -137,8 +137,18 @@ export interface ProjectKnowledgeSnapshot {
   created_at: string;
   content: {
     summary: ProjectKnowledgeSummary;
-    documents: { id: string; filename: string; version: number; sha256: string; summary: ProjectKnowledgeSummary }[];
-    repositories: { fullName: string; inspected: boolean; summary: ProjectKnowledgeSummary | null }[];
+    documents: {
+      id: string;
+      filename: string;
+      version: number;
+      sha256: string;
+      summary: ProjectKnowledgeSummary;
+    }[];
+    repositories: {
+      fullName: string;
+      inspected: boolean;
+      summary: ProjectKnowledgeSummary | null;
+    }[];
   };
 }
 export interface ProjectIntentApi {
@@ -287,7 +297,12 @@ export function createIntentApi(
     getProjectKnowledge: async (id) =>
       (await request<{ snapshots: ProjectKnowledgeSnapshot[] }>(`${path(id)}/knowledge`)).snapshots,
     refreshProjectKnowledge: async (id) =>
-      (await request<{ snapshot: ProjectKnowledgeSnapshot }>(`${path(id)}/knowledge/refresh`, "POST")).snapshot,
+      (
+        await request<{ snapshot: ProjectKnowledgeSnapshot }>(
+          `${path(id)}/knowledge/refresh`,
+          "POST",
+        )
+      ).snapshot,
     getProjectDocuments: async (id) =>
       (
         await request<{

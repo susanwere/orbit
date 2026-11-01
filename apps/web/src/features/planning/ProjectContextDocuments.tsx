@@ -31,7 +31,10 @@ export function ProjectContextDocuments({
     setError(null);
     void Promise.all([api.getProjectDocuments(projectId), api.getProjectKnowledge(projectId)])
       .then(([items, history]) => {
-        if (active) { setDocuments(items); setSnapshots(history); }
+        if (active) {
+          setDocuments(items);
+          setSnapshots(history);
+        }
       })
       .catch((cause: unknown) => {
         if (active) setError(cause instanceof Error ? cause.message : "Could not load documents.");
@@ -66,9 +69,18 @@ export function ProjectContextDocuments({
         <div>
           <span className="orbit-detail-eyebrow">PROJECT / KNOWLEDGE</span>
           <h2 id="project-context-heading">Project Context</h2>
-          <p>Versioned understanding of your project, grounded in documents and repository evidence.</p>
+          <p>
+            Versioned understanding of your project, grounded in documents and repository evidence.
+          </p>
         </div>
-        <button type="button" className="orbit-detail-back" onClick={() => { void generateSummary(); }} disabled={loading || generating}>
+        <button
+          type="button"
+          className="orbit-detail-back"
+          onClick={() => {
+            void generateSummary();
+          }}
+          disabled={loading || generating}
+        >
           {generating ? "Summarizing…" : "✦ Generate context summary"}
         </button>
         <button
@@ -94,29 +106,57 @@ export function ProjectContextDocuments({
           <h4>Architecture</h4>
           <p>{latest.content.summary.architecture}</p>
           <h4>Key features</h4>
-          <ul>{latest.content.summary.features.map((item, index) => <li key={index}>{item}</li>)}</ul>
+          <ul>
+            {latest.content.summary.features.map((item, index) => (
+              <li key={index}>{item}</li>
+            ))}
+          </ul>
           <h4>Constraints</h4>
-          <ul>{latest.content.summary.constraints.map((item, index) => <li key={index}>{item}</li>)}</ul>
+          <ul>
+            {latest.content.summary.constraints.map((item, index) => (
+              <li key={index}>{item}</li>
+            ))}
+          </ul>
           <h4>Unknowns</h4>
-          <ul>{latest.content.summary.unknowns.map((item, index) => <li key={index}>{item}</li>)}</ul>
+          <ul>
+            {latest.content.summary.unknowns.map((item, index) => (
+              <li key={index}>{item}</li>
+            ))}
+          </ul>
           <h3>Repository evidence</h3>
           {latest.content.repositories.map((repository) => (
             <div className="orbit-detail-card" key={repository.fullName}>
               <strong>{repository.fullName}</strong>
-              {repository.summary ? <p>{repository.summary.summary}</p> : <p>README unavailable. Repository not analyzed.</p>}
+              {repository.summary ? (
+                <p>{repository.summary.summary}</p>
+              ) : (
+                <p>README unavailable. Repository not analyzed.</p>
+              )}
             </div>
           ))}
           <h3>Document summaries</h3>
           {latest.content.documents.map((document) => (
             <div className="orbit-detail-card" key={document.id}>
-              <strong>{document.filename} (v{document.version})</strong>
+              <strong>
+                {document.filename} (v{document.version})
+              </strong>
               <p>{document.summary.summary}</p>
             </div>
           ))}
         </div>
       )}
-      {!latest && !loading && <p>Generate the first snapshot to see what Muse understands about your project.</p>}
-      {snapshots.length > 1 && <p>Earlier context versions: {snapshots.slice(1).map((item) => `v${item.revision}`).join(", ")}</p>}
+      {!latest && !loading && (
+        <p>Generate the first snapshot to see what Muse understands about your project.</p>
+      )}
+      {snapshots.length > 1 && (
+        <p>
+          Earlier context versions:{" "}
+          {snapshots
+            .slice(1)
+            .map((item) => `v${item.revision}`)
+            .join(", ")}
+        </p>
+      )}
       {!loading && !error && documents.length === 0 && (
         <div className="orbit-detail-card">
           <h3>No supporting documents yet</h3>
@@ -144,7 +184,8 @@ export function ProjectContextDocuments({
         </div>
       )}
       <p className="orbit-detail-muted">
-        Document excerpts are used for Muse planning. Knowledge snapshots are generated on demand; repository analysis currently reads the accessible README, not the entire source tree.
+        Document excerpts are used for Muse planning. Knowledge snapshots are generated on demand;
+        repository analysis currently reads the accessible README, not the entire source tree.
       </p>
     </section>
   );
