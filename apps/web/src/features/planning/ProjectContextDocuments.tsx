@@ -20,6 +20,9 @@ export function ProjectContextDocuments({
 }) {
   const [snapshots, setSnapshots] = useState<readonly ProjectKnowledgeSnapshot[]>([]);
   const [generating, setGenerating] = useState(false);
+  const [reviewing, setReviewing] = useState(false);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [reviewNote, setReviewNote] = useState("");
   const [documents, setDocuments] = useState<readonly DocumentMetadata[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -59,7 +62,28 @@ export function ProjectContextDocuments({
       setGenerating(false);
     }
   }
-  const latest = snapshots[0];
+  const latest = snapshots.find((item) => item.id === selectedId) ?? snapshots[0];
+  const approved = snapshots.find((item) => item.review_status === "APPROVED");
+  async function review(decision: "approve" | "request_changes") {
+    if (!latest) return;
+    setReviewing(true);
+    setError(null);
+    try {
+      const updated = await api.reviewProjectKnowledge(
+        projectId,
+        latest.id,
+        latest.revision,
+        decision,
+        reviewNote,
+      );
+      setSnapshots((items) => items.map((item) => (item.id === updated.id ? updated : item)));
+      setReviewNote("");
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Review could not be saved.");
+    } finally {
+      setReviewing(false);
+    }
+  }
   return (
     <section
       className="orbit-detail-page orbit-detail-page--canvas"
@@ -98,9 +122,56 @@ export function ProjectContextDocuments({
           {error}
         </p>
       )}
+      {snapshots.length > 0 && (
+        <div className="orbit-detail-card">
+          <h3>Context version history</h3>
+          <p className="orbit-detail-muted">
+            {approved ? `Approved: v${approved.revision}` : "No approved context yet"}
+          </p>
+          <label htmlFor="knowledge-version">Select knowledge version</label>
+          <select
+            id="knowledge-version"
+            value={latest?.id ?? ""}
+            onChange={(event) => setSelectedId(event.target.value)}
+          >
+            {snapshots.map((item) => (
+              <option key={item.id} value={item.id}>
+                v{item.revision} · {item.review_status ?? "PROPOSED"}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
       {latest && (
         <div className="orbit-detail-card">
           <span className="orbit-detail-eyebrow">KNOWLEDGE VERSION {latest.revision}</span>
+          <p className="orbit-detail-muted">
+            Review: {latest.review_status ?? "PROPOSED"}
+            {latest.review_note ? ` · Feedback: ${latest.review_note}` : ""}
+          </p>
+          {(!latest.review_status || latest.review_status === "PROPOSED") && (
+            <div className="orbit-detail-card">
+              <h3>Review this context proposal</h3>
+              <label htmlFor="knowledge-review-note">Review feedback</label>
+              <textarea
+                id="knowledge-review-note"
+                value={reviewNote}
+                onChange={(event) => setReviewNote(event.target.value)}
+                placeholder="Optional approval note, or required feedback for changes"
+                rows={3}
+              />
+              <button type="button" disabled={reviewing} onClick={() => void review("approve")}>
+                Approve version {latest.revision}
+              </button>
+              <button
+                type="button"
+                disabled={reviewing || !reviewNote.trim()}
+                onClick={() => void review("request_changes")}
+              >
+                Request changes
+              </button>
+            </div>
+          )}
           <h3>AI Project Summary</h3>
           <p>{latest.content.summary.summary}</p>
           <h4>Architecture</h4>

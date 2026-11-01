@@ -134,7 +134,7 @@ export async function registerPlanningRoutes(
         const latestKnowledge = await db.query<
           { revision: number; content: unknown } & Record<string, unknown>
         >(
-          "SELECT revision,content FROM project_knowledge_snapshots WHERE organization_id=$1 AND project_id=$2 ORDER BY revision DESC LIMIT 1",
+          "SELECT s.revision,s.content FROM project_knowledge_snapshots s JOIN project_knowledge_heads h ON h.approved_snapshot_id=s.id WHERE s.organization_id=$1 AND s.project_id=$2 AND s.review_status='APPROVED'",
           [actor.organizationId, actor.projectId],
         );
         const knowledgeContent = latestKnowledge.rows[0]?.content as

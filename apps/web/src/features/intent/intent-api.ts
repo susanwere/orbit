@@ -135,6 +135,10 @@ export interface ProjectKnowledgeSnapshot {
   id: string;
   revision: number;
   created_at: string;
+  review_status?: "PROPOSED" | "APPROVED" | "CHANGES_REQUESTED";
+  review_note?: string | null;
+  base_approved_revision?: number;
+  reviewed_at?: string | null;
   content: {
     summary: ProjectKnowledgeSummary;
     documents: {
@@ -157,6 +161,13 @@ export interface ProjectKnowledgeSnapshot {
 export interface ProjectIntentApi {
   getProjectKnowledge(projectId: string): Promise<readonly ProjectKnowledgeSnapshot[]>;
   refreshProjectKnowledge(projectId: string): Promise<ProjectKnowledgeSnapshot>;
+  reviewProjectKnowledge(
+    projectId: string,
+    snapshotId: string,
+    revision: number,
+    decision: "approve" | "request_changes",
+    note?: string,
+  ): Promise<ProjectKnowledgeSnapshot>;
   getIntent(projectId: string): Promise<StoredIntent | null>;
   getTasks(projectId: string): Promise<readonly ProjectTask[]>;
   updateTask(
@@ -304,6 +315,14 @@ export function createIntentApi(
         await request<{ snapshot: ProjectKnowledgeSnapshot }>(
           `${path(id)}/knowledge/refresh`,
           "POST",
+        )
+      ).snapshot,
+    reviewProjectKnowledge: async (id, snapshotId, expectedRevision, decision, note) =>
+      (
+        await request<{ snapshot: ProjectKnowledgeSnapshot }>(
+          `${path(id)}/knowledge/${encodeURIComponent(snapshotId)}/review`,
+          "POST",
+          { expectedRevision, decision, note },
         )
       ).snapshot,
     getProjectDocuments: async (id) =>
