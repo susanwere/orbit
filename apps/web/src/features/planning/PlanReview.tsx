@@ -108,6 +108,8 @@ function ProjectPlanCanvas({
     "workflow" | "composer" | "context" | PlanSectionKey
   >("workflow");
   const [canvasDraftIdea, setCanvasDraftIdea] = useState("");
+  const [currentIntent, setCurrentIntent] = useState(originalIntent);
+  const [uploadedFileIds, setUploadedFileIds] = useState<Record<string, string>>({});
   const [graph, setGraph] = useState<WorkGraph | null>(() => readGraph(plan?.content));
   const [revision, setRevision] = useState(plan?.revision ?? 0);
   const [status, setStatus] = useState<ProjectPlan["status"] | null>(plan?.status ?? null);
@@ -140,14 +142,14 @@ function ProjectPlanCanvas({
   );
   const canEdit = status === "READY_FOR_REVIEW" && !busy;
   const showComposer =
-    !isLoading && (canvasSection === "composer" || (!originalIntent && status === null));
+    !isLoading && (canvasSection === "composer" || (!currentIntent && status === null));
   const isContextOpen = canvasSection === "context";
   const projectSection =
     canvasSection !== "workflow" && canvasSection !== "composer" && canvasSection !== "context"
       ? canvasSection
       : null;
   const planningPending = status === "GENERATING";
-  const canGeneratePlan = Boolean(originalIntent) && (status === null || status === "FAILED");
+  const canGeneratePlan = Boolean(currentIntent) && (status === null || status === "FAILED");
   const selectedIndex = graph?.workItems.findIndex((item) => item.key === selectedItemKey) ?? -1;
   const openItem = (key: string) => {
     setCanvasSection("workflow");
@@ -210,6 +212,58 @@ function ProjectPlanCanvas({
       setBusy(false);
     }
   }
+  async function submitCanvasIntent(statement: string, files: readonly File[]) {
+    if (currentIntent || busy || isLoading) throw new Error("Original Intent is already saved or unavailable.");
+    setBusy(true);
+    setError(null);
+    try {
+      const documentIds: string[] = [];
+      for (const file of files) {
+        const fileKey = `${file.name}:${file.size}:${file.lastModified}`;
+        let id = uploadedFileIds[fileKey];
+        if (!id) {
+          const base64 = await new Promise<string>((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onerror = () => reject(new Error(`Could not read ${file.name}`));
+            reader.onload = () => {
+              const value = reader.result;
+              if (typeof value !== "string" || !value.includes(",")) {
+                reject(new Error(`Could not encode ${file.name}`));
+                return;
+              }
+              resolve(value.slice(value.indexOf(",") + 1));
+            };
+            reader.readAsDataURL(file);
+          });
+          const extension = file.name.toLowerCase().split(".").pop();
+          const mediaType = extension === "md" ? "text/markdown" : extension === "txt" ? "text/plain" :
+            extension === "pdf" ? "application/pdf" :
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+          const result = await api.uploadDocument(project.id, { filename: file.name, mediaType, base64 });
+          id = result.id;
+          setUploadedFileIds((previous) => ({ ...previous, [fileKey]: result.id }));
+        }
+        documentIds.push(id);
+      }
+      const savedIntent = await api.submitIntent(project.id, statement, documentIds);
+      setCurrentIntent(savedIntent);
+      setCanvasSection("workflow");
+      try {
+        const proposed = await api.generatePlan(project.id);
+        setGraph(readGraph(proposed.content));
+        setRevision(proposed.revision);
+        setStatus(proposed.status);
+        setPlanningFailure(proposed.failure_reason);
+        onUpdated(proposed);
+      } catch (cause) {
+        setError(cause instanceof Error ? cause.message : "Intent saved, but plan generation failed. Retry from the workflow page.");
+        setStatus("FAILED");
+      }
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function retryPlanning() {
     if (!canGeneratePlan || busy || isLoading) return;
     setBusy(true);
@@ -360,7 +414,7 @@ function ProjectPlanCanvas({
         projectName={project.name}
         selectedItemKey={selectedItemKey}
         approved={approved}
-        hasPlan={Boolean(originalIntent) || status !== null}
+        hasPlan={Boolean(currentIntent) || status !== null}
         isComposerOpen={showComposer}
         activeSection={projectSection}
         hasGraph={Boolean(graph)}
@@ -412,10 +466,11 @@ function ProjectPlanCanvas({
           </p>
         ) : showComposer ? (
           <CanvasComposer
-            isPreview={Boolean(originalIntent) || status !== null}
+            isPreview={Boolean(currentIntent) || status !== null}
             draftIdea={canvasDraftIdea}
             onDraftChange={setCanvasDraftIdea}
             onOpenIntent={onBack}
+            onSubmitIntent={submitCanvasIntent}
           />
         ) : isContextOpen ? (
           <ProjectContextDocuments api={api} projectId={project.id} />
@@ -424,7 +479,7 @@ function ProjectPlanCanvas({
             key={projectSection}
             section={projectSection}
             graph={graph}
-            originalIntent={originalIntent}
+            originalIntent={currentIntent}
             approved={approved}
             canEdit={canEdit}
             dirty={dirty}
@@ -803,7 +858,7 @@ function ProjectPlanCanvas({
                 <span>{graph.workItems.length} proposed work items</span>
               </div>
             )}
-            {(originalIntent || graph) &&
+            {(currentIntent || graph) &&
               (planningPending || status === "FAILED" || canGeneratePlan || error) && (
                 <div className="canvas-planning-notice">
                   {planningPending && (
@@ -853,11 +908,11 @@ function ProjectPlanCanvas({
                 {executionError && <p role="alert">{executionError}</p>}
               </div>
             )}
-            {originalIntent || graph ? (
+            {currentIntent || graph ? (
               <WorkGraphCanvas
                 planActions={planActions}
                 items={graph?.workItems ?? []}
-                intent={originalIntent?.statement ?? "Original intent"}
+                intent={currentIntent?.statement ?? "Original intent"}
                 approved={approved}
                 onSelectDetail={(workItemKey, workflowIndex, stepIndex) => {
                   openItem(workItemKey);
