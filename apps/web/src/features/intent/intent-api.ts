@@ -144,6 +144,19 @@ export interface ProjectIntentApi {
     projectId: string,
     file: { filename: string; mediaType: string; base64: string },
   ): Promise<{ id: string; original_filename: string }>;
+  getProjectDocuments(
+    projectId: string,
+  ): Promise<
+    readonly {
+      id: string;
+      original_filename: string;
+      media_type: string;
+      size_bytes: number;
+      version: number;
+      processing_status: string;
+      created_at: string;
+    }[]
+  >;
   getIntentDocuments(
     projectId: string,
   ): Promise<
