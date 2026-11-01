@@ -87,20 +87,22 @@ describe("GitHub webhook worker", () => {
               if (once) return { rows: [] };
               once = true;
               return {
-                rows: [{
-                  id: "in3",
-                  organization_id: "org",
-                  project_id: "project",
-                  delivery_id: "delivery-merge",
-                  event_name: "pull_request",
-                  received_at: "2026-11-01T10:00:00Z",
-                  payload: {
-                    action: "closed",
-                    repository: { full_name: "org/repo" },
-                    pull_request: { number: 9, merged: true, merge_commit_sha: "a".repeat(40) },
+                rows: [
+                  {
+                    id: "in3",
+                    organization_id: "org",
+                    project_id: "project",
+                    delivery_id: "delivery-merge",
+                    event_name: "pull_request",
+                    received_at: "2026-11-01T10:00:00Z",
+                    payload: {
+                      action: "closed",
+                      repository: { full_name: "org/repo" },
+                      pull_request: { number: 9, merged: true, merge_commit_sha: "a".repeat(40) },
+                    },
+                    attempts: 0,
                   },
-                  attempts: 0,
-                }],
+                ],
               };
             }
             return { rows: [], rowCount: 1 };
@@ -108,7 +110,9 @@ describe("GitHub webhook worker", () => {
         }),
     };
     await new GithubWebhookWorker(db as never).processBatch();
-    const queue = queries.find((item) => item.sql.includes("INSERT INTO project_knowledge_refresh_jobs"));
+    const queue = queries.find((item) =>
+      item.sql.includes("INSERT INTO project_knowledge_refresh_jobs"),
+    );
     expect(queue).toBeDefined();
     expect(queue?.args?.[3]).toBe("org/repo");
     expect(queue?.args?.[4]).toBe("a".repeat(40));
@@ -126,27 +130,32 @@ describe("GitHub webhook worker", () => {
             if (sql.includes("SELECT * FROM webhook_inbox")) {
               if (once) return { rows: [] };
               once = true;
-              return { rows: [{
-                id: "in4",
-                organization_id: "org",
-                project_id: "project",
-                delivery_id: "delivery-close",
-                event_name: "pull_request",
-                received_at: "2026-11-01T10:00:00Z",
-                payload: {
-                  action: "closed",
-                  repository: { full_name: "org/repo" },
-                  pull_request: { number: 9, merged: false, merge_commit_sha: "a".repeat(40) },
-                },
-                attempts: 0,
-              }] };
+              return {
+                rows: [
+                  {
+                    id: "in4",
+                    organization_id: "org",
+                    project_id: "project",
+                    delivery_id: "delivery-close",
+                    event_name: "pull_request",
+                    received_at: "2026-11-01T10:00:00Z",
+                    payload: {
+                      action: "closed",
+                      repository: { full_name: "org/repo" },
+                      pull_request: { number: 9, merged: false, merge_commit_sha: "a".repeat(40) },
+                    },
+                    attempts: 0,
+                  },
+                ],
+              };
             }
             return { rows: [], rowCount: 1 };
           },
         }),
     };
     await new GithubWebhookWorker(db as never).processBatch();
-    expect(queries.some((sql) => sql.includes("INSERT INTO project_knowledge_refresh_jobs"))).toBe(false);
+    expect(queries.some((sql) => sql.includes("INSERT INTO project_knowledge_refresh_jobs"))).toBe(
+      false,
+    );
   });
-
 });
