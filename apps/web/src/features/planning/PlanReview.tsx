@@ -104,9 +104,9 @@ function ProjectPlanCanvas({
   onUpdated,
   isLoading = false,
 }: Props) {
-  const [canvasSection, setCanvasSection] = useState<"workflow" | "composer" | "context" | PlanSectionKey>(
-    "workflow",
-  );
+  const [canvasSection, setCanvasSection] = useState<
+    "workflow" | "composer" | "context" | PlanSectionKey
+  >("workflow");
   const [canvasDraftIdea, setCanvasDraftIdea] = useState("");
   const [graph, setGraph] = useState<WorkGraph | null>(() => readGraph(plan?.content));
   const [revision, setRevision] = useState(plan?.revision ?? 0);
@@ -143,7 +143,9 @@ function ProjectPlanCanvas({
     !isLoading && (canvasSection === "composer" || (!originalIntent && status === null));
   const isContextOpen = canvasSection === "context";
   const projectSection =
-    canvasSection !== "workflow" && canvasSection !== "composer" && canvasSection !== "context" ? canvasSection : null;
+    canvasSection !== "workflow" && canvasSection !== "composer" && canvasSection !== "context"
+      ? canvasSection
+      : null;
   const planningPending = status === "GENERATING";
   const canGeneratePlan = Boolean(originalIntent) && (status === null || status === "FAILED");
   const selectedIndex = graph?.workItems.findIndex((item) => item.key === selectedItemKey) ?? -1;

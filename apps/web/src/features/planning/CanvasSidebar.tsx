@@ -58,7 +58,11 @@ export function CanvasSidebar({
           <SidebarIcon kind="composer" />
           Composer
         </button>
-        <button type="button" aria-current={isContextOpen ? "page" : undefined} onClick={onOpenContext}>
+        <button
+          type="button"
+          aria-current={isContextOpen ? "page" : undefined}
+          onClick={onOpenContext}
+        >
           <SidebarIcon kind="plan" />
           Project Context
         </button>
