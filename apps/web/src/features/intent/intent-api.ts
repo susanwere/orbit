@@ -124,7 +124,26 @@ export interface ProjectTask {
   readonly has_agent_executor?: boolean;
 }
 
+export interface ProjectKnowledgeSummary {
+  summary: string;
+  architecture: string;
+  features: string[];
+  constraints: string[];
+  unknowns: string[];
+}
+export interface ProjectKnowledgeSnapshot {
+  id: string;
+  revision: number;
+  created_at: string;
+  content: {
+    summary: ProjectKnowledgeSummary;
+    documents: { id: string; filename: string; version: number; sha256: string; summary: ProjectKnowledgeSummary }[];
+    repositories: { fullName: string; inspected: boolean; summary: ProjectKnowledgeSummary | null }[];
+  };
+}
 export interface ProjectIntentApi {
+  getProjectKnowledge(projectId: string): Promise<readonly ProjectKnowledgeSnapshot[]>;
+  refreshProjectKnowledge(projectId: string): Promise<ProjectKnowledgeSnapshot>;
   getIntent(projectId: string): Promise<StoredIntent | null>;
   getTasks(projectId: string): Promise<readonly ProjectTask[]>;
   updateTask(
@@ -265,6 +284,10 @@ export function createIntentApi(
       (await request<{ intent: StoredIntent | null }>(`${path(id)}/intent`)).intent,
     uploadDocument: (id, file) =>
       request<{ id: string; original_filename: string }>(`${path(id)}/documents`, "POST", file),
+    getProjectKnowledge: async (id) =>
+      (await request<{ snapshots: ProjectKnowledgeSnapshot[] }>(`${path(id)}/knowledge`)).snapshots,
+    refreshProjectKnowledge: async (id) =>
+      (await request<{ snapshot: ProjectKnowledgeSnapshot }>(`${path(id)}/knowledge/refresh`, "POST")).snapshot,
     getProjectDocuments: async (id) =>
       (
         await request<{
