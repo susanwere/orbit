@@ -11,3 +11,6 @@ docs/
 
 # Disposable worker checkouts and generated mount policies
 .orbit-local/
+
+# Private local document uploads; never commit user-provided files.
+.orbit-documents/
