@@ -53,6 +53,55 @@ export class GithubWebhookWorker {
             payload: row.payload,
             receivedAt: toIso(row.received_at),
           });
+          if (
+            row.event_name === "pull_request" &&
+            typeof row.payload === "object" &&
+            row.payload !== null &&
+            !Array.isArray(row.payload)
+          ) {
+            const payload = row.payload as Record<string, unknown>;
+            const pull = payload.pull_request;
+            const repository = payload.repository;
+            if (
+              payload.action === "closed" &&
+              typeof pull === "object" &&
+              pull !== null &&
+              !Array.isArray(pull) &&
+              typeof repository === "object" &&
+              repository !== null &&
+              !Array.isArray(repository)
+            ) {
+              const pr = pull as Record<string, unknown>;
+              const repo = repository as Record<string, unknown>;
+              const commit = pr.merge_commit_sha;
+              const name = repo.full_name;
+              if (
+                pr.merged === true &&
+                typeof name === "string" &&
+                typeof commit === "string" &&
+                /^[a-f0-9]{40}$/i.test(commit) &&
+                Number.isSafeInteger(pr.number) &&
+                (pr.number as number) > 0
+              ) {
+                await tx.query(
+                  `INSERT INTO project_knowledge_refresh_jobs
+                     (id,organization_id,project_id,repository_full_name,merge_commit_sha,pull_number)
+                   SELECT $1,$2,$3,$4,$5,$6 WHERE EXISTS
+                     (SELECT 1 FROM project_repositories
+                      WHERE organization_id=$2 AND project_id=$3 AND full_name=$4)
+                   ON CONFLICT (project_id,repository_full_name,merge_commit_sha) DO NOTHING`,
+                  [
+                    row.id,
+                    row.organization_id,
+                    row.project_id,
+                    name,
+                    commit.toLowerCase(),
+                    pr.number,
+                  ],
+                );
+              }
+            }
+          }
           if (event) {
             await tx.query(
               `INSERT INTO events(
