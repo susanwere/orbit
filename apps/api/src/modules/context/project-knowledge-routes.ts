@@ -8,6 +8,7 @@ import type { DocumentStorage } from "../documents/document-storage.js";
 import { extractDocumentText } from "../documents/planning-documents.js";
 import type { StructuredJsonClient } from "../decisions/meta-model-client.js";
 import { collectRepositoryEvidence } from "./repository-evidence.js";
+import { promoteApprovedKnowledge } from "./promote-approved-knowledge.js";
 
 interface SourceRow extends Record<string, unknown> {
   id: string;
@@ -152,6 +153,7 @@ export async function registerProjectKnowledgeRoutes(
         ],
       );
       if (decision === "approve") {
+        await promoteApprovedKnowledge(tx, actor.organizationId, actor.projectId, candidate.id, candidate.revision);
         await tx.query(
           "INSERT INTO project_knowledge_heads (organization_id,project_id,approved_snapshot_id,approved_revision) VALUES ($1,$2,$3,$4) ON CONFLICT (organization_id,project_id) DO UPDATE SET approved_snapshot_id=EXCLUDED.approved_snapshot_id,approved_revision=EXCLUDED.approved_revision",
           [actor.organizationId, actor.projectId, candidate.id, candidate.revision],
