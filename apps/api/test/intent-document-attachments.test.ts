@@ -71,7 +71,9 @@ describe("original intent document associations", () => {
     const response = await app.inject(post([ownedId]));
     expect(response.statusCode).toBe(201);
     expect(fixture.attachments).toEqual([ownedId]);
-    expect(fixture.statements.some((sql) => sql.includes("INSERT INTO intent_document_attachments"))).toBe(true);
+    expect(
+      fixture.statements.some((sql) => sql.includes("INSERT INTO intent_document_attachments")),
+    ).toBe(true);
     await app.close();
   });
 
