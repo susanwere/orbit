@@ -1,0 +1,29 @@
+name: Format context comparison branch (temporary)
+on:
+  push:
+    branches: [feat/context-version-comparison]
+    paths:
+      - .github/workflows/format-context-comparison-temporary.yml
+permissions:
+  contents: write
+jobs:
+  format:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/context-version-comparison
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npx prettier --write apps/web/src/features/planning/compare-knowledge.ts apps/web/src/features/planning/compare-knowledge.test.ts apps/web/src/features/planning/ProjectContextDocuments.tsx
+      - run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add apps/web/src/features/planning/compare-knowledge.ts apps/web/src/features/planning/compare-knowledge.test.ts apps/web/src/features/planning/ProjectContextDocuments.tsx
+          if ! git diff --cached --quiet; then
+            git commit -m "style: format context comparison"
+            git push origin HEAD:feat/context-version-comparison
+          fi
