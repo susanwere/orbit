@@ -254,6 +254,8 @@ export function createIntentApi(
       (await request<{ intent: StoredIntent | null }>(`${path(id)}/intent`)).intent,
     uploadDocument: (id, file) =>
       request<{ id: string; original_filename: string }>(`${path(id)}/documents`, "POST", file),
+    getProjectDocuments: async (id) =>
+      (await request<{ documents: { id: string; original_filename: string; media_type: string; size_bytes: number; version: number; processing_status: string; created_at: string }[] }>(`${path(id)}/documents`)).documents,
     getIntentDocuments: async (id) =>
       (
         await request<{
