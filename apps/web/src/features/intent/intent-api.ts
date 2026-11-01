@@ -146,7 +146,7 @@ export interface ProjectKnowledgeSnapshot {
     }[];
     repositories: {
       fullName: string;
-      inspected: boolean;
+      inspected: string[];
       summary: ProjectKnowledgeSummary | null;
     }[];
   };
