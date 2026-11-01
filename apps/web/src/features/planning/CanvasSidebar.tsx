@@ -3,7 +3,6 @@ import { AccountMenuHost } from "../auth/AccountMenuHost.js";
 
 interface CanvasSidebarProps {
   readonly projectName: string;
-  readonly workItems: readonly { key: string; title: string }[];
   readonly selectedItemKey: string | null;
   readonly approved: boolean;
   readonly hasPlan: boolean;
@@ -19,7 +18,6 @@ interface CanvasSidebarProps {
 /** Canvas navigation only. Execution remains available through the existing Intent page. */
 export function CanvasSidebar({
   projectName,
-  workItems,
   selectedItemKey,
   approved,
   hasPlan,
@@ -78,31 +76,15 @@ export function CanvasSidebar({
             ))}
           </div>
         </details>
-        <div className="canvas-sidebar-workflow-group">
-          <button
-            type="button"
-            className="canvas-sidebar-workflow"
-            aria-current={
-              !selectedItemKey && !isComposerOpen && !activeSection ? "page" : undefined
-            }
-            onClick={onOverview}
-          >
-            <SidebarIcon kind="workflow" />
-            Workflow
-          </button>
-          <div className="canvas-workflow-links">
-            <button
-              type="button"
-              disabled={!hasGraph}
-              aria-current={
-                activeSection === "work-items" || selectedItemKey !== null ? "page" : undefined
-              }
-              onClick={() => onOpenSection("work-items")}
-            >
-              <SidebarIcon kind="items" /> Work Items <small>{workItems.length}</small>
-            </button>
-          </div>
-        </div>
+        <button
+          type="button"
+          className="canvas-sidebar-workflow"
+          aria-current={!selectedItemKey && !isComposerOpen && !activeSection ? "page" : undefined}
+          onClick={onOverview}
+        >
+          <SidebarIcon kind="workflow" />
+          Workflow
+        </button>
         {hasPlan ? (
           <a
             href="#canvas-plan-actions"

@@ -1161,16 +1161,14 @@
   outline-offset: 3px;
 }
 
-.canvas-sidebar-items > .canvas-plan-links,
-.canvas-sidebar-workflow-group > .canvas-workflow-links {
+.canvas-sidebar-items > .canvas-plan-links {
   display: grid;
   gap: 3px;
   margin: 6px 0 6px 26px;
   padding-left: 8px;
   border-left: 1px solid #49325f;
 }
-.canvas-sidebar .canvas-plan-links > button,
-.canvas-sidebar .canvas-workflow-links > button {
+.canvas-sidebar .canvas-plan-links > button {
   width: 100%;
   min-width: 0;
   min-height: 36px;
@@ -1249,10 +1247,4 @@
 .orbit-workspace .workgraph-root {
   flex: 1;
   height: auto;
-}
-
-.canvas-sidebar .canvas-workflow-links svg {
-  width: 18px;
-  height: 18px;
-  flex-basis: 18px;
 }

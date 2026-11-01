@@ -316,6 +316,13 @@ function ProjectPlanCanvas({
         </button>
         {status === "READY_FOR_REVIEW" && graph && (
           <>
+            <button
+              type="button"
+              disabled={!canEdit || graph.workItems.length >= 30}
+              onClick={addWorkItem}
+            >
+              + Add work item
+            </button>
             {!projectSection && (
               <button
                 type="button"
@@ -346,7 +353,6 @@ function ProjectPlanCanvas({
     <main className="orbit-workspace">
       <CanvasSidebar
         projectName={project.name}
-        workItems={graph?.workItems ?? []}
         selectedItemKey={selectedItemKey}
         approved={approved}
         hasPlan={Boolean(originalIntent) || status !== null}
@@ -447,8 +453,6 @@ function ProjectPlanCanvas({
               setError(null);
             }}
             onSave={save}
-            onSelectItem={openItem}
-            onAddItem={addWorkItem}
           />
         ) : selectedItem && graph ? (
           <section

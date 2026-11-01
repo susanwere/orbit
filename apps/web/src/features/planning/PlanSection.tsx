@@ -9,7 +9,7 @@ export const planSections = [
   { key: "decisionsToReview", title: "Decisions to Review" },
   { key: "assumptions", title: "Assumptions" },
 ] as const;
-export type PlanSectionKey = (typeof planSections)[number]["key"] | "work-items";
+export type PlanSectionKey = (typeof planSections)[number]["key"];
 
 interface PlanSectionProps {
   readonly section: PlanSectionKey;
@@ -27,8 +27,6 @@ interface PlanSectionProps {
   ) => void;
   readonly onCancel: () => void;
   readonly onSave: () => Promise<boolean>;
-  readonly onSelectItem: (key: string) => void;
-  readonly onAddItem: () => void;
 }
 
 export function PlanSection({
@@ -44,12 +42,10 @@ export function PlanSection({
   onListChange,
   onCancel,
   onSave,
-  onSelectItem,
-  onAddItem,
 }: PlanSectionProps) {
   const [isEditing, setIsEditing] = useState(false);
   const sectionDefinition = planSections.find((entry) => entry.key === section);
-  const title = sectionDefinition?.title ?? "Work Items";
+  const title = sectionDefinition?.title ?? "Plan details";
   const listSection =
     section === "guardrails" || section === "decisionsToReview" || section === "assumptions"
       ? section
@@ -67,9 +63,7 @@ export function PlanSection({
             ? "The intended result of your project, as proposed by Muse Spark."
             : section === "original-intent"
               ? "The original request that started this project. Saved and immutable."
-              : section === "work-items"
-                ? "Explore the work that makes up your project."
-                : "Review the context guiding the proposed plan."}
+              : "Review the context guiding the proposed plan."}
         </p>
       </div>
       <div className="canvas-plan-section-status">
@@ -85,34 +79,6 @@ export function PlanSection({
               {originalIntent?.statement ?? "No original intent is available."}
             </p>
             {originalIntent && <small>Saved · immutable</small>}
-          </>
-        ) : section === "work-items" ? (
-          <>
-            <h3>
-              Work Items <small>{graph?.workItems.length ?? 0}</small>
-            </h3>
-            <div className="canvas-section-work-items">
-              {graph?.workItems.map((item) => (
-                <button type="button" key={item.key} onClick={() => onSelectItem(item.key)}>
-                  <span>
-                    <strong>{item.title}</strong>
-                    <small>
-                      {item.key} · {item.workflows.length} workflows
-                    </small>
-                  </span>
-                  <span aria-hidden="true">→</span>
-                </button>
-              ))}
-            </div>
-            {!graph?.workItems.length && <p>No work items are available.</p>}
-            <button
-              type="button"
-              className="canvas-section-primary"
-              disabled={!canEdit || !graph || graph.workItems.length >= 30}
-              onClick={onAddItem}
-            >
-              + Add work item
-            </button>
           </>
         ) : graph && editableSection ? (
           <>
@@ -232,7 +198,6 @@ export function PlanSectionIcon({ section }: { readonly section: PlanSectionKey 
     guardrails: "m12 2 9 4v6c0 5-9 10-9 10S3 17 3 12V6l9-4Z",
     decisionsToReview: "M8 5h13M8 12h13M8 19h13M3 4h1v2H3zM3 11h1v2H3zM3 18h1v2H3z",
     assumptions: "M9 18h6m-6 3h6M8 15a7 7 0 1 1 8 0l-1 3H9l-1-3Z",
-    "work-items": "m3 7 9-5 9 5-9 5-9-5Zm0 5 9 5 9-5M3 17l9 5 9-5",
   };
   return (
     <svg

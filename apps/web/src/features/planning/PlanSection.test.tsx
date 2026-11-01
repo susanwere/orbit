@@ -27,8 +27,6 @@ const sectionProps = {
   onListChange: () => undefined,
   onCancel: () => undefined,
   onSave: async () => true,
-  onSelectItem: () => undefined,
-  onAddItem: () => undefined,
 };
 
 describe("focused plan sections", () => {
