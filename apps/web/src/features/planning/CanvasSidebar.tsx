@@ -50,15 +50,6 @@ export function CanvasSidebar({
       <nav aria-label="Canvas sections">
         <button
           type="button"
-          className="canvas-sidebar-workflow"
-          aria-current={!selectedItemKey && !isComposerOpen && !activeSection ? "page" : undefined}
-          onClick={onOverview}
-        >
-          <SidebarIcon kind="workflow" />
-          Workflow
-        </button>
-        <button
-          type="button"
           aria-current={isComposerOpen ? "page" : undefined}
           onClick={onOpenComposer}
         >
@@ -87,14 +78,31 @@ export function CanvasSidebar({
             ))}
           </div>
         </details>
-        <button
-          type="button"
-          disabled={!hasGraph}
-          aria-current={activeSection === "work-items" ? "page" : undefined}
-          onClick={() => onOpenSection("work-items")}
-        >
-          <SidebarIcon kind="items" /> Work Items <small>{workItems.length}</small>
-        </button>
+        <div className="canvas-sidebar-workflow-group">
+          <button
+            type="button"
+            className="canvas-sidebar-workflow"
+            aria-current={
+              !selectedItemKey && !isComposerOpen && !activeSection ? "page" : undefined
+            }
+            onClick={onOverview}
+          >
+            <SidebarIcon kind="workflow" />
+            Workflow
+          </button>
+          <div className="canvas-workflow-links">
+            <button
+              type="button"
+              disabled={!hasGraph}
+              aria-current={
+                activeSection === "work-items" || selectedItemKey !== null ? "page" : undefined
+              }
+              onClick={() => onOpenSection("work-items")}
+            >
+              <SidebarIcon kind="items" /> Work Items <small>{workItems.length}</small>
+            </button>
+          </div>
+        </div>
         {hasPlan ? (
           <a
             href="#canvas-plan-actions"

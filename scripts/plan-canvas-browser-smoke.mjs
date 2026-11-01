@@ -194,6 +194,21 @@ try {
     0,
   );
   const planDetailsToggle = page.locator(".canvas-sidebar-items > summary");
+  assert.equal(
+    await page
+      .locator(".canvas-sidebar-workflow-group .canvas-workflow-links")
+      .getByRole("button", { name: /Work Items/ })
+      .count(),
+    1,
+  );
+  const sidebarOrder = await page
+    .getByRole("navigation", { name: "Canvas sections", exact: true })
+    .evaluate((navigation) => {
+      const group = navigation.querySelector(".canvas-sidebar-workflow-group");
+      const details = navigation.querySelector(".canvas-sidebar-items");
+      return Boolean(details.compareDocumentPosition(group) & Node.DOCUMENT_POSITION_FOLLOWING);
+    });
+  assert.equal(sidebarOrder, true, "Workflow appears below Plan details");
   assert.equal(await planDetailsToggle.textContent(), "Plan details");
   await planDetailsToggle.click();
   assert.equal(
