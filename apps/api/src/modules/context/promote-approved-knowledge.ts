@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { DomainError, type ProjectContext } from "@orbit/domain";
+import { DomainError, type JsonValue, type ProjectContext } from "@orbit/domain";
 import type { SqlExecutor } from "@orbit/db";
 import { initializeProjectContext } from "./initialize-project-context.js";
 import { buildNextContextVersion } from "./context-version-repository.js";
@@ -37,7 +37,7 @@ export async function promoteApprovedKnowledge(
     [organizationId, projectId, snapshotId, revision],
   );
   if (!source.rows[0]) throw new DomainError("not_found", "Knowledge snapshot missing.");
-  const knowledge = { snapshotId, revision, content: source.rows[0].content };
+  const knowledge = { snapshotId, revision, content: source.rows[0].content as JsonValue };
   const next = buildNextContextVersion(
     {
       id: `context_${randomUUID()}`,
