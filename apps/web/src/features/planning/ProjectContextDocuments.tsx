@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import type { ProjectIntentApi, ProjectKnowledgeSnapshot } from "../intent/intent-api.js";
+import { compareKnowledgeVersions } from "./compare-knowledge.js";
 
 interface DocumentMetadata {
   id: string;
@@ -64,6 +65,8 @@ export function ProjectContextDocuments({
   }
   const latest = snapshots.find((item) => item.id === selectedId) ?? snapshots[0];
   const approved = snapshots.find((item) => item.review_status === "APPROVED");
+  const comparisonBase = approved?.id === latest?.id ? snapshots.find((item) => item.id !== latest.id && item.review_status === "APPROVED") : approved;
+  const changes = latest ? compareKnowledgeVersions(latest, comparisonBase) : null;
   async function review(decision: "approve" | "request_changes") {
     if (!latest) return;
     setReviewing(true);
@@ -194,6 +197,39 @@ export function ProjectContextDocuments({
               <li key={index}>{item}</li>
             ))}
           </ul>
+          {changes && (
+            <div className="orbit-detail-card">
+              <h3>Changes {comparisonBase ? `since approved v${comparisonBase.revision}` : "in initial context"}</h3>
+              <p className="orbit-detail-muted">
+                {changes.summaryChanged ? "Project summary changed. " : ""}
+                {changes.architectureChanged ? "Architecture description changed." : ""}
+              </p>
+              {([
+                ["Added features", changes.addedFeatures],
+                ["Removed features", changes.removedFeatures],
+                ["Added constraints", changes.addedConstraints],
+                ["Removed constraints", changes.removedConstraints],
+                ["New unknowns", changes.addedUnknowns],
+                ["Resolved unknowns", changes.resolvedUnknowns],
+                ["Repository revisions", changes.changedRepositories],
+                ["Document revisions", changes.changedDocuments],
+              ] as const).map(([heading, entries]) =>
+                entries.length ? (
+                  <div key={heading}>
+                    <h4>{heading}</h4>
+                    <ul>{entries.map((entry) => <li key={entry}>{entry}</li>)}</ul>
+                  </div>
+                ) : null,
+              )}
+              {!changes.summaryChanged && !changes.architectureChanged &&
+                !changes.addedFeatures.length && !changes.removedFeatures.length &&
+                !changes.addedConstraints.length && !changes.removedConstraints.length &&
+                !changes.addedUnknowns.length && !changes.resolvedUnknowns.length &&
+                !changes.changedRepositories.length && !changes.changedDocuments.length && (
+                  <p>No material differences detected in the recorded knowledge fields.</p>
+                )}
+            </div>
+          )}
           <h3>Repository evidence</h3>
           {latest.content.repositories.map((repository) => (
             <div className="orbit-detail-card" key={repository.fullName}>
