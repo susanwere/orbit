@@ -38,9 +38,15 @@ export function ProjectCanvas({
   if (error)
     return (
       <main className="orbit-detail-page orbit-detail-page--canvas">
-        <p role="alert" className="intent-error">{error}</p>
-        <button type="button" onClick={() => void refresh()}>Retry</button>
-        <button type="button" onClick={onBack}>Back to projects</button>
+        <p role="alert" className="intent-error">
+          {error}
+        </p>
+        <button type="button" onClick={() => void refresh()}>
+          Retry
+        </button>
+        <button type="button" onClick={onBack}>
+          Back to projects
+        </button>
       </main>
     );
   return (

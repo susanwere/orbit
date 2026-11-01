@@ -70,7 +70,11 @@ export function CanvasSidebar({
           <SidebarIcon kind="plan" />
           Project Context
         </button>
-        <button type="button" aria-current={isExecutionOpen ? "page" : undefined} onClick={onOpenExecution}>
+        <button
+          type="button"
+          aria-current={isExecutionOpen ? "page" : undefined}
+          onClick={onOpenExecution}
+        >
           <SidebarIcon kind="plan" />
           Execute workflows
         </button>

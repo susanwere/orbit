@@ -147,7 +147,10 @@ function ProjectPlanCanvas({
   const isContextOpen = canvasSection === "context";
   const isExecutionOpen = canvasSection === "execution";
   const projectSection =
-    canvasSection !== "workflow" && canvasSection !== "composer" && canvasSection !== "context" && canvasSection !== "execution"
+    canvasSection !== "workflow" &&
+    canvasSection !== "composer" &&
+    canvasSection !== "context" &&
+    canvasSection !== "execution"
       ? canvasSection
       : null;
   const planningPending = status === "GENERATING";
@@ -436,7 +439,10 @@ function ProjectPlanCanvas({
         hasGraph={Boolean(graph)}
         isContextOpen={isContextOpen}
         isExecutionOpen={isExecutionOpen}
-        onOpenExecution={() => { setCanvasSection("execution"); setSelectedItemKey(null); }}
+        onOpenExecution={() => {
+          setCanvasSection("execution");
+          setSelectedItemKey(null);
+        }}
         onOpenContext={() => {
           setCanvasSection("context");
           setSelectedItemKey(null);
@@ -472,7 +478,11 @@ function ProjectPlanCanvas({
         <h1 id="plan-heading" className="canvas-heading-accessible">
           {selectedItem ? selectedItem.title : "Workflow Canvas"}
         </h1>
-        {!showComposer && !isContextOpen && !isExecutionOpen && (projectSection || selectedItem) && planActions}
+        {!showComposer &&
+          !isContextOpen &&
+          !isExecutionOpen &&
+          (projectSection || selectedItem) &&
+          planActions}
         {error && (
           <p role="alert" className="intent-error canvas-action-error">
             {error}
@@ -798,8 +808,8 @@ function ProjectPlanCanvas({
                         </>
                       )}
                       <p className="orbit-detail-muted">
-                        Execute from the canvas Execution panel. Prerequisite completion
-                        must be verified by the execution service.
+                        Execute from the canvas Execution panel. Prerequisite completion must be
+                        verified by the execution service.
                       </p>
                     </div>
                   ) : (
