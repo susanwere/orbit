@@ -3,7 +3,7 @@ import { Landing } from "./Landing.js";
 import { Universe } from "./Universe.js";
 import { ProjectCreation } from "./features/projects/ProjectCreation.js";
 import { ProjectDashboard } from "./features/projects/ProjectDashboard.js";
-import { IntentEntry } from "./features/intent/IntentEntry.js";
+import { ProjectCanvas } from "./features/planning/ProjectCanvas.js";
 import type { ProjectIntentApi } from "./features/intent/intent-api.js";
 import type { CreatedProject, ProjectCreationApi } from "./features/projects/project-api.js";
 
@@ -21,7 +21,7 @@ export function App({ projectApi, intentApi }: AppProps) {
 
   if (page === "project" && activeProject && intentApi) {
     return (
-      <IntentEntry project={activeProject} api={intentApi} onBack={() => setPage("dashboard")} />
+      <ProjectCanvas project={activeProject} api={intentApi} onBack={() => setPage("dashboard")} />
     );
   }
 
