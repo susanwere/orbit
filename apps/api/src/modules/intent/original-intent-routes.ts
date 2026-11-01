@@ -65,9 +65,12 @@ export async function registerOriginalIntentRoutes(
         throw new DomainError("validation", "Original intent must contain 1-10000 characters.");
       }
       const documentIds = request.body?.documentIds ?? [];
-      if (!Array.isArray(documentIds) || documentIds.length > 10 ||
-          documentIds.some((item) => typeof item !== "string" || !/^[0-9a-f-]{36}$/.test(item)) ||
-          new Set(documentIds).size !== documentIds.length) {
+      if (
+        !Array.isArray(documentIds) ||
+        documentIds.length > 10 ||
+        documentIds.some((item) => typeof item !== "string" || !/^[0-9a-f-]{36}$/.test(item)) ||
+        new Set(documentIds).size !== documentIds.length
+      ) {
         throw new DomainError("validation", "Provide up to 10 distinct document IDs.");
       }
       const id = randomUUID();
@@ -79,16 +82,19 @@ export async function registerOriginalIntentRoutes(
             [access.organizationId, access.projectId, documentIds],
           );
           if (owned.rows.length !== documentIds.length) {
-            throw new DomainError("validation", "One or more documents do not belong to this project.");
+            throw new DomainError(
+              "validation",
+              "One or more documents do not belong to this project.",
+            );
           }
         }
         const created = await tx.query<IntentRow>(
-        `INSERT INTO intents(id,organization_id,project_id,statement,created_by_principal_id)
+          `INSERT INTO intents(id,organization_id,project_id,statement,created_by_principal_id)
          VALUES($1,$2,$3,$4,$5)
          ON CONFLICT (project_id) DO NOTHING
          RETURNING id,organization_id,project_id,statement,created_by_principal_id,created_at`,
-        [id, access.organizationId, access.projectId, statement.trim(), principal.id],
-      );
+          [id, access.organizationId, access.projectId, statement.trim(), principal.id],
+        );
         if (created.rows[0] && documentIds.length) {
           await tx.query(
             `INSERT INTO intent_document_attachments(intent_id,organization_id,project_id,document_id,document_version)

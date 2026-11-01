@@ -140,9 +140,20 @@ export interface ProjectIntentApi {
   ): Promise<{ existingTaskId: string | null; task: ProjectTask | null }>;
   executeTask(projectId: string, taskId: string, agentDefinitionId: string): Promise<void>;
   approveTaskProposal(projectId: string, taskId: string, note?: string): Promise<ProjectTask>;
-  uploadDocument(projectId: string, file: { filename: string; mediaType: string; base64: string }): Promise<{ id: string; original_filename: string }>;
-  getIntentDocuments(projectId: string): Promise<readonly { id: string; original_filename: string; media_type: string; size_bytes: number }[]>;
-  submitIntent(projectId: string, statement: string, documentIds?: readonly string[]): Promise<StoredIntent>;
+  uploadDocument(
+    projectId: string,
+    file: { filename: string; mediaType: string; base64: string },
+  ): Promise<{ id: string; original_filename: string }>;
+  getIntentDocuments(
+    projectId: string,
+  ): Promise<
+    readonly { id: string; original_filename: string; media_type: string; size_bytes: number }[]
+  >;
+  submitIntent(
+    projectId: string,
+    statement: string,
+    documentIds?: readonly string[],
+  ): Promise<StoredIntent>;
   getPlan(projectId: string): Promise<ProjectPlan | null>;
   generatePlan(projectId: string): Promise<ProjectPlan>;
   updatePlan(projectId: string, expectedRevision: number, content: unknown): Promise<ProjectPlan>;
@@ -244,9 +255,23 @@ export function createIntentApi(
     uploadDocument: (id, file) =>
       request<{ id: string; original_filename: string }>(`${path(id)}/documents`, "POST", file),
     getIntentDocuments: async (id) =>
-      (await request<{ documents: { id: string; original_filename: string; media_type: string; size_bytes: number }[] }>(`${path(id)}/intent/documents`)).documents,
+      (
+        await request<{
+          documents: {
+            id: string;
+            original_filename: string;
+            media_type: string;
+            size_bytes: number;
+          }[];
+        }>(`${path(id)}/intent/documents`)
+      ).documents,
     submitIntent: async (id, statement, documentIds = []) =>
-      (await request<{ intent: StoredIntent }>(`${path(id)}/intent`, "POST", { statement, ...(documentIds.length ? { documentIds } : {}) })).intent,
+      (
+        await request<{ intent: StoredIntent }>(`${path(id)}/intent`, "POST", {
+          statement,
+          ...(documentIds.length ? { documentIds } : {}),
+        })
+      ).intent,
     getPlan: async (id) => (await request<{ plan: ProjectPlan | null }>(`${path(id)}/plan`)).plan,
     generatePlan: async (id) =>
       (await request<{ plan: ProjectPlan }>(`${path(id)}/plan`, "POST")).plan,
