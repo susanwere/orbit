@@ -46,14 +46,17 @@ let savedPlan = {
   original_intent_id: intent.id,
   status: "APPROVED",
   failure_reason: null,
-  revision: 1,
+  revision: 3,
   content: graph,
 };
 const mutations = [];
-let executionState = "BLOCKED";
+let executionState = "RUNNING";
+let historicalSessionReads = 0;
 let executionReads = 0;
 const executionStep = () => ({
   id: "step-1",
+  plan_id: savedPlan.id,
+  plan_revision: savedPlan.revision,
   work_item_key: "build",
   workflow_index: 0,
   step_index: 0,
@@ -119,9 +122,35 @@ try {
     if (path.endsWith("/execution/steps")) {
       executionReads++;
       await new Promise((resolve) => setTimeout(resolve, 200));
-      return respond(200, { steps: [executionStep()] });
+      return respond(200, {
+        steps: [
+          {
+            ...executionStep(),
+            id: "old-plan-step",
+            plan_id: "old-plan",
+            state: "CANCELED",
+            agent_session_id: "old-session",
+          },
+          {
+            ...executionStep(),
+            id: "old-revision-step",
+            plan_revision: 2,
+            state: "CANCELED",
+            agent_session_id: "old-session",
+          },
+          {
+            ...executionStep(),
+            id: "current-canceled-step",
+            workflow_index: 1,
+            state: "CANCELED",
+            agent_session_id: null,
+          },
+          executionStep(),
+        ],
+      });
     }
-    if (path.endsWith("/muse-job"))
+    if (path.endsWith("/muse-job")) {
+      if (path.includes("/old-session/")) historicalSessionReads++;
       return respond(200, {
         job: {
           id: "job-1",
@@ -135,6 +164,7 @@ try {
           github_pull_number: null,
         },
       });
+    }
     if (path.endsWith("/tasks")) return respond(200, { tasks: [] });
     return respond(404, {});
   });
@@ -158,7 +188,7 @@ try {
   assert.equal(await page.getByRole("button", { name: "Reload latest", exact: true }).count(), 0);
   assert.equal(await page.locator(".workgraph-footer, .orbit-plan-footer").count(), 0);
   await page
-    .locator('[data-node-id="work:build"][data-execution-state="BLOCKED"]')
+    .locator('[data-node-id="work:build"][data-execution-state="RUNNING"]')
     .waitFor({ state: "attached" });
   await page.waitForFunction(
     () =>
@@ -207,6 +237,11 @@ try {
     );
   }
   await settle();
+  assert.equal(
+    await page.locator('[data-node-id="work:build"] .workgraph-status').textContent(),
+    "RUNNING",
+    "One overall workflow status is shown even with current canceled steps",
+  );
   for (const viewport of [
     { width: 1366, height: 768 },
     { width: 1920, height: 1080 },
@@ -294,6 +329,7 @@ try {
   const stableCards = await rectangles();
   executionState = "CANCELED";
   const previousReads = executionReads;
+  const previousHistoricalSessionReads = historicalSessionReads;
   await page.getByRole("button", { name: "Refresh execution status", exact: true }).click();
   assert.equal(await nodes.count(), 5, "Refresh retains the current graph while awaiting evidence");
   await page.waitForFunction(
@@ -301,6 +337,11 @@ try {
       document.querySelector('[data-node-id="work:build"]')?.dataset.executionState === "CANCELED",
   );
   assert.ok(executionReads > previousReads);
+  assert.equal(
+    historicalSessionReads,
+    previousHistoricalSessionReads,
+    "Canvas refresh must not fetch old plan sessions",
+  );
   await settle();
   assert.deepEqual(await view(), dragged, "Status refresh preserves pan and zoom");
   assert.deepEqual(await rectangles(), stableCards, "Status refresh preserves node geometry");

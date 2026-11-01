@@ -134,6 +134,8 @@ function ProjectPlanCanvas({
     api,
     project.id,
     approved && !isLoading,
+    plan?.id ?? null,
+    revision,
   );
   const canEdit = status === "READY_FOR_REVIEW" && !busy;
   const showComposer =

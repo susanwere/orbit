@@ -2,6 +2,7 @@ import { Canvas } from "@react-three/fiber";
 import { Html, Line } from "@react-three/drei";
 import { useCallback, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import type { ExecutionStep, MuseJobStatus } from "../intent/intent-api.js";
+import { overallWorkflowStatus } from "./work-item-status.js";
 import { GraphViewport, type GraphViewportControls } from "./GraphViewport.js";
 import { layoutGraph, routeEdge, type NodeSize } from "./graph-layout.js";
 import { BASE_ZOOM, MIN_SCALE, MAX_SCALE } from "./graph-viewport.js";
@@ -97,9 +98,7 @@ export function projectExecutionGraph(
         step.work_item_key === node.target &&
         (node.workflowIndex === undefined || step.workflow_index === node.workflowIndex),
     );
-    const states = [...new Set(matchingSteps.map((step) => step.state))];
-    if (states.length === 1) node.executionStatus = states[0];
-    if (states.length > 1) node.executionStatus = states.join(" · ");
+    node.executionStatus = overallWorkflowStatus(matchingSteps);
     if (node.kind === "gate") {
       const approvalSteps = matchingSteps.filter((step) => step.approval_required);
       node.subtitle = approvalSteps.length
@@ -493,7 +492,14 @@ function GraphNodeCard({
             : node.kind.toUpperCase()}
       </span>
       <strong>{node.title}</strong>
-      <span className="workgraph-status" title={node.executionStatus}>
+      <span
+        className="workgraph-status"
+        title={
+          node.kind === "work" && node.executionStatus
+            ? `Overall workflow status: ${node.executionStatus}`
+            : node.executionStatus
+        }
+      >
         {node.executionStatus ?? ""}
       </span>
       <small title={node.subtitle}>{node.subtitle}</small>
