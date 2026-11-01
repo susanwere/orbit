@@ -13,7 +13,8 @@ interface TreeEntry {
 }
 
 const ALLOWED_SOURCE = /\.(?:ts|tsx|js|jsx|mjs|cjs|py|rb|go|rs|java|kt|cs|php|vue|svelte)$/i;
-const MANIFEST = /^(?:README(?:\.[^/]*)?|package\.json|pyproject\.toml|Cargo\.toml|Gemfile|go\.mod|pom\.xml|build\.gradle(?:\.kts)?|tsconfig\.json|vite\.config\.[jt]s)$/i;
+const MANIFEST =
+  /^(?:README(?:\.[^/]*)?|package\.json|pyproject\.toml|Cargo\.toml|Gemfile|go\.mod|pom\.xml|build\.gradle(?:\.kts)?|tsconfig\.json|vite\.config\.[jt]s)$/i;
 const EXCLUDED_SEGMENTS = new Set([
   "node_modules",
   "dist",
@@ -37,8 +38,7 @@ function score(path: string): number {
   const name = path.split("/").at(-1) ?? "";
   if (/^README(?:\.|$)/i.test(name)) return 100;
   if (MANIFEST.test(name)) return 90;
-  if (/(?:^|\/)(?:main|index|app|server|routes|router|api|config)\.[^/]+$/i.test(path))
-    return 75;
+  if (/(?:^|\/)(?:main|index|app|server|routes|router|api|config)\.[^/]+$/i.test(path)) return 75;
   if (/(?:^|\/)(?:controllers?|services?|modules?|features?|components?|lib|src)\//i.test(path))
     return 55;
   if (/(?:^|\/)(?:test|tests|__tests__)\//i.test(path) || /\.(?:test|spec)\./i.test(path))
@@ -93,9 +93,7 @@ export async function collectRepositoryEvidence(
   if (!metadata.ok) return empty();
   const details = (await metadata.json()) as { default_branch?: string };
   if (!details.default_branch) return empty();
-  const commitResponse = await get(
-    `${base}/commits/${encodeURIComponent(details.default_branch)}`,
-  );
+  const commitResponse = await get(`${base}/commits/${encodeURIComponent(details.default_branch)}`);
   if (!commitResponse.ok) return empty();
   const commit = (await commitResponse.json()) as { sha?: string };
   const commitSha = commit.sha;
