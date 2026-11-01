@@ -1248,3 +1248,10 @@
   flex: 1;
   height: auto;
 }
+
+/* Intent document attachments sit beneath the canvas composer, not in a sidebar. */
+.canvas-composer-attachments { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 0.5rem; width: min(100%, 680px); margin: 0.25rem auto 0.6rem; }
+.canvas-composer-attachments input[type="file"] { color: #bfb1d7; font: inherit; font-size: 0.8rem; max-width: 100%; }
+.canvas-composer-attachments input[type="file"]::file-selector-button { color: #e7d9ff; background: rgba(112, 72, 174, 0.18); border: 1px solid rgba(175, 138, 226, 0.4); border-radius: 0.65rem; padding: 0.45rem 0.7rem; margin-right: 0.65rem; cursor: pointer; }
+.canvas-attachment-chip { color: #e8ddf7; display: inline-flex; align-items: center; gap: 0.5rem; border: 1px solid rgba(175, 138, 226, 0.4); background: rgba(100, 58, 152, 0.22); border-radius: 0.65rem; padding: 0.3rem 0.55rem; font-size: 0.8rem; overflow-wrap: anywhere; }
+.canvas-attachment-chip button { background: transparent; border: 0; color: inherit; cursor: pointer; font-size: 1rem; padding: 0 0.15rem; }
