@@ -1,4 +1,6 @@
 import { randomUUID } from "node:crypto";
+import { loadPlanningDocuments } from "../documents/planning-documents.js";
+import type { DocumentStorage } from "../documents/document-storage.js";
 import { DomainError } from "@orbit/domain";
 import type { SqlDatabase } from "@orbit/db";
 import type { FastifyInstance } from "fastify";
@@ -11,6 +13,7 @@ export interface PlanningRouteOptions {
   readonly auth: AuthVerifier;
   readonly authorization: ProjectAuthorizationService;
   readonly planner?: WorkGraphPlanner;
+  readonly documentStorage?: DocumentStorage;
 }
 
 interface DecisionRow extends Record<string, unknown> {
@@ -45,7 +48,7 @@ const validRevision = (value: unknown): value is number =>
 
 export async function registerPlanningRoutes(
   app: FastifyInstance,
-  { db, auth, authorization, planner }: PlanningRouteOptions,
+  { db, auth, authorization, planner, documentStorage }: PlanningRouteOptions,
 ) {
   app.get<{ Params: { projectId: string } }>("/projects/:projectId/plan", async (request) => {
     const principal = auth.verify(request.headers.authorization);
@@ -119,7 +122,11 @@ export async function registerPlanningRoutes(
               return typeof statement === "string" ? [statement] : [];
             })
           : [];
+        const sourceDocuments = documentStorage
+          ? await loadPlanningDocuments(db, documentStorage, actor.organizationId, actor.projectId, intent.id)
+          : [];
         const proposed = await planner.propose({
+          sourceDocuments,
           originalIntent: intent.statement,
           knownDecisions: decisions.rows.map((row) => row.title + ": " + row.rationale),
           knownConstraints: constraints,
