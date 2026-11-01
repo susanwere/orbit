@@ -47,3 +47,77 @@ describe("projectPlanGraph", () => {
     expect(graph.nodes.every((node) => node.kind !== ("running" as string))).toBe(true);
   });
 });
+
+describe("execution graph evidence", () => {
+  it("keeps a finished Muse turn separate from the authoritative workflow state", async () => {
+    const { projectExecutionGraph } = await import("./WorkGraphCanvas.js");
+    const graph = projectExecutionGraph(
+      [
+        {
+          key: "build",
+          title: "Build",
+          dependsOn: [],
+          workflows: [
+            {
+              name: "Engineering",
+              steps: [{ title: "Implement", executor: "agent", requiresApproval: false }],
+            },
+          ],
+        },
+      ],
+      "Build an app",
+      [
+        {
+          id: "step-1",
+          state: "RUNNING",
+          blocker_reason: null,
+          work_item_key: "build",
+          workflow_index: 0,
+          step_index: 0,
+          approval_required: false,
+          approved_at: null,
+          agent_session_id: "session-1",
+        },
+      ],
+      {
+        "session-1": {
+          id: "job-1",
+          status: "TURN_FINISHED",
+          workflow_step_id: "step-1",
+          attempts: 1,
+          started_at: null,
+          finished_at: null,
+          failure_reason: null,
+          github_repository: null,
+          github_pull_number: null,
+        },
+      },
+    );
+    expect(graph.nodes.find((node) => node.id === "step:build:0:0")?.executionStatus).toBe(
+      "RUNNING",
+    );
+    expect(graph.nodes.find((node) => node.id === "agent:session-1")?.executionStatus).toBe(
+      "TURN_FINISHED",
+    );
+    expect(graph.nodes.some((node) => node.executionStatus === "COMPLETED")).toBe(false);
+  });
+  it("does not invent an ordering dependency between independent workflows", () => {
+    const graph = projectPlanGraph(
+      [
+        {
+          key: "work",
+          title: "Work",
+          dependsOn: [],
+          workflows: [
+            { name: "Design", steps: [] },
+            { name: "Engineering", steps: [] },
+          ],
+        },
+      ],
+      "Intent",
+    );
+    expect(graph.edges).toContainEqual({ from: "work:work", to: "workflow:work:0" });
+    expect(graph.edges).toContainEqual({ from: "work:work", to: "workflow:work:1" });
+    expect(graph.edges).not.toContainEqual({ from: "workflow:work:0", to: "workflow:work:1" });
+  });
+});

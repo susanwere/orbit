@@ -1,0 +1,922 @@
+/* Scoped to the plan canvas: the Intent page retains its existing appearance. */
+.orbit-workspace {
+  grid-template-columns: 220px minmax(0, 1fr);
+  background: var(--orbit-page-background);
+  color: #f5f0ff;
+}
+.orbit-workspace .canvas-sidebar {
+  position: sticky;
+  top: 0;
+  height: 100svh;
+  align-self: start;
+  padding: 22px 12px;
+  gap: 24px;
+  background: #0c091bdb;
+  border-color: #3b2c50;
+}
+.canvas-sidebar-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 10px;
+  color: #f7f3ff;
+  text-decoration: none;
+  font-size: 26px;
+}
+.canvas-sidebar-brand .project-dashboard-brand-mark {
+  flex: 0 0 36px;
+}
+.canvas-sidebar-back {
+  padding: 12px;
+  border: 0;
+  background: transparent;
+  color: #eee7fb;
+  font: inherit;
+  font-size: 14px;
+  text-align: left;
+  cursor: pointer;
+}
+.canvas-sidebar-project {
+  display: grid;
+  gap: 8px;
+}
+.canvas-sidebar-project > span {
+  padding-left: 10px;
+  color: #b5a7cb;
+  font-size: 11px;
+  letter-spacing: 0.05em;
+}
+.canvas-sidebar-project strong {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid #443067;
+  border-radius: 12px;
+  background: #8f55ff0d;
+  font-size: 14px;
+  overflow-wrap: anywhere;
+}
+.canvas-sidebar svg {
+  flex: 0 0 21px;
+  color: #d6b8ff;
+}
+.canvas-sidebar nav {
+  display: grid;
+  gap: 16px;
+}
+.canvas-sidebar nav :is(button, a),
+.canvas-sidebar-items > div > details > summary {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 46px;
+  padding: 12px 16px;
+  border: 0;
+  border-radius: 11px;
+  color: #eee7fb;
+  background: transparent;
+  text-decoration: none;
+  text-align: left;
+  font: inherit;
+  font-size: 14px;
+  cursor: pointer;
+}
+.canvas-sidebar nav [aria-current="page"] {
+  background: linear-gradient(110deg, #7038ba80, #713bba40);
+  font-weight: 600;
+}
+.canvas-sidebar button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.canvas-sidebar-items {
+  border-top: 1px solid #392a4c;
+  padding-top: 14px;
+}
+.canvas-sidebar-items > summary {
+  display: flex;
+  justify-content: space-between;
+  color: #c9bfdc;
+  padding: 4px 12px 14px;
+  cursor: pointer;
+  font-size: 13px;
+}
+.canvas-sidebar-items > summary::after {
+  content: "⌄";
+}
+.canvas-sidebar summary {
+  list-style: none;
+}
+.canvas-sidebar summary::-webkit-details-marker {
+  display: none;
+}
+.canvas-sidebar summary small {
+  margin-left: auto;
+  color: #b5a7cb;
+  font-size: 11px;
+}
+.canvas-sidebar ul {
+  list-style: none;
+  margin: 0;
+  padding: 0 0 4px 14px;
+}
+.canvas-sidebar ul button {
+  font-size: 12px;
+  line-height: 1.5;
+}
+.canvas-sidebar .orbit-workspace-nav-note {
+  margin: auto 10px 0;
+  color: #b5a7cb;
+}
+.orbit-workspace :is(button, a, summary, input, textarea, select):focus-visible {
+  outline: 2px solid #c399ff;
+  outline-offset: 3px;
+}
+.orbit-workspace-main {
+  min-width: 0;
+  background-image: radial-gradient(#9b7ac633 0.8px, transparent 0.8px);
+  background-size: 23px 23px;
+}
+.orbit-workspace-toolbar {
+  min-height: 98px;
+  justify-content: flex-start;
+  flex-wrap: wrap;
+  padding: 20px 170px 20px 28px;
+  gap: 20px;
+  background: #0b0818e6;
+  border-color: #3b2c50;
+}
+.orbit-workspace-breadcrumb {
+  color: #c9bfdc;
+  font-size: 12px;
+  letter-spacing: 0.03em;
+}
+.orbit-workspace-toolbar h1 {
+  font-size: 23px;
+  letter-spacing: -0.3px;
+}
+.orbit-workspace-state {
+  background: #6c2cc736;
+  border-color: #673b9b;
+  color: #caa6ff;
+  padding: 5px 12px;
+  font-size: 12px;
+}
+.orbit-full-canvas {
+  background: transparent;
+}
+.orbit-workspace .orbit-plan-settings {
+  background: #151023;
+  border-color: #49365f;
+  color: #cdb8ed;
+}
+.orbit-workspace-stage-head {
+  color: #b6a6cc;
+}
+.orbit-workspace-stage-head strong {
+  color: #e3d7f1;
+}
+.orbit-workspace .workgraph-legend {
+  background: #100b1bd9;
+  border-color: #382a4b;
+  color: #bda8d8;
+}
+.orbit-workspace .workgraph-legend strong {
+  color: #cfb1f3;
+}
+.orbit-workspace .workgraph-scene {
+  background: radial-gradient(ellipse at 5% 30%, #45208c26, transparent 50%);
+}
+.orbit-workspace .workgraph-node {
+  background: #21152e;
+  border-color: #8259a7;
+  color: #f4edff;
+  box-shadow: 0 8px 26px #0006;
+}
+.orbit-workspace .workgraph-node--intent {
+  background: #291b3a;
+  border-color: #aa7bd9;
+}
+.orbit-workspace .workgraph-node span {
+  color: #c7a7eb;
+}
+.orbit-workspace .workgraph-node small {
+  color: #c4b3d5;
+}
+.orbit-workspace .workgraph-node.is-selected {
+  border-color: #c594ff;
+  outline-color: #ae7be8;
+}
+.orbit-workspace .workgraph-footer {
+  border-color: #382a4b;
+  color: #bcadce;
+  background: #100b1bc9;
+}
+.orbit-workspace .workgraph-footer ul {
+  background: #1b1029;
+  border-color: #8960ad;
+}
+.orbit-workspace .workgraph-footer li button {
+  color: #f0e6ff;
+}
+.canvas-view-controls {
+  position: absolute;
+  top: 20px;
+  right: 24px;
+  z-index: 20;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 14px;
+}
+.canvas-view-controls > div {
+  display: flex;
+  align-items: center;
+  border: 1px solid #48315e;
+  border-radius: 13px;
+  padding: 3px;
+  background: #171021ed;
+  box-shadow: 0 8px 24px #0003;
+}
+.canvas-view-controls button {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 38px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: transparent;
+  color: #eee2ff;
+  font: inherit;
+  font-size: 22px;
+  cursor: pointer;
+}
+.canvas-view-controls button[aria-pressed="true"] {
+  border-color: #b17ce8;
+  background: #7041b14d;
+}
+.canvas-view-controls button:hover:not(:disabled) {
+  background: #7543b84d;
+}
+.canvas-view-controls button:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+.canvas-view-controls output {
+  min-width: 62px;
+  text-align: center;
+  color: #f3eaff;
+  font-size: 13px;
+}
+.canvas-view-error {
+  position: absolute;
+  z-index: 20;
+  top: 65px;
+  right: 24px;
+  max-width: 300px;
+  padding: 10px;
+  background: #24142d;
+  color: #ffc7dc;
+  font-size: 12px;
+  border-radius: 8px;
+}
+.workgraph-scene:fullscreen {
+  width: 100%;
+  height: 100svh;
+  background: #0c0818;
+}
+.orbit-workspace .orbit-plan-footer {
+  border-color: #3b2c50;
+  background: #100a1df2;
+  color: #ded0f2;
+}
+.orbit-workspace .orbit-plan-footer button {
+  border-color: #62427f;
+  background: #20132e;
+}
+.orbit-workspace .orbit-plan-footer .cta-primary {
+  border-color: #a57bff;
+  background: linear-gradient(#9355ff, #5720ed);
+}
+.orbit-workspace .orbit-nested-stage {
+  background: transparent;
+  border-color: #49335e;
+}
+.orbit-workspace .orbit-nested-stage-head,
+.orbit-workspace .orbit-nested-stage-legend {
+  background: #160e23b3;
+  border-color: #49335e;
+  color: #c4b1df;
+}
+.orbit-workspace .orbit-nested-node {
+  background: #21162e;
+  border-color: #8259ab;
+}
+.orbit-workspace .orbit-nested-node:not(:last-child)::after {
+  border-color: #8860a8;
+}
+.orbit-workspace .orbit-nested-node:hover {
+  background: #302040;
+  border-color: #c5a0f5;
+}
+.orbit-workspace .orbit-detail-back,
+.orbit-workspace .orbit-detail-eyebrow {
+  color: #c2a0f1;
+}
+@media (max-width: 900px) {
+  .orbit-workspace {
+    grid-template-columns: 180px minmax(0, 1fr);
+  }
+  .orbit-workspace .canvas-sidebar {
+    padding-inline: 10px;
+  }
+  .canvas-sidebar nav :is(button, a),
+  .canvas-sidebar-items > div > details > summary {
+    padding-inline: 10px;
+    gap: 8px;
+  }
+  .canvas-sidebar-brand {
+    padding-inline: 0;
+    font-size: 23px;
+  }
+  .canvas-view-controls {
+    right: 12px;
+    top: 12px;
+    gap: 8px;
+  }
+}
+@media (max-width: 640px) {
+  .orbit-workspace {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .orbit-workspace .canvas-sidebar {
+    flex-direction: column;
+    align-items: stretch;
+    min-width: 0;
+    position: static;
+    height: auto;
+    padding: 18px 20px;
+    gap: 14px;
+  }
+  .canvas-sidebar-brand {
+    padding-right: 130px;
+    flex-wrap: nowrap;
+    font-size: 21px;
+  }
+  .canvas-sidebar-project,
+  .canvas-sidebar .orbit-workspace-nav-note {
+    display: none;
+  }
+  .canvas-sidebar nav {
+    min-width: 0;
+    gap: 12px;
+  }
+  .canvas-sidebar nav > button {
+    width: auto;
+    justify-self: start;
+  }
+  .canvas-sidebar-items {
+    padding-top: 8px;
+  }
+  .canvas-sidebar-items > div {
+    display: flex;
+    flex-wrap: wrap;
+  }
+  .canvas-sidebar-items > div > :is(a, button, details) {
+    width: auto;
+    flex: 1 1 45%;
+  }
+  .canvas-sidebar-items ul {
+    padding-left: 0;
+  }
+  .orbit-workspace-toolbar {
+    padding: 18px 20px;
+    min-height: 90px;
+    gap: 12px;
+  }
+  .orbit-workspace-toolbar h1 {
+    font-size: 20px;
+  }
+  .canvas-view-controls button {
+    width: 34px;
+    height: 36px;
+  }
+  .canvas-view-controls output {
+    min-width: 50px;
+    font-size: 12px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .orbit-workspace .workgraph-node {
+    transition: none;
+  }
+}
+
+.canvas-empty-state {
+  width: min(100% - 80px, 870px);
+  min-height: 100svh;
+  margin: 0 auto;
+  padding: 130px 0 100px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+.canvas-empty-spark {
+  display: grid;
+  place-items: center;
+  width: 78px;
+  height: 78px;
+  margin-bottom: 18px;
+  border: 1px solid #a76cf0;
+  border-radius: 23px;
+  background: linear-gradient(145deg, #271642, #1c102a);
+  color: #b87eff;
+  box-shadow:
+    0 0 30px #974bff14,
+    inset 0 0 24px #974bff14;
+}
+.canvas-empty-state h2 {
+  text-align: center;
+  font-size: clamp(25px, 2.4vw, 32px);
+  letter-spacing: -0.8px;
+  line-height: 1.3;
+  margin: 0 0 12px;
+}
+.canvas-empty-state > p {
+  color: #c7bed8;
+  text-align: center;
+  font-size: 18px;
+  line-height: 1.7;
+  margin: 0 0 36px;
+}
+.canvas-empty-label {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+.canvas-composer-input {
+  width: 100%;
+  min-height: 74px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 12px 16px;
+  border: 1px solid #a16cdf;
+  border-radius: 15px;
+  background: #151021d4;
+  box-shadow: 0 10px 36px #0002;
+}
+.canvas-composer-input:focus-within {
+  border-color: #c9a3ff;
+  outline: 1px solid #bb8df0;
+  outline-offset: 2px;
+}
+.canvas-composer-input textarea {
+  flex: 1;
+  width: 100%;
+  min-width: 0;
+  height: 44px;
+  min-height: 44px;
+  max-height: 180px;
+  padding: 10px 4px;
+  border: 0;
+  background: transparent;
+  color: #f5efff;
+  resize: vertical;
+  font: inherit;
+  font-size: 15px;
+  line-height: 1.6;
+}
+.canvas-composer-input textarea::placeholder {
+  color: #c4b9d6;
+  opacity: 1;
+}
+.orbit-workspace .canvas-composer-input textarea:focus-visible {
+  outline: none;
+}
+.canvas-composer-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  width: 100%;
+  margin-top: 14px;
+}
+.canvas-composer-voice {
+  display: grid;
+  place-items: center;
+  flex: 0 0 40px;
+  height: 42px;
+  padding: 0;
+  border: 0;
+  border-radius: 12px;
+  background: #62399d30;
+  color: #d8bdfb;
+}
+.canvas-composer-generate {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  flex: 0 0 auto;
+  min-height: 42px;
+  padding: 9px 16px;
+  border: 1px solid #9f6ae8;
+  border-radius: 12px;
+  background: linear-gradient(#9355ff, #5720ed);
+  color: white;
+  font: inherit;
+  font-size: 14px;
+  white-space: nowrap;
+}
+.canvas-composer-generate span {
+  font-size: 20px;
+}
+.canvas-composer-actions button:disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
+}
+.canvas-empty-state .canvas-empty-help {
+  align-self: flex-start;
+  margin: 12px 0 0;
+  text-align: left;
+  font-size: 11px;
+  color: #bcb0ce;
+}
+.canvas-empty-help button {
+  border: 0;
+  padding: 0;
+  color: #cfadff;
+  background: transparent;
+  text-decoration: underline;
+  font: inherit;
+  cursor: pointer;
+}
+.canvas-composer-benefits {
+  display: flex;
+  justify-content: space-evenly;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 24px;
+  width: 100%;
+  padding: 0;
+  margin: 42px 0 0;
+  list-style: none;
+}
+.canvas-composer-benefits li {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  color: #f4eefb;
+  font-size: 12px;
+}
+.canvas-composer-benefits li > span {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border: 1px solid #8d59c412;
+  border-radius: 11px;
+  background: linear-gradient(#54307945, #37204e4d);
+  color: #d2afff;
+}
+.orbit-workspace-main {
+  position: relative;
+  isolation: isolate;
+}
+.canvas-ambient-orbits {
+  position: absolute;
+  z-index: -1;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+.canvas-ambient-orbits .project-dashboard-orbit-left {
+  top: -96px;
+  left: -420px;
+}
+.canvas-ambient-orbits .project-dashboard-orbit-right {
+  bottom: -150px;
+  right: -370px;
+}
+.canvas-ambient-orbits .project-dashboard-orbit i {
+  box-shadow: 0 0 26px var(--orbit-sphere-glow);
+}
+@media (max-width: 760px) {
+  .canvas-composer-input {
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  .canvas-composer-input textarea {
+    flex-basis: 100%;
+  }
+  .canvas-composer-voice {
+    margin-left: auto;
+  }
+  .canvas-composer-benefits {
+    flex-direction: column;
+    align-items: flex-start;
+    width: auto;
+    margin-top: 28px;
+  }
+}
+@media (max-width: 640px) {
+  .canvas-empty-state {
+    width: calc(100% - 40px);
+    min-height: 620px;
+    padding: 60px 0;
+  }
+  .canvas-empty-state > p {
+    font-size: 14px;
+  }
+  .canvas-empty-desktop-break {
+    display: none;
+  }
+  .canvas-composer-input textarea {
+    min-height: 56px;
+    height: 56px;
+    font-size: 14px;
+  }
+  .canvas-composer-generate {
+    font-size: 13px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .canvas-ambient-orbits .project-dashboard-orbit i {
+    animation: none;
+  }
+}
+
+.canvas-loading {
+  min-height: 60vh;
+  display: grid;
+  place-items: center;
+  color: #c7bdd9;
+}
+.canvas-planning-notice,
+.canvas-execution-status {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 14px 24px;
+  color: #c7bdd9;
+  font-size: 13px;
+}
+.canvas-planning-notice button,
+.canvas-execution-status button {
+  padding: 9px 14px;
+  border: 1px solid #9260c7;
+  border-radius: 9px;
+  background: #3c2058;
+  color: white;
+  font: inherit;
+  cursor: pointer;
+}
+.canvas-intent-detail {
+  position: fixed;
+  z-index: 35;
+  top: 115px;
+  right: 24px;
+  width: min(360px, calc(100% - 48px));
+  max-height: 70svh;
+  overflow: auto;
+  padding: 24px;
+  border: 1px solid #8259a7;
+  border-radius: 16px;
+  background: #1a1028f5;
+  box-shadow: 0 20px 50px #0008;
+}
+.canvas-intent-detail h2 {
+  margin: 0 28px 16px 0;
+  font-size: 19px;
+}
+.canvas-intent-detail p {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  line-height: 1.6;
+  color: #d1c3e3;
+  font-size: 14px;
+}
+.canvas-intent-detail small {
+  color: #bba1d8;
+}
+.canvas-intent-detail > button {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  border: 0;
+  border-radius: 8px;
+  padding: 4px 10px;
+  background: #553278;
+  color: white;
+  font-size: 24px;
+  cursor: pointer;
+}
+.orbit-workspace .workgraph-node[data-execution-state="COMPLETED"] {
+  border-color: #72cda2;
+}
+.orbit-workspace .workgraph-node[data-execution-state="RUNNING"] {
+  border-color: #9d9bff;
+  background: #252044;
+}
+.orbit-workspace .workgraph-node[data-execution-state="FAILED"] {
+  border-color: #f28caa;
+}
+.orbit-workspace .workgraph-node[data-execution-state="BLOCKED"] {
+  border-color: #d7b581;
+}
+.orbit-workspace .workgraph-node--agent {
+  border-style: dashed;
+}
+.orbit-workspace .workgraph-status {
+  font-size: 10px;
+  font-weight: 600;
+  color: #e9ddf8;
+  letter-spacing: 0.02em;
+}
+.canvas-step-evidence {
+  display: grid;
+  gap: 8px;
+  padding: 18px;
+  border: 1px solid #664580;
+  border-radius: 12px;
+  background: #190e26;
+  overflow-wrap: anywhere;
+}
+.canvas-step-evidence p {
+  margin: 0;
+}
+.canvas-step-evidence a {
+  color: #d5b4ff;
+}
+.canvas-step-evidence button {
+  justify-self: start;
+  margin-top: 10px;
+  border: 1px solid #865ba9;
+  border-radius: 9px;
+  padding: 10px 14px;
+  background: #372049;
+  color: white;
+  font: inherit;
+  cursor: pointer;
+}
+
+.canvas-preview-badge {
+  position: absolute;
+  z-index: 40;
+  top: 24px;
+  right: 28px;
+  border: 1px solid #654682;
+  border-radius: 999px;
+  padding: 8px 14px;
+  color: #d2b6ef;
+  background: #1c112b;
+  font-size: 12px;
+}
+@media (max-width: 640px) {
+  .canvas-preview-badge {
+    top: 20px;
+    right: 20px;
+    font-size: 11px;
+    padding: 6px 10px;
+  }
+}
+
+.canvas-composer-view-controls {
+  top: 22px;
+  right: 24px;
+}
+.canvas-composer-view-controls button:disabled {
+  opacity: 0.5;
+}
+.canvas-composer-minimap {
+  position: absolute;
+  bottom: 24px;
+  left: 24px;
+  display: grid;
+  justify-items: center;
+  gap: 12px;
+  width: 200px;
+  padding: 20px 16px 14px;
+  border: 1px solid #66448b;
+  border-radius: 13px;
+  background: #171024ad;
+}
+.canvas-composer-minimap small {
+  font-size: 10px;
+  color: #a894c0;
+}
+@media (max-width: 900px) {
+  .canvas-composer-view-controls {
+    right: 12px;
+    top: 14px;
+  }
+}
+@media (max-width: 640px) {
+  .canvas-composer-view-controls {
+    position: static;
+    align-self: flex-end;
+    margin: 0 0 30px;
+  }
+  .canvas-composer-minimap {
+    position: static;
+    align-self: flex-start;
+    margin-top: 44px;
+  }
+}
+
+.canvas-heading-accessible {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+.canvas-sidebar-account {
+  flex: 0 0 auto;
+  margin-top: 0;
+}
+.canvas-sidebar-account .orbit-account-nav {
+  position: static;
+  inset: auto;
+  width: 100%;
+}
+.canvas-sidebar-account .orbit-account-menu {
+  position: relative;
+  width: 100%;
+  border-color: #61417d;
+  background: #221331;
+}
+.canvas-sidebar-account .orbit-account-menu summary {
+  padding: 13px 16px;
+  font-size: 13px;
+}
+.canvas-sidebar-account .orbit-account-options {
+  position: absolute;
+  z-index: 45;
+  bottom: calc(100% + 8px);
+  left: 0;
+  right: 0;
+  padding: 6px;
+  border: 1px solid #61417d;
+  border-radius: 12px;
+  background: #221331;
+  box-shadow: 0 -12px 30px #0005;
+}
+.canvas-sidebar-account .orbit-account-options button {
+  width: 100%;
+  margin: 0;
+  min-height: 42px;
+  background: #43265b;
+  font-size: 13px;
+}
+.canvas-sidebar-account .orbit-account-options p {
+  margin: 10px 6px 6px;
+  color: #ffc4d3;
+  font-size: 12px;
+  line-height: 1.5;
+}
+.orbit-workspace .workgraph-root {
+  height: calc(100svh - 150px);
+}
+.canvas-preview-badge {
+  position: fixed;
+  top: auto;
+  right: auto;
+  bottom: 24px;
+  left: 12px;
+  width: 196px;
+  text-align: center;
+}
+@media (max-width: 900px) and (min-width: 641px) {
+  .canvas-preview-badge {
+    width: 156px;
+  }
+}
+@media (max-width: 640px) {
+  .canvas-sidebar-account {
+    width: 100%;
+    margin-top: 8px;
+  }
+  .canvas-sidebar-account .orbit-account-options {
+    max-width: 320px;
+  }
+  .orbit-workspace .workgraph-root {
+    height: 540px;
+  }
+  .canvas-preview-badge {
+    position: static;
+    display: block;
+    width: auto;
+    margin: 12px 20px;
+  }
+}

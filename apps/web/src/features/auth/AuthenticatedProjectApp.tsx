@@ -1,4 +1,6 @@
 import { useMemo, useState, useSyncExternalStore } from "react";
+import { createPortal } from "react-dom";
+import { AccountMenuHostContext } from "./AccountMenuHost.js";
 import { App } from "../../App.js";
 import { createProjectApi } from "../projects/project-api.js";
 import { createIntentApi } from "../intent/intent-api.js";
@@ -19,6 +21,7 @@ export function AuthenticatedProjectApp({
   apiBaseUrl,
   onSignOut,
 }: AuthenticatedProjectAppProps) {
+  const [accountMenuHost, setAccountMenuHost] = useState<HTMLDivElement | null>(null);
   const [signOutError, setSignOutError] = useState<string | null>(null);
   const [isSigningOut, setIsSigningOut] = useState(false);
   const authenticatedSession = useSyncExternalStore(
@@ -61,11 +64,11 @@ export function AuthenticatedProjectApp({
     );
   }
 
-  return (
-    <>
-      <nav aria-label="Account" className="orbit-account-nav">
-        <details className="orbit-account-menu">
-          <summary>Account ▾</summary>
+  const accountMenu = (
+    <nav aria-label="Account" className="orbit-account-nav">
+      <details className="orbit-account-menu">
+        <summary>Account ▾</summary>
+        <div className="orbit-account-options">
           <button
             type="button"
             disabled={isSigningOut}
@@ -81,14 +84,19 @@ export function AuthenticatedProjectApp({
           >
             Sign out
           </button>
-        </details>
-      </nav>
-      {signOutError && <p role="alert">{signOutError}</p>}
+          {signOutError && <p role="alert">{signOutError}</p>}
+        </div>
+      </details>
+    </nav>
+  );
+  return (
+    <AccountMenuHostContext.Provider value={setAccountMenuHost}>
+      {accountMenuHost ? createPortal(accountMenu, accountMenuHost) : accountMenu}
       <App
         key={`${authenticatedSession.organizationId}:${authenticatedSession.principalId}`}
         projectApi={projectApi}
         intentApi={intentApi}
       />
-    </>
+    </AccountMenuHostContext.Provider>
   );
 }
