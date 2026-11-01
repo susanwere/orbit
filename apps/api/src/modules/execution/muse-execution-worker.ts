@@ -4,6 +4,9 @@ import type { SqlDatabase } from "@orbit/db";
 import type { ProjectAuthorizationService } from "../projects/project-authorization.js";
 import type { EngineeringExecutor, EngineeringExecutionResult } from "./muse-code-executor.js";
 
+import { missingRevisionFeedbackSql } from "./revision-feedback.js";
+import { hashMuseReviewOutput } from "./muse-review-output.js";
+
 interface JobRow extends Record<string, unknown> {
   id: string;
   organization_id: string;
@@ -29,11 +32,26 @@ export class MuseExecutionJobService {
   async getStatus(input: { projectId: string; principalId: string; sessionId: string }) {
     const actor = await this.authorization.authorize(input.principalId, input.projectId, "read");
     const result = await this.db.query<Record<string, unknown>>(
-      `SELECT job.id,job.status,job.workflow_step_id,job.attempts,job.started_at,
-         job.finished_at,job.failure_reason,job.github_repository,job.github_pull_number
+      `SELECT job.id,job.status,job.workflow_step_id,job.attempts,job.started_at,session.context_snapshot_id,
+         job.finished_at,job.failure_reason,job.local_execution_state,job.local_execution_error,job.github_ci_state,job.github_ci_report,job.github_review_state,job.github_review_error,job.delivery_state,job.delivery_error,job.github_head_sha,job.github_repository,job.github_pull_number,output.content AS review_output,
+         output.content_hash AS output_hash,output.source AS output_source,output.changed_paths,
+         source.github_repository AS repair_repository,source.github_pull_number AS repair_pull_number,source.github_head_sha AS repair_base_sha,job.repair_source_job_id,(job.status='TURN_FINISHED' AND job.github_pull_number IS NULL AND output.changed_paths='[]'::jsonb AND source.github_ci_state='FAILED') AS needs_ci_repair_retry,source.github_ci_report AS repair_ci_report,
+         ci.artifact_ref AS github_ci_url,ci.metadata->>'runId' AS github_ci_run_id,
+         (job.status='QUEUED' AND job.attempts=0 AND job.started_at IS NULL AND ${missingRevisionFeedbackSql("session")}) AS needs_revision_replacement
        FROM muse_execution_jobs job
        JOIN agent_sessions session ON session.id=job.agent_session_id
          AND session.project_id=job.project_id AND session.organization_id=job.organization_id
+       JOIN workflow_step_executions step ON step.id=job.workflow_step_id AND step.project_id=job.project_id AND step.organization_id=job.organization_id
+       LEFT JOIN muse_job_outputs output ON output.job_id=job.id AND output.project_id=job.project_id AND output.organization_id=job.organization_id
+       LEFT JOIN muse_execution_jobs source ON source.id=job.repair_source_job_id AND source.project_id=job.project_id AND source.organization_id=job.organization_id AND source.workflow_step_id=job.workflow_step_id AND source.status='FAILED'
+       LEFT JOIN LATERAL (
+         SELECT evidence.artifact_ref,evidence.metadata FROM evidence
+         WHERE evidence.project_id=job.project_id AND evidence.organization_id=job.organization_id
+           AND evidence.scope_type='workflow_step' AND evidence.scope_id=step.id AND evidence.category='ci' AND evidence.result='PASSED'
+           AND evidence.metadata->>'provider'='github' AND evidence.metadata->>'repository'=job.github_repository
+           AND evidence.metadata->>'pullNumber'=job.github_pull_number::text AND evidence.metadata->>'headSha'=job.github_head_sha
+         ORDER BY evidence.created_at DESC,evidence.id DESC LIMIT 1
+       ) ci ON true
        WHERE job.project_id=$1 AND job.organization_id=$2
          AND job.agent_session_id=$3
        ORDER BY job.created_at DESC LIMIT 1`,
@@ -42,12 +60,17 @@ export class MuseExecutionJobService {
     return result.rows[0] ?? null;
   }
 
-  async enqueue(input: { projectId: string; principalId: string; sessionId: string }) {
+  async enqueue(input: {
+    projectId: string;
+    principalId: string;
+    sessionId: string;
+    executeLocally?: boolean;
+  }) {
     const actor = await this.authorization.authorize(input.principalId, input.projectId, "review");
     const result = await this.db.query<Record<string, unknown>>(
       `INSERT INTO muse_execution_jobs
-       (id,organization_id,project_id,agent_session_id,workflow_step_id,requested_by_principal_id)
-       SELECT $1,s.organization_id,s.project_id,s.id,step.id,$4
+       (id,organization_id,project_id,agent_session_id,workflow_step_id,requested_by_principal_id,local_execution_requested_at,local_execution_state,repair_source_job_id)
+       SELECT $1,s.organization_id,s.project_id,s.id,step.id,$4,CASE WHEN $7 THEN now() ELSE NULL END,CASE WHEN $7 THEN 'REQUESTED' ELSE NULL END,s.repair_source_job_id
        FROM agent_sessions s
        JOIN workflow_step_executions step
          ON step.agent_session_id=s.id AND step.project_id=s.project_id
@@ -61,9 +84,12 @@ export class MuseExecutionJobService {
        WHERE plan.status='APPROVED' AND plan.revision=step.plan_revision
          AND s.project_id=$2 AND s.organization_id=$3 AND s.id=$5
          AND s.state='RUNNING' AND step.state='RUNNING'
+         AND (step.approval_required=false OR step.approved_by_principal_id IS NOT NULL)
          AND (s.requested_by_principal_id=$4 OR s.human_owner_principal_id=$4 OR $6='admin')
          AND c.allowed_repositories <> '[]'::jsonb
          AND c.allowed_paths <> '[]'::jsonb
+         AND (NOT $7 OR c.allowed_repositories=$8::jsonb)
+         AND NOT ${missingRevisionFeedbackSql("s")}
          AND NOT EXISTS (
            SELECT 1 FROM workflow_step_prerequisites dep
            JOIN workflow_step_executions prereq ON prereq.id=dep.prerequisite_step_id
@@ -78,8 +104,12 @@ export class MuseExecutionJobService {
              AND gate.organization_id=s.organization_id AND gate.agent_session_id=s.id
              AND gate.status='OPEN'
          )
-       ON CONFLICT (project_id,agent_session_id) DO NOTHING
-       RETURNING id,project_id,agent_session_id,workflow_step_id,status`,
+       ON CONFLICT (project_id,agent_session_id) DO UPDATE
+       SET local_execution_requested_at=COALESCE(muse_execution_jobs.local_execution_requested_at,now()),
+           local_execution_state=CASE WHEN muse_execution_jobs.local_execution_state IS NULL OR muse_execution_jobs.local_execution_state='ERROR' THEN 'REQUESTED' ELSE muse_execution_jobs.local_execution_state END,
+           local_execution_error=CASE WHEN muse_execution_jobs.local_execution_state IS NULL OR muse_execution_jobs.local_execution_state='ERROR' THEN NULL ELSE muse_execution_jobs.local_execution_error END
+       WHERE $7 AND muse_execution_jobs.status='QUEUED' AND muse_execution_jobs.attempts=0
+       RETURNING id,project_id,agent_session_id,workflow_step_id,status,local_execution_state`,
       [
         `musejob_${this.uuid()}`,
         input.projectId,
@@ -87,6 +117,8 @@ export class MuseExecutionJobService {
         input.principalId,
         input.sessionId,
         actor.role,
+        input.executeLocally === true,
+        JSON.stringify(["susanwere/private-test"]),
       ],
     );
     if (!result.rows[0])
@@ -96,6 +128,13 @@ export class MuseExecutionJobService {
       );
     return result.rows[0];
   }
+}
+
+export interface MuseJobSelection {
+  readonly jobId: string;
+  readonly projectId: string;
+  readonly repository: string;
+  readonly allowedPaths: readonly string[];
 }
 
 /**
@@ -109,7 +148,10 @@ export class MuseExecutionWorker {
     private readonly executor: EngineeringExecutor,
   ) {}
 
-  async runNext(workspace: string): Promise<{ jobId: string; status: string } | null> {
+  async runNext(
+    workspace: string,
+    selection?: MuseJobSelection,
+  ): Promise<{ jobId: string; status: string } | null> {
     // Do not allow this worker to be accidentally activated on the API host.
     if (process.env.ORBIT_MUSE_ISOLATED_WORKER !== "true") {
       throw new Error("Muse worker requires an explicitly isolated execution environment.");
@@ -129,6 +171,9 @@ export class MuseExecutionWorker {
          JOIN plan_proposals plan ON plan.id=step.plan_id AND plan.project_id=step.project_id
            AND plan.organization_id=step.organization_id
          WHERE job.status='QUEUED' AND s.state='RUNNING' AND step.state='RUNNING'
+           AND ($1::text IS NULL OR (job.id=$1 AND job.project_id=$2
+             AND c.allowed_repositories=$3::jsonb AND c.allowed_paths=$4::jsonb))
+           AND (step.approval_required=false OR step.approved_by_principal_id IS NOT NULL)
            AND plan.status='APPROVED' AND plan.revision=step.plan_revision
            AND step.organization_id=job.organization_id
            AND NOT EXISTS (
@@ -140,12 +185,18 @@ export class MuseExecutionWorker {
                AND dependency.organization_id=step.organization_id
                AND (prior.state <> 'COMPLETED' OR prior.plan_id <> step.plan_id)
            )
+           AND NOT ${missingRevisionFeedbackSql("s")}
            AND c.allowed_repositories <> '[]'::jsonb AND c.allowed_paths <> '[]'::jsonb
            AND NOT EXISTS (SELECT 1 FROM human_gates gate
              WHERE gate.agent_session_id=s.id AND gate.project_id=s.project_id
                AND gate.organization_id=s.organization_id AND gate.status='OPEN')
          ORDER BY job.created_at LIMIT 1 FOR UPDATE OF job SKIP LOCKED`,
-        [],
+        [
+          selection?.jobId ?? null,
+          selection?.projectId ?? null,
+          JSON.stringify(selection ? [selection.repository] : []),
+          JSON.stringify(selection?.allowedPaths ?? []),
+        ],
       );
       const candidate = claim.rows[0];
       if (!candidate) return null;
@@ -211,6 +262,20 @@ export class MuseExecutionWorker {
       // Recovery or another owner may have won the lease. A stale worker has
       // no authority to finalize a session or step after its lease expired.
       if (!finalized.rows[0]) return false;
+      if (!failure && result?.reviewOutput && result.changedPaths) {
+        await tx.query(
+          `INSERT INTO muse_job_outputs(job_id,organization_id,project_id,content,content_hash,changed_paths,source)
+          VALUES($1,$2,$3,$4,$5,$6::jsonb,'execution') ON CONFLICT (job_id) DO NOTHING`,
+          [
+            job.id,
+            job.organization_id,
+            job.project_id,
+            result.reviewOutput,
+            hashMuseReviewOutput(result.reviewOutput),
+            JSON.stringify(result.changedPaths),
+          ],
+        );
+      }
       if (failure) {
         await tx.query(
           `UPDATE agent_sessions SET state='FAILED',ended_at=now()
@@ -227,5 +292,60 @@ export class MuseExecutionWorker {
       return true;
     });
     return { jobId: job.id, status: leaseFinalized ? state : "LEASE_LOST" };
+  }
+  /** A new read-only turn, not a replay or fabricated recovery of historical output. */
+  async recoverOutput(workspace: string, selection: MuseJobSelection) {
+    if (process.env.ORBIT_MUSE_ISOLATED_WORKER !== "true")
+      throw new Error("Isolated output recovery required.");
+    return this.db.transaction(async (transaction) => {
+      const jobs = await transaction.query<JobRow>(
+        `SELECT job.*,session.mission FROM muse_execution_jobs job
+         JOIN agent_sessions session ON session.id=job.agent_session_id AND session.project_id=job.project_id AND session.organization_id=job.organization_id
+         JOIN execution_contracts contract ON contract.id=session.execution_contract_id AND contract.project_id=job.project_id AND contract.organization_id=job.organization_id
+         JOIN workflow_step_executions step ON step.id=job.workflow_step_id AND step.project_id=job.project_id AND step.organization_id=job.organization_id
+         JOIN plan_proposals plan ON plan.id=step.plan_id AND plan.project_id=step.project_id AND plan.organization_id=step.organization_id
+         WHERE job.id=$1 AND job.project_id=$2 AND job.status='TURN_FINISHED' AND job.github_repository IS NULL
+           AND step.state='RUNNING' AND step.agent_session_id=session.id AND session.state='RUNNING' AND plan.status='APPROVED' AND plan.revision=step.plan_revision
+           AND contract.allowed_repositories=$3::jsonb AND contract.allowed_paths=$4::jsonb
+           AND contract.network_policy='none' AND contract.network_allowlist='[]'::jsonb
+           AND NOT EXISTS(SELECT 1 FROM muse_job_outputs output WHERE output.job_id=job.id)
+           AND NOT EXISTS(SELECT 1 FROM human_gates gate WHERE gate.project_id=job.project_id AND gate.organization_id=job.organization_id AND gate.agent_session_id=session.id AND gate.status='OPEN')
+         FOR UPDATE OF job SKIP LOCKED`,
+        [
+          selection.jobId,
+          selection.projectId,
+          JSON.stringify([selection.repository]),
+          JSON.stringify(selection.allowedPaths),
+        ],
+      );
+      const job = jobs.rows[0];
+      if (!job) throw new Error("Job has no recoverable missing output.");
+      const result = await this.executor.execute({
+        workspace,
+        modelSteps: 20,
+        timeoutMs: 600000,
+        mission: `${job.mission}\nThis is a NEW read-only regeneration because the prior answer was not retained. Return the complete draft options and wording in your final response. Do not claim human approval, change files, run commands or implement anything.`,
+      });
+      if (
+        result.exitCode !== 0 ||
+        result.outputTruncated ||
+        !result.reviewOutput ||
+        !result.changedPaths ||
+        result.changedPaths.length
+      )
+        throw new Error("No bounded read-only review output was produced.");
+      await transaction.query(
+        `INSERT INTO muse_job_outputs(job_id,organization_id,project_id,content,content_hash,changed_paths,source)
+        VALUES($1,$2,$3,$4,$5,'[]'::jsonb,'read_only_recovery')`,
+        [
+          job.id,
+          job.organization_id,
+          job.project_id,
+          result.reviewOutput,
+          hashMuseReviewOutput(result.reviewOutput),
+        ],
+      );
+      return { jobId: job.id, status: "OUTPUT_REGENERATED" };
+    });
   }
 }

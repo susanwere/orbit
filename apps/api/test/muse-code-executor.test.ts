@@ -37,6 +37,30 @@ describe("Muse Code executor adapter", () => {
     });
   });
 
+  it("withholds shell and web tools in the local file-edit container", async () => {
+    const adapter = new MuseCodeCliExecutor(
+      {
+        run: async (arguments_) => {
+          expect(arguments_).toEqual(
+            expect.arrayContaining([
+              "--disable-shell",
+              "--disable-web-tools",
+              "--no-foreign-personal-context",
+              "--no-session-log",
+              "--sandbox-network",
+              "restricted",
+            ]),
+          );
+          expect(arguments_).not.toContain("--disable-sandbox");
+          expect(arguments_).not.toContain("--yolo");
+          return { exitCode: 0, stdout: "" };
+        },
+      },
+      true,
+    );
+    await adapter.execute(request);
+  });
+
   it("rejects requests outside resource limits before launching", async () => {
     let called = false;
     const adapter = new MuseCodeCliExecutor({

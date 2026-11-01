@@ -8,3 +8,6 @@ coverage/
 
 # Source briefs stay local (large binaries); canonical copies live outside the repo.
 docs/
+
+# Disposable worker checkouts and generated mount policies
+.orbit-local/

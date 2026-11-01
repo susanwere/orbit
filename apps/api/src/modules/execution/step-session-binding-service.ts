@@ -27,6 +27,11 @@ export class StepSessionBindingService {
            AND session.id=$4 AND session.project_id=step.project_id
            AND session.organization_id=step.organization_id AND session.state='AUTHORIZED'
            AND session.work_item_id=('work:' || step.plan_id || ':' || step.work_item_key)
+           AND (session.repair_source_job_id IS NULL OR EXISTS (
+             SELECT 1 FROM muse_execution_jobs source WHERE source.id=session.repair_source_job_id AND source.project_id=step.project_id AND source.organization_id=step.organization_id AND source.workflow_step_id=step.id AND source.status='FAILED' AND source.github_ci_state='FAILED'))
+           AND NOT EXISTS (
+             SELECT 1 FROM muse_execution_jobs source WHERE source.project_id=step.project_id AND source.organization_id=step.organization_id AND source.workflow_step_id=step.id AND source.status='FAILED' AND source.github_ci_state='FAILED' AND session.repair_source_job_id IS DISTINCT FROM source.id
+               AND source.id=(SELECT latest.id FROM muse_execution_jobs latest WHERE latest.project_id=step.project_id AND latest.organization_id=step.organization_id AND latest.workflow_step_id=step.id AND latest.status='FAILED' AND latest.github_ci_state='FAILED' ORDER BY latest.created_at DESC,latest.id DESC LIMIT 1))
            AND (session.requested_by_principal_id=$5
                 OR session.human_owner_principal_id=$5 OR $6='admin')
          RETURNING step.*`,

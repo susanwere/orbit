@@ -134,7 +134,7 @@ export function resolveContextSnapshot(input: ResolveSnapshotInput): ContextSnap
       capabilities: agent.capabilities,
       policyEvaluationIds: [],
     },
-    maxClassification: classification,
+    maxClassification: items.length ? classification : "PUBLIC",
     allowedRepositories: agent.allowedRepositories,
     allowedPaths: agent.allowedPaths,
     forbiddenData: [],

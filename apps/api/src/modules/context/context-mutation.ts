@@ -7,7 +7,7 @@ import {
   type ProjectContextPreview,
 } from "@orbit/domain";
 
-const IMMUTABLE_ROOTS = new Set(["projectId", "originalIntentId"]);
+const IMMUTABLE_ROOTS = new Set(["projectId", "originalIntentId", "workflowReviews"]);
 const UNSAFE_POINTER_SEGMENTS = new Set(["__proto__", "prototype", "constructor"]);
 
 function decodePointerSegment(segment: string): string {

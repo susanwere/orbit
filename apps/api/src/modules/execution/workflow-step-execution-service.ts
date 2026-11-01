@@ -2,6 +2,8 @@ import { DomainError } from "@orbit/domain";
 import type { SqlDatabase } from "@orbit/db";
 import type { ProjectAuthorizationService } from "../projects/project-authorization.js";
 
+import { missingRevisionFeedbackSql } from "./revision-feedback.js";
+
 interface StepRow extends Record<string, unknown> {
   id: string;
   state: string;
@@ -129,6 +131,85 @@ export class WorkflowStepExecutionService {
         ],
       );
       return updated.rows[0];
+    });
+  }
+
+  /** Retire only an unclaimed job; never rewrite its session or snapshot. */
+  async retireUnstartedJob(input: {
+    projectId: string;
+    principalId: string;
+    stepId: string;
+    jobId: string;
+  }) {
+    const actor = await this.authorization.authorize(input.principalId, input.projectId, "review");
+    return this.db.transaction(async (transaction) => {
+      await transaction.query("SELECT pg_advisory_xact_lock(hashtextextended($1,0))", [
+        `orbit:steps:${actor.organizationId}:${input.projectId}`,
+      ]);
+      const candidates = await transaction.query<
+        { agent_session_id: string } & Record<string, unknown>
+      >(
+        `SELECT job.agent_session_id FROM muse_execution_jobs job
+         JOIN workflow_step_executions step ON step.id=job.workflow_step_id AND step.project_id=job.project_id AND step.organization_id=job.organization_id
+         JOIN agent_sessions session ON session.id=job.agent_session_id AND session.project_id=job.project_id AND session.organization_id=job.organization_id
+         JOIN plan_proposals plan ON plan.id=step.plan_id AND plan.project_id=step.project_id AND plan.organization_id=step.organization_id
+         WHERE job.id=$1 AND step.id=$2 AND job.project_id=$3 AND job.organization_id=$4
+           AND job.status='QUEUED' AND job.attempts=0 AND job.started_at IS NULL
+           AND ${missingRevisionFeedbackSql("session")}
+           AND session.state='RUNNING' AND step.state='RUNNING' AND step.agent_session_id=session.id
+           AND plan.status='APPROVED' AND plan.revision=step.plan_revision
+           AND (session.requested_by_principal_id=$5 OR session.human_owner_principal_id=$5 OR $6='admin')
+           AND NOT EXISTS(SELECT 1 FROM human_gates gate WHERE gate.project_id=job.project_id AND gate.organization_id=job.organization_id AND gate.agent_session_id=session.id AND gate.status='OPEN')
+         FOR UPDATE OF job,step,session`,
+        [
+          input.jobId,
+          input.stepId,
+          input.projectId,
+          actor.organizationId,
+          input.principalId,
+          actor.role,
+        ],
+      );
+      const candidate = candidates.rows[0];
+      if (!candidate)
+        throw new DomainError(
+          "invalid_state",
+          "Only an unstarted queued job missing revision feedback can be replaced by its owner or admin. Refresh status; a current or running session cannot be replaced.",
+        );
+      await transaction.query(
+        `UPDATE muse_execution_jobs SET status='FAILED',finished_at=now(),failure_reason='Retired before execution by authenticated human; replacement session required.'
+        WHERE id=$1 AND project_id=$2 AND organization_id=$3`,
+        [input.jobId, input.projectId, actor.organizationId],
+      );
+      await transaction.query(
+        "UPDATE agent_sessions SET state='TERMINATED',ended_at=now() WHERE id=$1 AND project_id=$2 AND organization_id=$3",
+        [candidate.agent_session_id, input.projectId, actor.organizationId],
+      );
+      await transaction.query(
+        "UPDATE workflow_step_executions SET state='FAILED' WHERE id=$1 AND project_id=$2 AND organization_id=$3",
+        [input.stepId, input.projectId, actor.organizationId],
+      );
+      await transaction.query(
+        `INSERT INTO events(id,organization_id,project_id,type,occurred_at,actor_type,actor_id,entity_type,entity_id,payload)
+        VALUES(gen_random_uuid()::text,$1,$2,'execution.unstarted_job.retired',now(),'human',$3,'workflow_step',$4,$5::jsonb)`,
+        [
+          actor.organizationId,
+          input.projectId,
+          input.principalId,
+          input.stepId,
+          JSON.stringify({
+            jobId: input.jobId,
+            previousAgentSessionId: candidate.agent_session_id,
+            snapshotUnchanged: true,
+          }),
+        ],
+      );
+      return {
+        stepId: input.stepId,
+        jobId: input.jobId,
+        state: "FAILED",
+        previousAgentSessionId: candidate.agent_session_id,
+      };
     });
   }
 

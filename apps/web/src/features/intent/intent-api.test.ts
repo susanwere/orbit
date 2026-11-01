@@ -169,3 +169,117 @@ describe("existing project repository registration", () => {
     expect(send.mock.calls[1]?.[1]?.method).toBe("GET");
   });
 });
+
+describe("authenticated human output review", () => {
+  it("allows approval without sending a comment", async () => {
+    const send = vi.fn<typeof fetch>().mockImplementation(async () => new Response("{}"));
+    const api = createIntentApi("http://localhost:4000", () => "Bearer signed", send);
+    await api.reviewOutput("project", "proposal-step", "a".repeat(64));
+    await api.completeHumanReview("project", "human-step");
+    expect(send.mock.calls[0]?.[1]?.body).toBe(JSON.stringify({ outputHash: "a".repeat(64) }));
+    expect(send.mock.calls[1]?.[1]?.body).toBe("{}");
+  });
+
+  it("sends explicit proposal designation, exact output hash and human decision separately", async () => {
+    const send = vi.fn<typeof fetch>().mockImplementation(async () => new Response("{}"));
+    const api = createIntentApi("http://localhost:4000", () => "Bearer signed", send);
+    await api.authorizeProposalReview("project", "step:one");
+    await api.reviewOutput("project", "step:one", "a".repeat(64), "Use simultaneous greetings");
+    await api.completeHumanReview("project", "step:two", "Approved final wording");
+    expect(send.mock.calls[0]?.[0]).toBe(
+      "http://localhost:4000/projects/project/execution/steps/step%3Aone/authorize-proposal-review",
+    );
+    expect(send.mock.calls[0]?.[1]?.body).toBe(JSON.stringify({ acknowledgeNonCodeStep: true }));
+    expect(send.mock.calls[1]?.[1]?.body).toBe(
+      JSON.stringify({ outputHash: "a".repeat(64), note: "Use simultaneous greetings" }),
+    );
+    expect(send.mock.calls[2]?.[1]?.body).toBe(JSON.stringify({ note: "Approved final wording" }));
+    expect(send).toHaveBeenCalledTimes(3);
+    for (const call of send.mock.calls)
+      expect(call[1]?.headers).toMatchObject({ Authorization: "Bearer signed" });
+  });
+});
+
+describe("queued session replacement", () => {
+  it("retires the exact unstarted job and authorizes retry without starting another session", async () => {
+    const send = vi.fn<typeof fetch>().mockImplementation(async () => new Response("{}"));
+    const api = createIntentApi("http://localhost:4000", () => "Bearer signed", send);
+    await api.retireUnstartedJob("project", "step", "job-1");
+    await api.authorizeExecutionRetry("project", "step");
+    expect(send.mock.calls[0]?.[0]).toBe(
+      "http://localhost:4000/projects/project/execution/steps/step/retire-unstarted-job",
+    );
+    expect(send.mock.calls[0]?.[1]?.body).toBe(
+      JSON.stringify({ jobId: "job-1", acknowledgeReplacement: true }),
+    );
+    expect(send.mock.calls[1]?.[1]?.body).toBe(JSON.stringify({ acknowledgeFailedAttempt: true }));
+    expect(send).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe("browser local execution", () => {
+  it("explicitly requests local execution through the existing authenticated dispatch endpoint", async () => {
+    const send = vi.fn<typeof fetch>().mockResolvedValue(new Response("{}", { status: 202 }));
+    const api = createIntentApi("http://localhost:4000", () => "Bearer signed", send);
+    await api.dispatchMuse("project", "session");
+    expect(send.mock.calls[0]?.[0]).toBe(
+      "http://localhost:4000/projects/project/agent-sessions/session/dispatch-muse",
+    );
+    expect(send.mock.calls[0]?.[1]).toMatchObject({
+      method: "POST",
+      body: JSON.stringify({ executeLocally: true }),
+      headers: { Authorization: "Bearer signed" },
+    });
+    expect(send).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("explicit GitHub delivery request", () => {
+  it("sends exact reviewed job and push consent through the authenticated API", async () => {
+    const send = vi.fn<typeof fetch>().mockImplementation(async () => new Response("{}"));
+    const api = createIntentApi("http://localhost:4000", () => "Bearer signed", send);
+    await api.requestDelivery("project", "step:one", "musejob-test", "a".repeat(64));
+    expect(send.mock.calls[0]?.[0]).toBe(
+      "http://localhost:4000/projects/project/execution/steps/step%3Aone/request-delivery",
+    );
+    expect(send.mock.calls[0]?.[1]).toMatchObject({
+      method: "POST",
+      headers: { Authorization: "Bearer signed" },
+      body: JSON.stringify({
+        jobId: "musejob-test",
+        outputHash: "a".repeat(64),
+        acknowledgePush: true,
+      }),
+    });
+  });
+});
+
+describe("CI inspection and fresh repair authorization", () => {
+  it("shares exact failure identity and carries the source job into a fresh session", async () => {
+    const send = vi
+      .fn<typeof fetch>()
+      .mockImplementation(
+        async () => new Response(JSON.stringify({ session: { id: "new-repair-session" } })),
+      );
+    const api = createIntentApi("http://localhost:4000", () => "Bearer signed", send);
+    await api.inspectGithubCi("project", "step:one", "failed-job");
+    await api.prepareCiRepair("project", "step:one", "failed-job");
+    expect(
+      await api.createAgentSession("project", "agent", "work", "Repair CI", "failed-job"),
+    ).toBe("new-repair-session");
+    expect(send.mock.calls[0]?.[0]).toContain("/step%3Aone/inspect-github-ci");
+    expect(send.mock.calls[1]?.[1]?.body).toBe(
+      JSON.stringify({ jobId: "failed-job", acknowledgeRepair: true }),
+    );
+    expect(send.mock.calls[2]?.[1]?.body).toBe(
+      JSON.stringify({
+        agentDefinitionId: "agent",
+        workItemId: "work",
+        mission: "Repair CI",
+        repairSourceJobId: "failed-job",
+      }),
+    );
+    for (const call of send.mock.calls)
+      expect(call[1]?.headers).toMatchObject({ Authorization: "Bearer signed" });
+  });
+});

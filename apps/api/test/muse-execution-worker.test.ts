@@ -15,7 +15,15 @@ describe("Muse execution queue", () => {
       {
         query: async (sql: string, args: unknown[]) => {
           statement = sql;
-          expect(args.slice(1)).toEqual(["project", "org", "human", "session", "member"]);
+          expect(args.slice(1)).toEqual([
+            "project",
+            "org",
+            "human",
+            "session",
+            "member",
+            false,
+            '["susanwere/private-test"]',
+          ]);
           return { rows: [{ id: "job", status: "QUEUED" }] };
         },
       } as never,
@@ -175,6 +183,43 @@ describe("isolated Muse execution worker", () => {
         sql.includes("UPDATE workflow_step_executions SET state='FAILED'"),
       ),
     ).toBe(false);
+  });
+
+  it("pins local claims to the selected job, project, repository and mount contract", async () => {
+    process.env.ORBIT_MUSE_ISOLATED_WORKER = "true";
+    const selection = {
+      jobId: "selected-job",
+      projectId: "project",
+      repository: "org/repo",
+      allowedPaths: ["src/**"],
+    };
+    let invoked = false;
+    const worker = new MuseExecutionWorker(
+      {
+        transaction: async (callback: (transaction: unknown) => Promise<unknown>) =>
+          callback({
+            query: async (statement: string, parameters: unknown[]) => {
+              expect(statement).toContain("job.id=$1 AND job.project_id=$2");
+              expect(statement).toContain(
+                "c.allowed_repositories=$3::jsonb AND c.allowed_paths=$4::jsonb",
+              );
+              expect(statement).toContain(
+                "step.approval_required=false OR step.approved_by_principal_id IS NOT NULL",
+              );
+              expect(parameters).toEqual(["selected-job", "project", '["org/repo"]', '["src/**"]']);
+              return { rows: [] };
+            },
+          }),
+      } as never,
+      {
+        execute: async () => {
+          invoked = true;
+          throw new Error("Unexpected execution");
+        },
+      },
+    );
+    expect(await worker.runNext("/workspace", selection)).toBeNull();
+    expect(invoked).toBe(false);
   });
 
   it("marks failed session and step when Muse exits unsuccessfully", async () => {
