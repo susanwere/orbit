@@ -59,7 +59,10 @@ export function decodeDocumentUpload(input: unknown): {
   const extensions = allowed.get(mediaType)!;
   if (!extensions.some((suffix) => filename.toLowerCase().endsWith(suffix)))
     throw new DomainError("validation", "The document extension does not match its media type.");
-  if (base64.length > Math.ceil(MAX_BYTES / 3) * 4 + 4 || !/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(base64))
+  if (
+    base64.length > Math.ceil(MAX_BYTES / 3) * 4 + 4 ||
+    !/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(base64)
+  )
     throw new DomainError("validation", "Document encoding or size is invalid.");
   const contents = Buffer.from(base64, "base64");
   if (!contents.length || contents.length > MAX_BYTES)
@@ -67,11 +70,19 @@ export function decodeDocumentUpload(input: unknown): {
   // Avoid trusting the caller's filename/media type alone for binary formats.
   if (mediaType === "application/pdf" && !contents.subarray(0, 5).equals(Buffer.from("%PDF-")))
     throw new DomainError("validation", "Invalid PDF signature.");
-  if (filename.toLowerCase().endsWith(".docx") && !contents.subarray(0, 4).equals(Buffer.from([0x50,0x4b,0x03,0x04])))
+  if (
+    filename.toLowerCase().endsWith(".docx") &&
+    !contents.subarray(0, 4).equals(Buffer.from([0x50, 0x4b, 0x03, 0x04]))
+  )
     throw new DomainError("validation", "Invalid DOCX container signature.");
   if (mediaType.startsWith("text/") && contents.includes(0))
     throw new DomainError("validation", "Invalid text document.");
-  return { filename, mediaType, contents, sha256: createHash("sha256").update(contents).digest("hex") };
+  return {
+    filename,
+    mediaType,
+    contents,
+    sha256: createHash("sha256").update(contents).digest("hex"),
+  };
 }
 
 export async function registerProjectDocumentRoutes(
@@ -79,12 +90,17 @@ export async function registerProjectDocumentRoutes(
   options: ProjectDocumentRouteOptions,
 ) {
   const { db, auth, authorization, storage } = options;
-  const access = async (header: string | undefined, projectId: string, permission: "read" | "review") => {
+  const access = async (
+    header: string | undefined,
+    projectId: string,
+    permission: "read" | "review",
+  ) => {
     const principal = auth.verify(header);
     const actor = await authorization.authorize(principal.id, projectId, permission);
     return { principal, actor };
   };
-  const projection = "id,project_id,organization_id,original_filename,media_type,size_bytes,sha256,processing_status,version,created_at";
+  const projection =
+    "id,project_id,organization_id,original_filename,media_type,size_bytes,sha256,processing_status,version,created_at";
 
   app.post<{ Params: { projectId: string }; Body: unknown }>(
     "/projects/:projectId/documents",
@@ -99,8 +115,17 @@ export async function registerProjectDocumentRoutes(
           `INSERT INTO project_documents
            (id,project_id,organization_id,uploaded_by_principal_id,original_filename,media_type,size_bytes,sha256,storage_key)
            VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING ${projection}`,
-          [randomUUID(), projectId, actor.organizationId, principal.id, uploaded.filename,
-            uploaded.mediaType, uploaded.contents.length, uploaded.sha256, key],
+          [
+            randomUUID(),
+            projectId,
+            actor.organizationId,
+            principal.id,
+            uploaded.filename,
+            uploaded.mediaType,
+            uploaded.contents.length,
+            uploaded.sha256,
+            key,
+          ],
         );
         return reply.status(201).send(stored.rows[0]);
       } catch (error) {
@@ -110,23 +135,24 @@ export async function registerProjectDocumentRoutes(
     },
   );
 
-  app.get<{ Params: { projectId: string } }>(
-    "/projects/:projectId/documents",
-    async (request) => {
-      const { actor } = await access(request.headers.authorization, request.params.projectId, "read");
-      const result = await db.query<DocumentRow>(
-        `SELECT ${projection} FROM project_documents
+  app.get<{ Params: { projectId: string } }>("/projects/:projectId/documents", async (request) => {
+    const { actor } = await access(request.headers.authorization, request.params.projectId, "read");
+    const result = await db.query<DocumentRow>(
+      `SELECT ${projection} FROM project_documents
          WHERE project_id=$1 AND organization_id=$2 ORDER BY created_at DESC,id DESC LIMIT 100`,
-        [request.params.projectId, actor.organizationId],
-      );
-      return { documents: result.rows };
-    },
-  );
+      [request.params.projectId, actor.organizationId],
+    );
+    return { documents: result.rows };
+  });
 
   app.get<{ Params: { projectId: string; documentId: string } }>(
     "/projects/:projectId/documents/:documentId",
     async (request) => {
-      const { actor } = await access(request.headers.authorization, request.params.projectId, "read");
+      const { actor } = await access(
+        request.headers.authorization,
+        request.params.projectId,
+        "read",
+      );
       const result = await db.query<DocumentRow>(
         `SELECT ${projection} FROM project_documents
          WHERE project_id=$1 AND organization_id=$2 AND id=$3`,
