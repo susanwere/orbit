@@ -1,4 +1,15 @@
 :root {
+  --orbit-brand-color: #8350f5;
+  --orbit-brand-highlight: #aa73ff;
+  --orbit-brand-depth: #5720ed;
+  --orbit-brand-glow: #9355ff33;
+  --orbit-page-background:
+    radial-gradient(ellipse at 5% 34%, #30128666, transparent 30%),
+    radial-gradient(ellipse at 72% 92%, #28105b66, transparent 32%),
+    radial-gradient(ellipse at 45% 6%, #21104c55, transparent 35%), #070713;
+  --orbit-track-color: #6a36d380;
+  --orbit-sphere-background: radial-gradient(circle at 28% 20%, #9e68ff, #5b2de2 65%, #391188);
+  --orbit-sphere-glow: #713eff66;
   font-family:
     Inter,
     ui-sans-serif,

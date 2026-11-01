@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import type { CreatedProject, ProjectCreationApi } from "./project-api.js";
+import type { CreatedProject, ProjectCreationApi, ProjectPage } from "./project-api.js";
 import "./project-dashboard.css";
 
 interface Props {
@@ -9,152 +9,273 @@ interface Props {
   readonly onHome: () => void;
 }
 
+const projectsPerPage = 6;
+const visiblePageButtons = 4;
+const projectBatchSize = projectsPerPage * visiblePageButtons;
+
 export function ProjectDashboard({ api, onOpen, onCreate, onHome }: Props) {
-  const [projects, setProjects] = useState<CreatedProject[]>([]);
-  const [cursor, setCursor] = useState<string | null>(null);
+  const [projectPages, setProjectPages] = useState<ProjectPage[]>([]);
+  const [pageIndex, setPageIndex] = useState(0);
   const [query, setQuery] = useState("");
-  const [loading, setLoading] = useState(true);
-  const [loadingMore, setLoadingMore] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [reload, setReload] = useState(0);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingNextPage, setIsLoadingNextPage] = useState(false);
+  const [projectError, setProjectError] = useState<string | null>(null);
+  const [reloadAttempt, setReloadAttempt] = useState(0);
 
   useEffect(() => {
-    let cancelled = false;
-    setLoading(true);
-    setError(null);
-    void api.listProjects().then(
-      (page) => {
-        if (cancelled) return;
-        setProjects(page.projects);
-        setCursor(page.nextCursor);
-        setLoading(false);
+    let isActive = true;
+    setIsLoading(true);
+    setProjectError(null);
+    setProjectPages([]);
+    setPageIndex(0);
+    void api.listProjects(projectBatchSize).then(
+      (projectPage) => {
+        if (!isActive) return;
+        setProjectPages([projectPage]);
+        setIsLoading(false);
       },
       (failure: unknown) => {
-        if (cancelled) return;
-        setError(failure instanceof Error ? failure.message : "Could not load projects.");
-        setLoading(false);
+        if (!isActive) return;
+        setProjectError(failure instanceof Error ? failure.message : "Could not load projects.");
+        setIsLoading(false);
       },
     );
     return () => {
-      cancelled = true;
+      isActive = false;
     };
-  }, [api, reload]);
+  }, [api, reloadAttempt]);
 
-  async function more() {
-    if (!cursor || loadingMore) return;
-    setLoadingMore(true);
-    setError(null);
+  const loadedProjects = projectPages.flatMap((projectPage) => projectPage.projects);
+  const normalizedQuery = query.trim().toLocaleLowerCase();
+  const matchingProjects = loadedProjects.filter((project) =>
+    project.name.toLocaleLowerCase().includes(normalizedQuery),
+  );
+  const nextCursor = projectPages.at(-1)?.nextCursor;
+  const knownPageCount = Math.max(1, Math.ceil(matchingProjects.length / projectsPerPage));
+  const firstVisiblePageIndex = Math.max(
+    0,
+    Math.min(pageIndex - 1, knownPageCount - visiblePageButtons),
+  );
+  const visibleProjects = matchingProjects.slice(
+    pageIndex * projectsPerPage,
+    (pageIndex + 1) * projectsPerPage,
+  );
+
+  async function loadNextPage() {
+    if (!nextCursor || isLoadingNextPage) return;
+    setIsLoadingNextPage(true);
+    setProjectError(null);
     try {
-      const page = await api.listProjects(25, cursor);
-      setProjects((current) => {
-        const seen = new Set(current.map((project) => project.id));
-        return [...current, ...page.projects.filter((project) => !seen.has(project.id))];
-      });
-      setCursor(page.nextCursor);
+      const nextPage = await api.listProjects(projectBatchSize, nextCursor);
+      const knownProjectIds = new Set(loadedProjects.map((project) => project.id));
+      const additionalProjects = nextPage.projects.filter(
+        (project) => !knownProjectIds.has(project.id),
+      );
+      setProjectPages((previousPages) => [
+        ...previousPages,
+        { ...nextPage, projects: additionalProjects },
+      ]);
+      if (!normalizedQuery && additionalProjects.length > 0) {
+        const lastAvailablePage =
+          Math.ceil((loadedProjects.length + additionalProjects.length) / projectsPerPage) - 1;
+        setPageIndex(Math.min(pageIndex + 1, lastAvailablePage));
+      }
     } catch (failure) {
-      setError(failure instanceof Error ? failure.message : "Could not load more projects.");
+      setProjectError(failure instanceof Error ? failure.message : "Could not load more projects.");
     } finally {
-      setLoadingMore(false);
+      setIsLoadingNextPage(false);
     }
   }
-  const matches = projects.filter((project) =>
-    project.name.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase()),
-  );
+
   return (
-    <main className="project-dashboard">
-      <aside className="project-dashboard-sidebar" aria-label="Workspace navigation">
+    <main className="project-dashboard" aria-labelledby="project-dashboard-heading">
+      <div className="project-dashboard-orbit project-dashboard-orbit-left" aria-hidden="true">
+        <i />
+        <i />
+      </div>
+      <div className="project-dashboard-orbit project-dashboard-orbit-right" aria-hidden="true">
+        <i />
+      </div>
+      <nav className="project-dashboard-topbar" aria-label="Workspace navigation">
         <button
           type="button"
-          className="project-dashboard-logo project-dashboard-home"
+          className="project-dashboard-home"
           onClick={onHome}
           aria-label="Orbit home"
         >
-          ◈ Orbit
+          <span className="project-dashboard-brand-mark" aria-hidden="true" />
+          Orbit
         </button>
-        <button type="button" className="project-dashboard-home-link" onClick={onHome}>
-          ⌂ &nbsp; Home
-        </button>
-        <span className="project-dashboard-current">▦ &nbsp; Projects</span>
-        <p>Intent-led engineering, with humans in control.</p>
-      </aside>
-      <section className="project-dashboard-main" aria-labelledby="project-dashboard-heading">
+      </nav>
+      <section className="project-dashboard-main">
         <header className="project-dashboard-header">
-          <div>
-            <p className="project-dashboard-eyebrow">YOUR WORKSPACE</p>
-            <h1 id="project-dashboard-heading">Projects</h1>
-            <p>Pick up where you left off or start something new.</p>
-          </div>
-          <button className="project-dashboard-create" type="button" onClick={onCreate}>
-            + New project
-          </button>
+          <h1 id="project-dashboard-heading">Projects</h1>
+          <p>Plan, review, and execute software projects with AI agents and your team.</p>
         </header>
-        <label className="project-dashboard-search-label" htmlFor="project-search">
-          Search projects
-        </label>
-        <input
-          id="project-search"
-          className="project-dashboard-search"
-          placeholder="Search by project name…"
-          value={query}
-          onChange={(event) => setQuery(event.target.value)}
-        />
-        {loading ? <p role="status">Loading projects…</p> : null}
-        {error ? (
+        <div className="project-dashboard-toolbar">
+          <label className="project-dashboard-search-wrap">
+            <span className="project-dashboard-sr-only">Search projects</span>
+            <svg
+              width="22"
+              height="22"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.6"
+              aria-hidden="true"
+            >
+              <circle cx="10.5" cy="10.5" r="7.5" />
+              <path d="m16 16 5 5" />
+            </svg>
+            <input
+              type="search"
+              disabled={isLoadingNextPage}
+              className="project-dashboard-search"
+              placeholder="Search projects…"
+              value={query}
+              onChange={(event) => {
+                setQuery(event.target.value);
+                setPageIndex(0);
+              }}
+            />
+          </label>
+          <button className="project-dashboard-create" type="button" onClick={onCreate}>
+            <span aria-hidden="true">＋</span> New project
+          </button>
+        </div>
+        {isLoading && (
+          <p className="project-dashboard-status" role="status">
+            Loading projects…
+          </p>
+        )}
+        {projectError && (
           <div role="alert" className="project-dashboard-error">
-            {error}{" "}
-            <button type="button" onClick={() => setReload((n) => n + 1)}>
+            {projectError}{" "}
+            <button
+              type="button"
+              disabled={isLoadingNextPage}
+              onClick={() => {
+                if (projectPages.length) void loadNextPage();
+                else setReloadAttempt((attempt) => attempt + 1);
+              }}
+            >
               Retry
             </button>
           </div>
-        ) : null}
-        {!loading && !error && projects.length === 0 ? (
+        )}
+        {!isLoading && !projectError && loadedProjects.length === 0 && (
           <div className="project-dashboard-empty">
             <h2>No projects yet</h2>
-            <p>
-              Create your first project and Orbit will help turn your intent into a reviewable plan.
-            </p>
+            <p>Create your first project and turn your intent into a reviewable plan.</p>
             <button type="button" onClick={onCreate}>
               Create project
             </button>
           </div>
-        ) : null}
-        {!loading && matches.length === 0 && projects.length > 0 ? (
-          <p role="status">No matching projects in the loaded results.</p>
-        ) : null}
-        <div className="project-dashboard-grid">
-          {matches.map((project) => (
+        )}
+        {!isLoading && loadedProjects.length > 0 && matchingProjects.length === 0 && (
+          <p className="project-dashboard-status" role="status">
+            No matching projects in the loaded results.
+          </p>
+        )}
+        <div className="project-dashboard-grid" aria-busy={isLoading || isLoadingNextPage}>
+          {visibleProjects.map((project, projectIndex) => (
             <button
               type="button"
-              className="project-dashboard-card"
+              className={`project-dashboard-card project-dashboard-card--${projectIndex % 3}`}
               key={project.id}
               onClick={() => onOpen(project)}
             >
-              <span className="project-dashboard-card-icon" aria-hidden="true">
-                ◈
+              <span className="project-dashboard-card-mark" aria-hidden="true" />
+              <span className="project-dashboard-card-copy">
+                <strong>{project.name}</strong>
+                <small>
+                  Created{" "}
+                  <time dateTime={project.created_at}>
+                    {new Date(project.created_at).toLocaleDateString(undefined, {
+                      month: "short",
+                      day: "numeric",
+                      year: "numeric",
+                    })}
+                  </time>
+                </small>
               </span>
-              <strong>{project.name}</strong>
-              <small>Created {new Date(project.created_at).toLocaleDateString()}</small>
-              <span className="project-dashboard-card-link">Open project →</span>
+              <span className="project-dashboard-card-link" aria-hidden="true">
+                →
+              </span>
             </button>
           ))}
         </div>
-        {cursor && !loading ? (
-          <button
-            className="project-dashboard-more"
-            type="button"
-            disabled={loadingMore}
-            onClick={() => {
-              void more();
-            }}
-          >
-            {loadingMore ? "Loading…" : "Load more projects"}
-          </button>
-        ) : null}
-        {cursor && query ? (
-          <p className="project-dashboard-note">
-            Search currently covers loaded projects. Load more to expand results.
-          </p>
-        ) : null}
+        {!isLoading && loadedProjects.length > 0 && (
+          <>
+            <nav className="project-dashboard-pagination" aria-label="Project pages">
+              <button
+                type="button"
+                aria-label="Previous page"
+                disabled={pageIndex === 0 || isLoadingNextPage}
+                onClick={() => setPageIndex((previousIndex) => previousIndex - 1)}
+              >
+                ‹
+              </button>
+              {Array.from(
+                { length: Math.min(visiblePageButtons, knownPageCount) },
+                (_, pageButtonIndex) => {
+                  const knownPageIndex = firstVisiblePageIndex + pageButtonIndex;
+                  return (
+                    <button
+                      type="button"
+                      key={knownPageIndex}
+                      aria-label={`Page ${knownPageIndex + 1}`}
+                      aria-current={pageIndex === knownPageIndex ? "page" : undefined}
+                      disabled={isLoadingNextPage}
+                      onClick={() => setPageIndex(knownPageIndex)}
+                    >
+                      {knownPageIndex + 1}
+                    </button>
+                  );
+                },
+              )}
+              <button
+                type="button"
+                aria-label="Next page"
+                disabled={
+                  isLoadingNextPage ||
+                  (pageIndex >= knownPageCount - 1 && (!nextCursor || Boolean(normalizedQuery)))
+                }
+                onClick={() => {
+                  if (pageIndex < knownPageCount - 1)
+                    setPageIndex((previousIndex) => previousIndex + 1);
+                  else void loadNextPage();
+                }}
+              >
+                ›
+              </button>
+            </nav>
+            <p className="project-dashboard-page-status" role="status" aria-live="polite">
+              Page {pageIndex + 1}
+              {!nextCursor ? ` of ${knownPageCount}` : ""}
+            </p>
+            {isLoadingNextPage && (
+              <p className="project-dashboard-status" role="status">
+                Loading more projects…
+              </p>
+            )}
+            {normalizedQuery && nextCursor && (
+              <p className="project-dashboard-note">
+                Search covers loaded projects.{" "}
+                <button
+                  type="button"
+                  disabled={isLoadingNextPage}
+                  onClick={() => {
+                    void loadNextPage();
+                  }}
+                >
+                  Load more projects
+                </button>{" "}
+                to expand results.
+              </p>
+            )}
+          </>
+        )}
       </section>
     </main>
   );
