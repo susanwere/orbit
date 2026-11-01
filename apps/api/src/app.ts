@@ -1,3 +1,4 @@
+import { registerProjectDocumentRoutes, type ProjectDocumentRouteOptions } from "./modules/documents/project-document-routes.js";
 import cors from "@fastify/cors";
 import {
   registerPlanningRoutes,
@@ -76,6 +77,7 @@ export interface AppOptions {
   readonly eventStream?: EventRouteOptions;
   readonly whyProvenance?: WhyProvenanceRouteOptions;
   readonly tasks?: TaskRouteOptions;
+  readonly projectDocuments?: ProjectDocumentRouteOptions;
 }
 
 export async function buildApp(options: AppOptions = {}) {
@@ -152,6 +154,8 @@ export async function buildApp(options: AppOptions = {}) {
   if (options.whyProvenance) {
     await app.register(registerWhyProvenanceRoutes, options.whyProvenance);
   }
+
+  if (options.projectDocuments) await app.register(registerProjectDocumentRoutes, options.projectDocuments);
 
   if (options.tasks) {
     await app.register(registerTaskRoutes, options.tasks);
