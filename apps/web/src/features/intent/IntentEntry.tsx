@@ -694,8 +694,14 @@ export function IntentEntry({ project, api, onBack }: IntentEntryProps) {
                   disabled={busy}
                   onChange={(event) => {
                     const incoming = Array.from(event.target.files ?? []);
-                    const next = [...attachmentFiles, ...incoming].filter((file, index, all) =>
-                      all.findIndex((other) => other.name === file.name && other.size === file.size && other.lastModified === file.lastModified) === index,
+                    const next = [...attachmentFiles, ...incoming].filter(
+                      (file, index, all) =>
+                        all.findIndex(
+                          (other) =>
+                            other.name === file.name &&
+                            other.size === file.size &&
+                            other.lastModified === file.lastModified,
+                        ) === index,
                     );
                     if (
                       next.length > 10 ||
@@ -759,7 +765,11 @@ export function IntentEntry({ project, api, onBack }: IntentEntryProps) {
             )}
             <div className="intent-actions">
               {!intent && (
-                <button type="submit" className="cta-primary" disabled={busy || !statement.trim() || Boolean(attachmentError)}>
+                <button
+                  type="submit"
+                  className="cta-primary"
+                  disabled={busy || !statement.trim() || Boolean(attachmentError)}
+                >
                   {phase === "saving" ? "Saving intent…" : "Save intent & propose plan"}
                 </button>
               )}
