@@ -7,35 +7,36 @@ describe("original intent document associations", () => {
     const statements: string[] = [];
     const attachments: string[] = [];
     const query = async (sql: string, params: unknown[] = []) => {
-        statements.push(sql);
-        if (sql.includes("SELECT id,version FROM project_documents")) {
-          return {
-            rows: ownedDocuments
-              .filter((id) => (params[2] as string[]).includes(id))
-              .map((id) => ({ id, version: 1 })),
-          };
-        }
-        if (sql.includes("INSERT INTO intents")) {
-          return {
-            rows: [
-              {
-                id: params[0],
-                organization_id: params[1],
-                project_id: params[2],
-                statement: params[3],
-              },
-            ],
-          };
-        }
-        if (sql.includes("INSERT INTO intent_document_attachments")) {
-          attachments.push(...(params[3] as string[]));
-          return { rows: [] };
-        }
+      statements.push(sql);
+      if (sql.includes("SELECT id,version FROM project_documents")) {
+        return {
+          rows: ownedDocuments
+            .filter((id) => (params[2] as string[]).includes(id))
+            .map((id) => ({ id, version: 1 })),
+        };
+      }
+      if (sql.includes("INSERT INTO intents")) {
+        return {
+          rows: [
+            {
+              id: params[0],
+              organization_id: params[1],
+              project_id: params[2],
+              statement: params[3],
+            },
+          ],
+        };
+      }
+      if (sql.includes("INSERT INTO intent_document_attachments")) {
+        attachments.push(...(params[3] as string[]));
         return { rows: [] };
+      }
+      return { rows: [] };
     };
     const db = {
       query,
-      transaction: async <T>(run: (transaction: { query: typeof query }) => Promise<T>) => run({ query }),
+      transaction: async <T>(run: (transaction: { query: typeof query }) => Promise<T>) =>
+        run({ query }),
     };
     const originalIntent = {
       db,
