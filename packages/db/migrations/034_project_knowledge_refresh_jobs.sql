@@ -18,3 +18,7 @@ CREATE TABLE project_knowledge_refresh_jobs (
 );
 CREATE INDEX idx_project_knowledge_refresh_jobs_due
   ON project_knowledge_refresh_jobs(status,next_attempt_at,created_at);
+
+CREATE UNIQUE INDEX idx_knowledge_snapshot_refresh_job
+  ON project_knowledge_snapshots(project_id, ((content->'origin'->>'jobId')))
+  WHERE content->'origin'->>'jobId' IS NOT NULL;
