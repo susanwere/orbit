@@ -1,4 +1,5 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { encodeVoice, recordIntentVoice } from "./intent-voice-recorder.js";
 
 interface CanvasComposerProps {
   readonly isPreview?: boolean;
@@ -6,6 +7,7 @@ interface CanvasComposerProps {
   readonly onDraftChange: (draftIdea: string) => void;
   readonly onOpenIntent: () => void;
   readonly onSubmitIntent?: (statement: string, files: readonly File[]) => Promise<void>;
+  readonly onTranscribeVoice?: (audioBase64: string) => Promise<string>;
 }
 
 /** Create the original Intent and document-backed plan directly from the canvas. */
@@ -14,16 +16,59 @@ export function CanvasComposer({
   draftIdea,
   onDraftChange,
   onSubmitIntent,
+  onTranscribeVoice,
 }: CanvasComposerProps) {
   const [attachments, setAttachments] = useState<File[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [submissionError, setSubmissionError] = useState<string | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
+  const voiceSession = useRef<Awaited<ReturnType<typeof recordIntentVoice>> | null>(null);
+  const [voiceState, setVoiceState] = useState<"idle" | "starting" | "recording" | "transcribing">(
+    "idle",
+  );
+  const [voiceError, setVoiceError] = useState<string | null>(null);
+  useEffect(
+    () => () => {
+      voiceSession.current?.cancel();
+      voiceSession.current = null;
+    },
+    [],
+  );
+  async function toggleVoice() {
+    if (voiceState === "recording") {
+      const session = voiceSession.current;
+      if (!session) return;
+      voiceSession.current = null;
+      setVoiceState("transcribing");
+      try {
+        const blob = await session.stop();
+        if (!onTranscribeVoice) throw new Error("Muse Voice is not configured.");
+        const transcript = await onTranscribeVoice(await encodeVoice(blob));
+        if (!transcript) throw new Error("No speech was detected. Try recording again.");
+        onDraftChange([draftIdea.trim(), transcript].filter(Boolean).join("\\n").slice(0, 10000));
+      } catch (cause) {
+        setVoiceError(cause instanceof Error ? cause.message : "Transcription failed.");
+      } finally {
+        setVoiceState("idle");
+      }
+      return;
+    }
+    if (voiceState !== "idle" || !onTranscribeVoice) return;
+    setVoiceState("starting");
+    setVoiceError(null);
+    try {
+      voiceSession.current = await recordIntentVoice(() => setVoiceState("recording"));
+    } catch (cause) {
+      setVoiceError(cause instanceof Error ? cause.message : "Microphone unavailable.");
+      setVoiceState("idle");
+    }
+  }
   const ready =
     !isPreview &&
     Boolean(draftIdea.trim()) &&
     draftIdea.length <= 10000 &&
     !submitting &&
+    voiceState === "idle" &&
     Boolean(onSubmitIntent);
 
   async function submit() {
@@ -160,13 +205,41 @@ export function CanvasComposer({
           {submissionError}
         </p>
       )}
+      {voiceError && (
+        <p role="alert" className="intent-error">
+          {voiceError}
+        </p>
+      )}
+      {voiceState !== "idle" && (
+        <p role="status">
+          {voiceState === "recording"
+            ? "Recording. Press the microphone again to transcribe."
+            : voiceState === "transcribing"
+              ? "Muse Voice is transcribing…"
+              : "Requesting microphone access…"}
+        </p>
+      )}
       <div className="canvas-composer-actions">
         <button
           type="button"
           className="canvas-composer-voice"
-          disabled
-          aria-label="Voice input (coming soon)"
-          title="Voice input is not available yet"
+          disabled={
+            isPreview ||
+            submitting ||
+            !onTranscribeVoice ||
+            voiceState === "transcribing" ||
+            voiceState === "starting"
+          }
+          onClick={() => {
+            void toggleVoice();
+          }}
+          aria-label={
+            voiceState === "recording"
+              ? "Stop voice recording and transcribe"
+              : "Record an Intent with Muse Voice"
+          }
+          aria-pressed={voiceState === "recording"}
+          title={voiceState === "recording" ? "Stop recording" : "Record an Intent with Muse Voice"}
         >
           <svg
             width="20"

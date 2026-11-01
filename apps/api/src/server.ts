@@ -140,6 +140,15 @@ const knowledgeRefreshWorker =
     : undefined;
 
 const app = await buildApp({
+  museVoice:
+    auth && process.env.MODEL_API_KEY
+      ? {
+          auth,
+          authorization: new ProjectAuthorizationService(database),
+          apiKey: process.env.MODEL_API_KEY,
+          baseUrl: process.env.MODEL_API_BASE_URL,
+        }
+      : undefined,
   knowledge: auth
     ? {
         auth,

@@ -159,6 +159,7 @@ export interface ProjectKnowledgeSnapshot {
   };
 }
 export interface ProjectIntentApi {
+  transcribeVoice(projectId: string, audioBase64: string): Promise<string>;
   getProjectKnowledge(projectId: string): Promise<readonly ProjectKnowledgeSnapshot[]>;
   refreshProjectKnowledge(projectId: string): Promise<ProjectKnowledgeSnapshot>;
   reviewProjectKnowledge(
@@ -304,6 +305,12 @@ export function createIntentApi(
 
   const path = (id: string) => `/projects/${encodeURIComponent(id)}`;
   return {
+    transcribeVoice: async (id, audioBase64) =>
+      (
+        await request<{ transcript: string }>(`${path(id)}/voice/transcribe`, "POST", {
+          audioBase64,
+        })
+      ).transcript,
     getIntent: async (id) =>
       (await request<{ intent: StoredIntent | null }>(`${path(id)}/intent`)).intent,
     uploadDocument: (id, file) =>
