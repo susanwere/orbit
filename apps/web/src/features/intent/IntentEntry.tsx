@@ -30,6 +30,9 @@ type Phase = "loading" | "ready" | "saving" | "planning" | "error";
 
 export function IntentEntry({ project, api, onBack }: IntentEntryProps) {
   const [statement, setStatement] = useState("");
+  const [attachmentFiles, setAttachmentFiles] = useState<File[]>([]);
+  const [savedDocuments, setSavedDocuments] = useState<readonly { id: string; original_filename: string; media_type: string; size_bytes: number }[]>([]);
+  const [attachmentError, setAttachmentError] = useState<string | null>(null);
   const [intent, setIntent] = useState<StoredIntent | null>(null);
   const [plan, setPlan] = useState<ProjectPlan | null>(null);
   const [repositories, setRepositories] = useState<readonly ConnectedRepository[]>([]);
@@ -112,7 +115,11 @@ export function IntentEntry({ project, api, onBack }: IntentEntryProps) {
       ]);
       setIntent(savedIntent);
       setPlan(savedPlan);
-      if (savedIntent) setStatement(savedIntent.statement);
+      if (savedIntent) {
+        setStatement(savedIntent.statement);
+        try { setSavedDocuments(await api.getIntentDocuments(project.id)); }
+        catch { setAttachmentError("Could not load saved document attachments."); }
+      }
       setPhase("ready");
     } catch (failure) {
       setError(failure instanceof Error ? failure.message : "Could not load project intent.");
@@ -554,6 +561,19 @@ export function IntentEntry({ project, api, onBack }: IntentEntryProps) {
     }
   }
 
+  async function encodeDocument(file: File): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onerror = () => reject(new Error("Could not read " + file.name));
+      reader.onload = () => {
+        const result = reader.result;
+        if (typeof result !== "string" || !result.includes(",")) reject(new Error("Could not encode " + file.name));
+        else resolve(result.slice(result.indexOf(",") + 1));
+      };
+      reader.readAsDataURL(file);
+    });
+  }
+
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (busy || intent) return;
@@ -565,7 +585,19 @@ export function IntentEntry({ project, api, onBack }: IntentEntryProps) {
     setPhase("saving");
     setError(null);
     try {
-      const saved = await api.submitIntent(project.id, text);
+      const uploaded = [];
+      for (const file of attachmentFiles) {
+        const mediaType = file.name.toLowerCase().endsWith(".md") ? "text/markdown"
+          : file.name.toLowerCase().endsWith(".txt") ? "text/plain" : file.type;
+        const stored = await api.uploadDocument(project.id, {
+          filename: file.name,
+          mediaType,
+          base64: await encodeDocument(file),
+        });
+        uploaded.push(stored);
+      }
+      const saved = await api.submitIntent(project.id, text, uploaded.map((doc) => doc.id));
+      setSavedDocuments(uploaded.map((doc) => ({ ...doc, media_type: "", size_bytes: 0 })));
       setIntent(saved);
       setStatement(saved.statement);
     } catch (failure) {
@@ -628,6 +660,45 @@ export function IntentEntry({ project, api, onBack }: IntentEntryProps) {
               required
               placeholder="Build a React application that fetches Hacker News job postings and displays them in a responsive list…"
             />
+            {!intent && (
+              <div className="intent-attachments">
+                <label htmlFor="orbit-intent-files">Supporting documents (optional, up to 10)</label>
+                <input
+                  id="orbit-intent-files"
+                  type="file"
+                  multiple
+                  accept=".md,.txt,.pdf,.docx"
+                  disabled={busy}
+                  onChange={(event) => {
+                    const incoming = Array.from(event.target.files ?? []);
+                    const next = [...attachmentFiles, ...incoming];
+                    if (next.length > 10 || next.some((file) => file.size > 5 * 1024 * 1024 || file.size === 0)) {
+                      setAttachmentError("Attach at most 10 documents, each between 1 byte and 5 MB.");
+                    } else {
+                      setAttachmentError(null);
+                      setAttachmentFiles(next);
+                    }
+                    event.target.value = "";
+                  }}
+                />
+                {attachmentFiles.map((file, index) => (
+                  <div key={index} className="intent-attachment-row">
+                    <span>{file.name} ({Math.ceil(file.size / 1024)} KB)</span>
+                    <button type="button" disabled={busy}
+                      onClick={() => setAttachmentFiles((files) => files.filter((_, i) => i !== index))}>
+                      Remove
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+            {savedDocuments.length > 0 && (
+              <section aria-label="Attached project documents">
+                <strong>Attached documents</strong>
+                {savedDocuments.map((doc) => <p key={doc.id}>{doc.original_filename}</p>)}
+              </section>
+            )}
+            {attachmentError && <p role="alert" className="intent-error">{attachmentError}</p>}
             <p className="intent-hint">
               {intent
                 ? "Original intent saved. It is preserved as the historical source of truth."
