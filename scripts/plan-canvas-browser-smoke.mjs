@@ -147,6 +147,26 @@ try {
 
   await page.getByRole("button", { name: /^WORK ITEM Jobs viewer/ }).waitFor();
   assert.equal(mutations.length, 0, "Opening the canvas must remain read-only");
+  await page.locator('[data-node-id="intent"]').click();
+  await page.getByRole("region", { name: "Original Intent", exact: true }).waitFor();
+  assert.equal(await page.locator(".canvas-plan-section-text").textContent(), intent.statement);
+  assert.equal(
+    await page.locator(".canvas-intent-detail").count(),
+    0,
+    "Intent node navigates to the existing page rather than a popup",
+  );
+  assert.equal(
+    await page.locator(".canvas-plan-section textarea").count(),
+    0,
+    "Original intent remains immutable",
+  );
+  await page.getByRole("button", { name: "Workflow", exact: true }).click();
+  await page.getByText("Accessible node list", { exact: true }).click();
+  await page.getByRole("button", { name: "Original intent · intent", exact: true }).click();
+  await page.getByRole("region", { name: "Original Intent", exact: true }).waitFor();
+  await page.getByRole("button", { name: "Workflow", exact: true }).click();
+  assert.equal(mutations.length, 0, "Opening Original Intent must not modify the plan");
+
   await page.getByRole("button", { name: "Reset canvas view", exact: true }).click();
   await page.getByRole("button", { name: "Zoom in", exact: true }).click();
   await page.getByText("120%", { exact: true }).waitFor();
