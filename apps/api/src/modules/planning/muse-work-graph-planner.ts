@@ -231,13 +231,17 @@ export class MuseWorkGraphPlanner implements WorkGraphPlanner {
         originalIntent: input.originalIntent,
         knownDecisions: input.knownDecisions.slice(0, 20).map((s) => s.slice(0, 500)),
         knownConstraints: input.knownConstraints.slice(0, 20).map((s) => s.slice(0, 500)),
-        sourceDocuments: (input.sourceDocuments ?? []).slice(0, 10).map((doc) => ({
-          id: doc.id,
-          version: doc.version,
-          filename: doc.filename,
-          sha256: doc.sha256,
-          excerpt: doc.excerpt.slice(0, 8_000),
-        })),
+        ...(input.sourceDocuments?.length
+          ? {
+              sourceDocuments: input.sourceDocuments.slice(0, 10).map((doc) => ({
+                id: doc.id,
+                version: doc.version,
+                filename: doc.filename,
+                sha256: doc.sha256,
+                excerpt: doc.excerpt.slice(0, 8_000),
+              })),
+            }
+          : {}),
       }),
     });
     return validateProposedWorkGraph(result);
