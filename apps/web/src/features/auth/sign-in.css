@@ -165,20 +165,33 @@
   border-radius: 50%;
   background: radial-gradient(circle at 30% 20%, #128cff, #173cbb 70%);
   box-shadow: 0 0 30px #086aff66;
-  left: 89%;
-  top: 28%;
+  left: 0;
+  top: 0;
+  offset-path: circle(330px at 330px 330px);
+  offset-rotate: 0deg;
+  offset-distance: var(--orbit-start, 94%);
+  animation: sign-in-orbit-travel var(--orbit-duration, 100s) linear infinite;
 }
 .sign-in-orbit i + i {
   width: 12px;
   height: 12px;
-  left: 110%;
-  top: 45%;
+  --orbit-start: 5%;
+  --orbit-duration: 150s;
 }
 .sign-in-orbit-right i {
   width: 18px;
   height: 18px;
-  left: 1%;
-  top: 35%;
+  --orbit-start: 55%;
+  --orbit-duration: 120s;
+  animation-direction: reverse;
+}
+@keyframes sign-in-orbit-travel {
+  from {
+    offset-distance: var(--orbit-start, 94%);
+  }
+  to {
+    offset-distance: calc(var(--orbit-start, 94%) + 100%);
+  }
 }
 @media (max-width: 1000px) {
   .sign-in-benefits {

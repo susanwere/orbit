@@ -136,6 +136,39 @@ try {
       .evaluate((button) => button === document.activeElement),
     true,
   );
+  await page.emulateMedia({ reducedMotion: "no-preference" });
+  const initialSpherePosition = await page
+    .locator(".sign-in-orbit-left i")
+    .first()
+    .evaluate((sphere) => {
+      const bounds = sphere.getBoundingClientRect();
+      return { x: bounds.x, y: bounds.y };
+    });
+  await page.waitForFunction((initialPosition) => {
+    const sphere = document.querySelector(".sign-in-orbit-left i");
+    const bounds = sphere.getBoundingClientRect();
+    return Math.hypot(bounds.x - initialPosition.x, bounds.y - initialPosition.y) > 1;
+  }, initialSpherePosition);
+  const orbitRadius = await page
+    .locator(".sign-in-orbit-left i")
+    .first()
+    .evaluate((sphere) => {
+      const sphereBounds = sphere.getBoundingClientRect();
+      const orbitBounds = sphere.parentElement.getBoundingClientRect();
+      return Math.hypot(
+        sphereBounds.x + sphereBounds.width / 2 - orbitBounds.x - orbitBounds.width / 2,
+        sphereBounds.y + sphereBounds.height / 2 - orbitBounds.y - orbitBounds.height / 2,
+      );
+    });
+  assert.ok(Math.abs(orbitRadius - 330) < 2, "Sphere must follow its visible orbit");
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  assert.equal(
+    await page
+      .locator(".sign-in-orbit-left i")
+      .first()
+      .evaluate((sphere) => getComputedStyle(sphere).animationName),
+    "none",
+  );
   await page.route("https://accounts.google.com/gsi/client", (route) => route.abort());
   await page.reload();
   await page.getByRole("alert").filter({ hasText: "Google sign-in could not load" }).waitFor();
