@@ -3,6 +3,7 @@ import { useCanvasExecution } from "./use-canvas-execution.js";
 import { CanvasComposer } from "./CanvasComposer.js";
 import { PlanSection, type PlanSectionKey } from "./PlanSection.js";
 import { CanvasSidebar } from "./CanvasSidebar.js";
+import { ProjectContextDocuments } from "./ProjectContextDocuments.js";
 import "../projects/project-dashboard.css";
 import { WorkGraphCanvas } from "./WorkGraphCanvas.js";
 import type { CreatedProject } from "../projects/project-api.js";
@@ -103,9 +104,9 @@ function ProjectPlanCanvas({
   onUpdated,
   isLoading = false,
 }: Props) {
-  const [canvasSection, setCanvasSection] = useState<"workflow" | "composer" | PlanSectionKey>(
-    "workflow",
-  );
+  const [canvasSection, setCanvasSection] = useState<
+    "workflow" | "composer" | "context" | PlanSectionKey
+  >("workflow");
   const [canvasDraftIdea, setCanvasDraftIdea] = useState("");
   const [graph, setGraph] = useState<WorkGraph | null>(() => readGraph(plan?.content));
   const [revision, setRevision] = useState(plan?.revision ?? 0);
@@ -140,8 +141,11 @@ function ProjectPlanCanvas({
   const canEdit = status === "READY_FOR_REVIEW" && !busy;
   const showComposer =
     !isLoading && (canvasSection === "composer" || (!originalIntent && status === null));
+  const isContextOpen = canvasSection === "context";
   const projectSection =
-    canvasSection !== "workflow" && canvasSection !== "composer" ? canvasSection : null;
+    canvasSection !== "workflow" && canvasSection !== "composer" && canvasSection !== "context"
+      ? canvasSection
+      : null;
   const planningPending = status === "GENERATING";
   const canGeneratePlan = Boolean(originalIntent) && (status === null || status === "FAILED");
   const selectedIndex = graph?.workItems.findIndex((item) => item.key === selectedItemKey) ?? -1;
@@ -360,6 +364,11 @@ function ProjectPlanCanvas({
         isComposerOpen={showComposer}
         activeSection={projectSection}
         hasGraph={Boolean(graph)}
+        isContextOpen={isContextOpen}
+        onOpenContext={() => {
+          setCanvasSection("context");
+          setSelectedItemKey(null);
+        }}
         onOpenSection={(section) => {
           setCanvasSection(section);
           setSelectedItemKey(null);
@@ -391,7 +400,7 @@ function ProjectPlanCanvas({
         <h1 id="plan-heading" className="canvas-heading-accessible">
           {selectedItem ? selectedItem.title : "Workflow Canvas"}
         </h1>
-        {!showComposer && (projectSection || selectedItem) && planActions}
+        {!showComposer && !isContextOpen && (projectSection || selectedItem) && planActions}
         {error && (
           <p role="alert" className="intent-error canvas-action-error">
             {error}
@@ -408,6 +417,8 @@ function ProjectPlanCanvas({
             onDraftChange={setCanvasDraftIdea}
             onOpenIntent={onBack}
           />
+        ) : isContextOpen ? (
+          <ProjectContextDocuments api={api} projectId={project.id} />
         ) : projectSection ? (
           <PlanSection
             key={projectSection}
