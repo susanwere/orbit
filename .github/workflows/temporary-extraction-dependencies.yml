@@ -1,0 +1,25 @@
+name: Prepare document extraction dependencies
+on:
+  push:
+    branches: [feat/muse-document-context-extraction]
+permissions:
+  contents: write
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/muse-document-context-extraction
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm install --package-lock-only --ignore-scripts
+      - run: npm ci
+      - run: npx prettier --write apps/api/src/modules/documents/planning-documents.ts apps/api/src/modules/documents/planning-documents.test.ts apps/api/src/modules/planning/planning-routes.ts apps/api/src/modules/planning/muse-work-graph-planner.ts apps/api/src/server.ts
+      - run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add package-lock.json apps/api/src/modules/documents/planning-documents.ts apps/api/src/modules/documents/planning-documents.test.ts apps/api/src/modules/planning/planning-routes.ts apps/api/src/modules/planning/muse-work-graph-planner.ts apps/api/src/server.ts
+          git diff --cached --quiet || (git commit -m "chore: lock and format document extraction" && git push)
