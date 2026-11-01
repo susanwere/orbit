@@ -1,8 +1,10 @@
 import { Canvas } from "@react-three/fiber";
-import { Html, Line, MapControls } from "@react-three/drei";
-import { useMemo, useRef, useState, type ComponentRef } from "react";
+import { Html, Line } from "@react-three/drei";
+import { useCallback, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import type { ExecutionStep, MuseJobStatus } from "../intent/intent-api.js";
-import { OrthographicCamera } from "three";
+import { GraphViewport, type GraphViewportControls } from "./GraphViewport.js";
+import { layoutGraph, routeEdge, type NodeSize } from "./graph-layout.js";
+import { BASE_ZOOM, MIN_SCALE, MAX_SCALE } from "./graph-viewport.js";
 import "./workgraph-canvas.css";
 
 interface WorkStep {
@@ -26,8 +28,6 @@ type GraphNode = {
   executionStep?: ExecutionStep;
   executionStatus?: string;
   job?: MuseJobStatus | null;
-  x: number;
-  y: number;
   target?: string;
 };
 type GraphEdge = { from: string; to: string; dependency?: boolean };
@@ -37,82 +37,48 @@ export function projectPlanGraph(
   statement: string,
 ): { nodes: GraphNode[]; edges: GraphEdge[] } {
   const nodes: GraphNode[] = [
-    { id: "intent", title: "Original intent", subtitle: statement, kind: "intent", x: 0, y: 4 },
+    { id: "intent", title: "Original intent", subtitle: statement, kind: "intent" },
   ];
   const edges: GraphEdge[] = [];
   const keys = new Set(items.map((item) => item.key));
-  const depths = new Map<string, number>();
-  // Cycle-safe, deterministic layering. An invalid cycle is never treated as executable.
-  function depth(key: string, seen = new Set<string>()): number {
-    if (depths.has(key)) return depths.get(key)!;
-    if (seen.has(key)) return 0;
-    const item = items.find((entry) => entry.key === key);
-    if (!item) return 0;
-    const nextSeen = new Set(seen);
-    nextSeen.add(key);
-    const result = Math.max(
-      0,
-      ...item.dependsOn.filter((dep) => keys.has(dep)).map((dep) => depth(dep, nextSeen) + 1),
-    );
-    depths.set(key, result);
-    return result;
-  }
-  for (const item of items) depth(item.key);
-  const columns = new Map<number, WorkItem[]>();
   for (const item of items) {
-    const level = depths.get(item.key) ?? 0;
-    columns.set(level, [...(columns.get(level) ?? []), item]);
-  }
-  const maxColumn = Math.max(0, ...columns.keys());
-  for (const [level, group] of columns) {
-    for (const [index, item] of group.entries()) {
-      const x = (level - maxColumn / 2) * 4.8;
-      const y = 1.4 - (index - (group.length - 1) / 2) * 4.2;
-      const workId = `work:${item.key}`;
+    const workId = `work:${item.key}`;
+    nodes.push({
+      id: workId,
+      title: item.title,
+      subtitle: item.key,
+      kind: "work",
+      target: item.key,
+    });
+    if (!item.dependsOn.length) edges.push({ from: "intent", to: workId });
+    for (const dependency of item.dependsOn) {
+      if (keys.has(dependency))
+        edges.push({ from: `work:${dependency}`, to: workId, dependency: true });
+    }
+    item.workflows.forEach((workflow, workflowIndex) => {
+      const workflowId = `workflow:${item.key}:${workflowIndex}`;
       nodes.push({
-        id: workId,
-        title: item.title,
-        subtitle: item.key,
-        kind: "work",
-        x,
-        y,
+        id: workflowId,
+        title: workflow.name,
+        subtitle: `${workflow.steps.length} steps · ${workflow.steps.filter((step) => step.requiresApproval).length} approval gates`,
+        kind: "workflow",
+        workflowIndex,
         target: item.key,
       });
-      if (!item.dependsOn.length) edges.push({ from: "intent", to: workId });
-      for (const dependency of item.dependsOn) {
-        if (keys.has(dependency)) {
-          edges.push({ from: `work:${dependency}`, to: workId, dependency: true });
-        }
-      }
-      item.workflows.forEach((workflow, wi) => {
-        const workflowId = `workflow:${item.key}:${wi}`;
+      edges.push({ from: workId, to: workflowId });
+      if (workflow.steps.some((step) => step.requiresApproval)) {
+        const gateId = `gate:${item.key}:${workflowIndex}`;
         nodes.push({
-          id: workflowId,
-          title: workflow.name,
-          subtitle: `${workflow.steps.length} steps · ${workflow.steps.filter((step) => step.requiresApproval).length} approval gates`,
-          kind: "workflow",
-          workflowIndex: wi,
-          x,
-          y: y - 2.05 - wi * 2,
+          id: gateId,
+          title: "Human approval required",
+          subtitle: "Proposed gate · no execution",
+          kind: "gate",
+          workflowIndex,
           target: item.key,
         });
-        edges.push({ from: workId, to: workflowId });
-        if (workflow.steps.some((step) => step.requiresApproval)) {
-          const gateId = `gate:${item.key}:${wi}`;
-          nodes.push({
-            id: gateId,
-            title: "Human approval required",
-            subtitle: "Proposed gate · no execution",
-            kind: "gate",
-            workflowIndex: wi,
-            x: x + 2.6,
-            y: y - 2.05 - wi * 2,
-            target: item.key,
-          });
-          edges.push({ from: workflowId, to: gateId });
-        }
-      });
-    }
+        edges.push({ from: workflowId, to: gateId });
+      }
+    });
   }
   return { nodes, edges };
 }
@@ -165,8 +131,6 @@ export function projectExecutionGraph(
           stepIndex,
           executionStep,
           executionStatus: executionStep?.state,
-          x: 0,
-          y: 0,
         });
         projection.edges.push({
           from:
@@ -189,8 +153,6 @@ export function projectExecutionGraph(
             executionStep,
             job,
             executionStatus: job?.status,
-            x: 0,
-            y: 0,
           });
           projection.edges.push({ from: stepNodeId, to: agentNodeId });
         }
@@ -200,6 +162,7 @@ export function projectExecutionGraph(
 }
 
 interface Props {
+  readonly planActions?: ReactNode;
   readonly items: readonly WorkItem[];
   readonly intent: string;
   readonly approved: boolean;
@@ -216,6 +179,7 @@ interface Props {
 }
 
 export function WorkGraphCanvas({
+  planActions,
   items,
   intent,
   approved,
@@ -227,9 +191,21 @@ export function WorkGraphCanvas({
   onSelectDetail,
 }: Props) {
   const sceneRef = useRef<HTMLDivElement>(null);
-  const cameraRef = useRef<OrthographicCamera | null>(null);
-  const controlsRef = useRef<ComponentRef<typeof MapControls>>(null);
-  const [cameraZoom, setCameraZoom] = useState(65);
+  const controlsRef = useRef<GraphViewportControls>(null);
+  const [cameraScale, setCameraScale] = useState(1);
+  const [nodeSizes, setNodeSizes] = useState<ReadonlyMap<string, NodeSize>>(new Map());
+  const measureNode = useCallback((id: string, size: NodeSize) => {
+    setNodeSizes((previous) => {
+      const oldSize = previous.get(id);
+      if (
+        oldSize &&
+        Math.abs(oldSize.width - size.width) < 0.5 &&
+        Math.abs(oldSize.height - size.height) < 0.5
+      )
+        return previous;
+      return new Map(previous).set(id, size);
+    });
+  }, []);
   const [isPanningEnabled, setIsPanningEnabled] = useState(true);
   const [canvasError, setCanvasError] = useState<string | null>(null);
   const graph = useMemo(
@@ -240,57 +216,41 @@ export function WorkGraphCanvas({
     [items, intent, approved, executionSteps, museJobs],
   );
 
-  const visibleNodes = graph.nodes.filter(
-    (node) => approved || node.kind === "intent" || node.kind === "work",
+  const visibleNodes = useMemo(
+    () => graph.nodes.filter((node) => node.kind === "intent" || node.kind === "work"),
+    [graph],
   );
-  const visibleIds = new Set(visibleNodes.map((node) => node.id));
-  const columns = new Map<number, GraphNode[]>();
-  const depths = new Map<string, number>();
-  const byKey = new Map(items.map((item) => [item.key, item]));
-  function depth(key: string, seen = new Set<string>()): number {
-    if (depths.has(key)) return depths.get(key)!;
-    if (seen.has(key)) return 0;
-    const item = byKey.get(key);
-    if (!item) return 0;
-    const ancestors = new Set(seen);
-    ancestors.add(key);
-    const level = Math.max(
-      1,
-      ...item.dependsOn
-        .filter((parent) => byKey.has(parent))
-        .map((parent) => depth(parent, ancestors) + 1),
-    );
-    depths.set(key, level);
-    return level;
-  }
-  for (const node of visibleNodes) {
-    const workDepth = depth(node.target ?? "");
-    const workColumn = approved ? workDepth * 4 - 3 : workDepth;
-    const column =
-      node.kind === "intent"
-        ? 0
-        : node.kind === "work"
-          ? workColumn
-          : node.kind === "workflow"
-            ? workColumn + 1
-            : node.kind === "step"
-              ? workColumn + 2
-              : workColumn + 3;
-    columns.set(column, [...(columns.get(column) ?? []), node]);
-  }
-  const maxDepth = Math.max(0, ...columns.keys());
-  const positions = new Map<string, { x: number; y: number }>();
-  for (const [level, nodes] of columns) {
-    nodes.forEach((node, index) =>
-      positions.set(node.id, {
-        x: (level - maxDepth / 2) * 4.6,
-        y: (nodes.length - 1) * 1.8 - index * 3.6,
-      }),
-    );
-  }
-  const visibleEdges = graph.edges.filter(
-    (edge) => visibleIds.has(edge.from) && visibleIds.has(edge.to),
+  const visibleEdges = useMemo(() => {
+    const visibleIds = new Set(visibleNodes.map((node) => node.id));
+    return graph.edges.filter((edge) => visibleIds.has(edge.from) && visibleIds.has(edge.to));
+  }, [graph, visibleNodes]);
+  const layout = useMemo(
+    () =>
+      layoutGraph(
+        visibleNodes.map((node) => ({
+          id: node.id,
+          ...(nodeSizes.get(node.id) ?? { width: node.kind === "gate" ? 175 : 210, height: 160 }),
+        })),
+        visibleEdges,
+      ),
+    [visibleNodes, visibleEdges, nodeSizes],
   );
+  const routes = useMemo(
+    () => visibleEdges.map((edge) => routeEdge(layout, edge)),
+    [layout, visibleEdges],
+  );
+  const viewportBounds = useMemo(
+    () => ({
+      ...layout.bounds,
+      top: Math.min(layout.bounds.top, ...routes.flatMap((route) => route.map((point) => point.y))),
+      bottom: Math.max(
+        layout.bounds.bottom,
+        ...routes.flatMap((route) => route.map((point) => point.y)),
+      ),
+    }),
+    [layout, routes],
+  );
+  const allNodesMeasured = visibleNodes.every((node) => nodeSizes.has(node.id));
   const choose = (node: GraphNode) => {
     if (node.target && node.workflowIndex !== undefined && onSelectDetail)
       onSelectDetail(node.target, node.workflowIndex, node.stepIndex);
@@ -298,42 +258,11 @@ export function WorkGraphCanvas({
   };
 
   function changeZoom(multiplier: number) {
-    const camera = cameraRef.current;
-    if (!camera) return;
-    camera.zoom = Math.min(120, Math.max(20, camera.zoom * multiplier));
-    camera.updateProjectionMatrix();
-    controlsRef.current?.update();
-    setCameraZoom(camera.zoom);
+    controlsRef.current?.zoomBy(multiplier);
   }
-
   function fitGraph() {
-    const camera = cameraRef.current;
-    const scene = sceneRef.current;
-    if (!camera || !scene) return;
-    const nodePositions = [...positions.values()];
-    const minimumX = Math.min(0, ...nodePositions.map((position) => position.x));
-    const maximumX = Math.max(0, ...nodePositions.map((position) => position.x));
-    const minimumY = Math.min(0, ...nodePositions.map((position) => position.y));
-    const maximumY = Math.max(0, ...nodePositions.map((position) => position.y));
-    const centerX = (minimumX + maximumX) / 2;
-    const centerY = (minimumY + maximumY) / 2;
-    camera.position.set(centerX, centerY, 30);
-    controlsRef.current?.target.set(centerX, centerY, 0);
-    camera.zoom = Math.min(
-      120,
-      Math.max(
-        20,
-        Math.min(
-          scene.clientWidth / (maximumX - minimumX + 5.5),
-          scene.clientHeight / (maximumY - minimumY + 4),
-        ),
-      ),
-    );
-    camera.updateProjectionMatrix();
-    controlsRef.current?.update();
-    setCameraZoom(camera.zoom);
+    controlsRef.current?.fit();
   }
-
   async function toggleFullscreen() {
     try {
       setCanvasError(null);
@@ -349,14 +278,25 @@ export function WorkGraphCanvas({
       <div className="workgraph-legend" aria-label="Workflow graph legend">
         <span>● Intent</span>
         <span>● Work item</span>
-        <span>
-          {approved
-            ? "● Workflows · steps · agents · approval gates"
-            : "● Work items contain workflows and approval gates"}
-        </span>
-        <strong>{planLabel ?? (approved ? "Approved plan" : "Proposed only · not running")}</strong>
+        <span>Open a work item to explore its workflows, steps and approval gates</span>
+        {planActions}
+        <strong className={approved ? "workgraph-plan-approved" : undefined}>
+          {approved && <span aria-hidden="true">✓ </span>}
+          {planLabel ?? (approved ? "Approved plan" : "Proposed only · not running")}
+        </strong>
       </div>
-      <div ref={sceneRef} className="workgraph-scene" aria-label="Connected plan graph">
+      <p id="graph-navigation-help" className="canvas-heading-accessible">
+        Drag or scroll to pan. Shift + wheel pans horizontally. Pinch or +/− zooms. Arrow keys pan,
+        0 fits the graph, and Home resets the view.
+      </p>
+      <div
+        ref={sceneRef}
+        className="workgraph-scene"
+        aria-label="Connected plan graph"
+        role="region"
+        tabIndex={0}
+        aria-describedby="graph-navigation-help"
+      >
         <div className="canvas-view-controls" role="toolbar" aria-label="Canvas view controls">
           <div>
             <button
@@ -369,6 +309,13 @@ export function WorkGraphCanvas({
             </button>
             <button type="button" aria-label="Fit graph to view" onClick={fitGraph}>
               <span aria-hidden="true">⌗</span>
+            </button>
+            <button
+              type="button"
+              aria-label="Reset canvas view"
+              onClick={() => controlsRef.current?.reset()}
+            >
+              <span aria-hidden="true">↺</span>
             </button>
             {typeof document !== "undefined" && document.fullscreenEnabled && (
               <button
@@ -386,21 +333,33 @@ export function WorkGraphCanvas({
             <button
               type="button"
               aria-label="Zoom out"
-              disabled={cameraZoom <= 20}
+              disabled={cameraScale <= MIN_SCALE}
               onClick={() => changeZoom(1 / 1.2)}
             >
               −
             </button>
-            <output aria-label="Canvas zoom">{Math.round((cameraZoom / 65) * 100)}%</output>
+            <output aria-label="Canvas zoom">{Math.round(cameraScale * 100)}%</output>
             <button
               type="button"
               aria-label="Zoom in"
-              disabled={cameraZoom >= 120}
+              disabled={cameraScale >= MAX_SCALE}
               onClick={() => changeZoom(1.2)}
             >
               ＋
             </button>
           </div>
+          <details className="canvas-node-list">
+            <summary>Accessible node list</summary>
+            <ul>
+              {visibleNodes.map((node) => (
+                <li key={node.id}>
+                  <button type="button" onClick={() => choose(node)}>
+                    {node.title} · {node.kind}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </details>
         </div>
         {canvasError && (
           <p className="canvas-view-error" role="alert">
@@ -409,99 +368,135 @@ export function WorkGraphCanvas({
         )}
         <Canvas
           orthographic
-          onCreated={({ camera }) => {
-            if (camera instanceof OrthographicCamera) cameraRef.current = camera;
-          }}
           camera={{ position: [0, 0, 30], zoom: 65 }}
           gl={{ alpha: true, antialias: true }}
         >
           <ambientLight intensity={1.1} />
-          {visibleEdges.map((edge, index) => {
-            const start = positions.get(edge.from);
-            const end = positions.get(edge.to);
-            if (!start || !end) return null;
+          <GraphViewport
+            bounds={viewportBounds}
+            sceneRef={sceneRef}
+            controlsRef={controlsRef}
+            isPanningEnabled={isPanningEnabled}
+            onScaleChange={setCameraScale}
+          />
+          {allNodesMeasured &&
+            visibleEdges.map((edge, index) => {
+              const route = routes[index]!;
+              if (route.length < 2) return null;
+              const end = route[route.length - 1]!;
+              const points = route.map(
+                (point) =>
+                  [point.x / BASE_ZOOM, -point.y / BASE_ZOOM, -1] as [number, number, number],
+              );
+              const color = edge.dependency ? "#b28adc" : "#8d6bb0";
+              return (
+                <group key={`${edge.from}:${edge.to}`}>
+                  <Line points={points} color={color} lineWidth={edge.dependency ? 2 : 1.5} />
+                  <Line
+                    points={[
+                      [(end.x - 8) / BASE_ZOOM, (-end.y + 5) / BASE_ZOOM, -1],
+                      [end.x / BASE_ZOOM, -end.y / BASE_ZOOM, -1],
+                      [(end.x - 8) / BASE_ZOOM, (-end.y - 5) / BASE_ZOOM, -1],
+                    ]}
+                    color={color}
+                    lineWidth={1.5}
+                  />
+                </group>
+              );
+            })}
+          {visibleNodes.map((node) => {
+            const position = layout.nodes.get(node.id)!;
             return (
-              <Line
-                key={index}
-                points={[
-                  [start.x, start.y, -1],
-                  [end.x, end.y, -1],
-                ]}
-                color={edge.dependency ? "#b28adc" : "#6e5489"}
-                lineWidth={edge.dependency ? 2 : 1.5}
-              />
+              <Html
+                key={node.id}
+                position={[position.x / BASE_ZOOM, -position.y / BASE_ZOOM, 0]}
+                center
+                style={{ pointerEvents: "none" }}
+                transform={false}
+                zIndexRange={[15, 5]}
+              >
+                <div
+                  style={{
+                    transform: `scale(${cameraScale})`,
+                    visibility: allNodesMeasured ? "visible" : "hidden",
+                  }}
+                >
+                  <GraphNodeCard
+                    node={node}
+                    selected={
+                      node.target ? selectedItemKey === node.target : selectedItemKey === null
+                    }
+                    onChoose={() => choose(node)}
+                    onMeasure={measureNode}
+                    onFocus={() =>
+                      controlsRef.current?.reveal(
+                        position.x,
+                        position.y,
+                        position.width,
+                        position.height,
+                      )
+                    }
+                  />
+                </div>
+              </Html>
             );
           })}
-          {visibleNodes.map((node) => (
-            <Html
-              key={node.id}
-              position={[positions.get(node.id)!.x, positions.get(node.id)!.y, 0]}
-              center
-              transform={false}
-              zIndexRange={[15, 5]}
-            >
-              <button
-                type="button"
-                className={`workgraph-node workgraph-node--${node.kind} ${(node.target ? selectedItemKey === node.target : selectedItemKey === null) ? "is-selected" : ""}`}
-                data-execution-state={node.executionStatus}
-                aria-pressed={
-                  node.target ? selectedItemKey === node.target : selectedItemKey === null
-                }
-                onClick={() => choose(node)}
-                title={
-                  node.target ? "Show this work item's configuration" : "Original project intent"
-                }
-              >
-                <span>
-                  {node.kind === "intent"
-                    ? "ORIGINAL INTENT"
-                    : node.kind === "work"
-                      ? "WORK ITEM"
-                      : node.kind.toUpperCase()}
-                </span>
-                <strong>{node.title}</strong>
-                {node.executionStatus && (
-                  <span className="workgraph-status">{node.executionStatus}</span>
-                )}
-                <small>
-                  {node.kind === "work"
-                    ? `${items.find((item) => item.key === node.target)?.workflows.length ?? 0} workflows · Click to configure`
-                    : node.subtitle}
-                </small>
-              </button>
-            </Html>
-          ))}
-          <MapControls
-            ref={controlsRef}
-            enableRotate={false}
-            enablePan={isPanningEnabled}
-            onChange={() => {
-              const camera = cameraRef.current;
-              if (camera) setCameraZoom(camera.zoom);
-            }}
-            enableDamping={false}
-            dampingFactor={0.12}
-            minZoom={20}
-            maxZoom={120}
-            screenSpacePanning
-          />
         </Canvas>
       </div>
-      <div className="workgraph-footer">
-        <span>Drag to pan · scroll to zoom · select a work item to configure its workflows</span>
-        <details>
-          <summary>Accessible node list</summary>
-          <ul>
-            {visibleNodes.map((node) => (
-              <li key={node.id}>
-                <button type="button" onClick={() => choose(node)}>
-                  {node.title} · {node.kind}
-                </button>
-              </li>
-            ))}
-          </ul>
-        </details>
-      </div>
     </div>
+  );
+}
+
+function GraphNodeCard({
+  node,
+  selected,
+  onChoose,
+  onMeasure,
+  onFocus,
+}: {
+  readonly node: GraphNode;
+  readonly selected: boolean;
+  readonly onChoose: () => void;
+  readonly onMeasure: (id: string, size: NodeSize) => void;
+  readonly onFocus: () => void;
+}) {
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  useLayoutEffect(() => {
+    const button = buttonRef.current;
+    if (!button) return;
+    const measure = () =>
+      onMeasure(node.id, { width: button.offsetWidth, height: button.offsetHeight });
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(button);
+    return () => observer.disconnect();
+  }, [node.id, onMeasure]);
+  return (
+    <button
+      ref={buttonRef}
+      type="button"
+      className={`workgraph-node workgraph-node--${node.kind} ${selected ? "is-selected" : ""}`}
+      data-node-id={node.id}
+      data-execution-state={node.executionStatus}
+      aria-pressed={selected}
+      onClick={onChoose}
+      onFocus={(event) => {
+        if (event.currentTarget.matches(":focus-visible")) onFocus();
+      }}
+      title={node.target ? "Show this work item's configuration" : "Original project intent"}
+    >
+      <span>
+        {node.kind === "intent"
+          ? "ORIGINAL INTENT"
+          : node.kind === "work"
+            ? "WORK ITEM"
+            : node.kind.toUpperCase()}
+      </span>
+      <strong>{node.title}</strong>
+      <span className="workgraph-status" title={node.executionStatus}>
+        {node.executionStatus ?? ""}
+      </span>
+      <small title={node.subtitle}>{node.subtitle}</small>
+    </button>
   );
 }

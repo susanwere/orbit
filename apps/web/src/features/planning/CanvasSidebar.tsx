@@ -3,7 +3,6 @@ import { AccountMenuHost } from "../auth/AccountMenuHost.js";
 
 interface CanvasSidebarProps {
   readonly projectName: string;
-  readonly workItems: readonly { key: string; title: string }[];
   readonly selectedItemKey: string | null;
   readonly approved: boolean;
   readonly hasPlan: boolean;
@@ -19,7 +18,6 @@ interface CanvasSidebarProps {
 /** Canvas navigation only. Execution remains available through the existing Intent page. */
 export function CanvasSidebar({
   projectName,
-  workItems,
   selectedItemKey,
   approved,
   hasPlan,
@@ -50,22 +48,13 @@ export function CanvasSidebar({
       <nav aria-label="Canvas sections">
         <button
           type="button"
-          className="canvas-sidebar-workflow"
-          aria-current={!selectedItemKey && !isComposerOpen && !activeSection ? "page" : undefined}
-          onClick={onOverview}
-        >
-          <SidebarIcon kind="workflow" />
-          Workflow
-        </button>
-        <button
-          type="button"
           aria-current={isComposerOpen ? "page" : undefined}
           onClick={onOpenComposer}
         >
           <SidebarIcon kind="composer" />
           Composer
         </button>
-        <details className="canvas-sidebar-items" open>
+        <details className="canvas-sidebar-items">
           <summary>
             <SidebarIcon kind="plan" />
             Plan details
@@ -89,11 +78,12 @@ export function CanvasSidebar({
         </details>
         <button
           type="button"
-          disabled={!hasGraph}
-          aria-current={activeSection === "work-items" ? "page" : undefined}
-          onClick={() => onOpenSection("work-items")}
+          className="canvas-sidebar-workflow"
+          aria-current={!selectedItemKey && !isComposerOpen && !activeSection ? "page" : undefined}
+          onClick={onOverview}
         >
-          <SidebarIcon kind="items" /> Work Items <small>{workItems.length}</small>
+          <SidebarIcon kind="workflow" />
+          Workflow
         </button>
         {hasPlan ? (
           <a

@@ -147,6 +147,7 @@ try {
 
   await page.getByRole("button", { name: /^WORK ITEM Jobs viewer/ }).waitFor();
   assert.equal(mutations.length, 0, "Opening the canvas must remain read-only");
+  await page.getByRole("button", { name: "Reset canvas view", exact: true }).click();
   await page.getByRole("button", { name: "Zoom in", exact: true }).click();
   await page.getByText("120%", { exact: true }).waitFor();
   await page.getByRole("button", { name: "Zoom out", exact: true }).click();
@@ -193,16 +194,38 @@ try {
     0,
   );
   const planDetailsToggle = page.locator(".canvas-sidebar-items > summary");
-  assert.equal(await planDetailsToggle.textContent(), "Plan details");
-  await planDetailsToggle.click();
   assert.equal(
     await page
       .locator(".canvas-sidebar")
       .getByRole("button", { name: /Work Items/ })
-      .isVisible(),
-    true,
-    "Work Items remains outside the collapsed Plan details group",
+      .count(),
+    0,
   );
+  const sidebarOrder = await page
+    .getByRole("navigation", { name: "Canvas sections", exact: true })
+    .evaluate((navigation) => {
+      const group = navigation.querySelector(".canvas-sidebar-workflow");
+      const details = navigation.querySelector(".canvas-sidebar-items");
+      return Boolean(details.compareDocumentPosition(group) & Node.DOCUMENT_POSITION_FOLLOWING);
+    });
+  assert.equal(sidebarOrder, true, "Workflow appears below Plan details");
+  assert.equal(await planDetailsToggle.textContent(), "Plan details");
+  assert.equal(
+    await page.locator(".canvas-sidebar-items").getAttribute("open"),
+    null,
+    "Plan details starts collapsed",
+  );
+  assert.equal(await page.getByRole("button", { name: "Workflow", exact: true }).isVisible(), true);
+  assert.equal(
+    await page.getByRole("button", { name: "Proposed Outcome", exact: true }).isVisible(),
+    false,
+  );
+  await planDetailsToggle.click();
+  assert.equal(
+    await page.getByRole("button", { name: "Proposed Outcome", exact: true }).isVisible(),
+    true,
+  );
+  await planDetailsToggle.press("Enter");
   assert.equal(
     await page.getByRole("button", { name: "Proposed Outcome", exact: true }).isVisible(),
     false,
@@ -265,10 +288,6 @@ try {
     "Keep keyboard access\nKeep contrast",
   );
   await page.getByRole("button", { name: "Cancel", exact: true }).click();
-  await page
-    .locator(".canvas-sidebar")
-    .getByRole("button", { name: /Work Items/ })
-    .click();
   await page.getByRole("button", { name: "+ Add work item", exact: true }).click();
   await page.getByRole("region", { name: "Work item configuration", exact: true }).waitFor();
   await page.getByRole("button", { name: "Proposed Outcome", exact: true }).click();
@@ -287,12 +306,23 @@ try {
     "Successful save returns to text view",
   );
   await page.getByRole("button", { name: "Approve plan", exact: true }).click();
-  await page.getByText("Plan approved", { exact: true }).waitFor();
+  await page.getByText("● Approved plan", { exact: true }).waitFor();
   assert.equal(await page.locator(".canvas-plan-section textarea").count(), 0);
   assert.equal(await page.getByRole("button", { name: "Edit", exact: true }).count(), 0);
   assert.equal(await page.getByRole("button", { name: "Save changes", exact: true }).count(), 0);
   await page.getByRole("button", { name: "Workflow", exact: true }).click();
   assert.equal(mutations.length, 2, "Plan edits and approval must not start execution");
+  assert.equal(
+    await page
+      .locator(".workgraph-plan-approved")
+      .evaluate((badge) => getComputedStyle(badge).color),
+    "rgb(100, 230, 142)",
+  );
+  assert.equal(
+    await page.locator(".workgraph-footer, .orbit-plan-footer").count(),
+    0,
+    "Canvas has no footer bars",
+  );
   await page.setViewportSize({ width: 375, height: 812 });
   await page.getByRole("button", { name: "Fit graph to view", exact: true }).click();
   await page.screenshot({ path: "/tmp/orbit-plan-canvas/mobile.png", fullPage: true });

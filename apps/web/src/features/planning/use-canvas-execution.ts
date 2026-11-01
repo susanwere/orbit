@@ -10,10 +10,13 @@ export function useCanvasExecution(api: ProjectIntentApi, projectId: string, ena
   const [refreshAttempt, setRefreshAttempt] = useState(0);
   const refreshExecution = useCallback(() => setRefreshAttempt((attempt) => attempt + 1), []);
   useEffect(() => {
-    let active = true;
-    let timer: ReturnType<typeof setTimeout> | undefined;
     setExecutionSteps([]);
     setMuseJobs({});
+    setExecutionError(null);
+  }, [projectId, enabled]);
+  useEffect(() => {
+    let active = true;
+    let timer: ReturnType<typeof setTimeout> | undefined;
     setExecutionError(null);
     if (!enabled) return;
     const refresh = async () => {

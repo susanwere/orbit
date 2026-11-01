@@ -1,5 +1,7 @@
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import { projectPlanGraph } from "./WorkGraphCanvas.js";
+import { projectPlanGraph, WorkGraphCanvas } from "./WorkGraphCanvas.js";
 
 describe("projectPlanGraph", () => {
   it("creates intent, dependency edges, workflow nodes and real approval gates", () => {
@@ -119,5 +121,38 @@ describe("execution graph evidence", () => {
     expect(graph.edges).toContainEqual({ from: "work:work", to: "workflow:work:0" });
     expect(graph.edges).toContainEqual({ from: "work:work", to: "workflow:work:1" });
     expect(graph.edges).not.toContainEqual({ from: "workflow:work:0", to: "workflow:work:1" });
+  });
+});
+
+describe("main workflow canvas", () => {
+  it.each([false, true])("shows only intent and main work items when approved=%s", (approved) => {
+    const markup = renderToStaticMarkup(
+      createElement(WorkGraphCanvas, {
+        items: [
+          {
+            key: "build",
+            title: "Build the app",
+            dependsOn: [],
+            workflows: [
+              {
+                name: "Private workflow detail",
+                steps: [
+                  { title: "Private step detail", executor: "agent", requiresApproval: true },
+                ],
+              },
+            ],
+          },
+        ],
+        intent: "Build an app",
+        approved,
+        selectedItemKey: null,
+        onSelect: () => undefined,
+      }),
+    );
+    expect(markup).toContain("Build the app · work");
+    expect(markup).toContain("Original intent · intent");
+    expect(markup).not.toContain("Private workflow detail");
+    expect(markup).not.toContain("Private step detail");
+    expect(markup).not.toContain("Human approval required · gate");
   });
 });
