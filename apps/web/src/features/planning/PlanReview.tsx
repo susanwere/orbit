@@ -119,7 +119,6 @@ function ProjectPlanCanvas({
   const [selectedStep, setSelectedStep] = useState<number | null>(null);
   const [editing, setEditing] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [isIntentOpen, setIsIntentOpen] = useState(false);
   const [planningFailure, setPlanningFailure] = useState(plan?.failure_reason ?? null);
   const [error, setError] = useState<string | null>(null);
   useEffect(() => {
@@ -362,12 +361,10 @@ function ProjectPlanCanvas({
         onOpenSection={(section) => {
           setCanvasSection(section);
           setSelectedItemKey(null);
-          setIsIntentOpen(false);
         }}
         onOpenComposer={() => {
           setCanvasSection("composer");
           setSelectedItemKey(null);
-          setIsIntentOpen(false);
         }}
         onBack={onBack}
         onOverview={() => {
@@ -397,31 +394,6 @@ function ProjectPlanCanvas({
           <p role="alert" className="intent-error canvas-action-error">
             {error}
           </p>
-        )}
-        {isIntentOpen && originalIntent && (
-          <section
-            className="canvas-intent-detail"
-            role="region"
-            aria-label="Saved Original Intent"
-          >
-            <button
-              type="button"
-              onClick={() => setIsIntentOpen(false)}
-              aria-label="Close original intent"
-            >
-              ×
-            </button>
-            <h2>Original Intent</h2>
-            <p>{originalIntent.statement}</p>
-            <small>Saved · immutable</small>
-            {originalIntent.created_at && (
-              <p>
-                <time dateTime={originalIntent.created_at}>
-                  {new Date(originalIntent.created_at).toLocaleString()}
-                </time>
-              </p>
-            )}
-          </section>
         )}
         {isLoading ? (
           <p className="canvas-loading" role="status">
@@ -893,7 +865,7 @@ function ProjectPlanCanvas({
                 selectedItemKey={null}
                 onSelect={(key) => {
                   if (key) openItem(key);
-                  else setIsIntentOpen(true);
+                  else setCanvasSection("original-intent");
                 }}
               />
             ) : (
