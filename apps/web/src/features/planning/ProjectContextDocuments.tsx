@@ -132,6 +132,12 @@ export function ProjectContextDocuments({
               ) : (
                 <p>No accessible repository evidence was found.</p>
               )}
+              {repository.commitSha && (
+                <p className="orbit-detail-muted">
+                  Source revision: {repository.commitSha.slice(0, 12)} ·{" "}
+                  {repository.truncated ? "Representative sample" : "Available source tree"}
+                </p>
+              )}
               {repository.inspected.length > 0 && (
                 <div>
                   <h4>Inspected files ({repository.inspected.length})</h4>

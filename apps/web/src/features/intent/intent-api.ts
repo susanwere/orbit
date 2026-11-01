@@ -147,6 +147,9 @@ export interface ProjectKnowledgeSnapshot {
     repositories: {
       fullName: string;
       inspected: string[];
+      commitSha?: string | null;
+      truncated?: boolean;
+      totalCandidates?: number;
       summary: ProjectKnowledgeSummary | null;
     }[];
   };
