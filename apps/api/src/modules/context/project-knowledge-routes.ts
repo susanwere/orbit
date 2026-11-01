@@ -153,7 +153,13 @@ export async function registerProjectKnowledgeRoutes(
         ],
       );
       if (decision === "approve") {
-        await promoteApprovedKnowledge(tx, actor.organizationId, actor.projectId, candidate.id, candidate.revision);
+        await promoteApprovedKnowledge(
+          tx,
+          actor.organizationId,
+          actor.projectId,
+          candidate.id,
+          candidate.revision,
+        );
         await tx.query(
           "INSERT INTO project_knowledge_heads (organization_id,project_id,approved_snapshot_id,approved_revision) VALUES ($1,$2,$3,$4) ON CONFLICT (organization_id,project_id) DO UPDATE SET approved_snapshot_id=EXCLUDED.approved_snapshot_id,approved_revision=EXCLUDED.approved_revision",
           [actor.organizationId, actor.projectId, candidate.id, candidate.revision],
