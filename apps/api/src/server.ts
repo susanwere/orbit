@@ -1,3 +1,4 @@
+import { LocalDocumentStorage } from "./modules/documents/document-storage.js";
 import { PgDatabase } from "@orbit/db";
 import { MuseWorkGraphPlanner } from "./modules/planning/muse-work-graph-planner.js";
 import type { PlanningRouteOptions } from "./modules/planning/planning-routes.js";
@@ -119,6 +120,14 @@ const planning: PlanningRouteOptions | undefined = auth
   : undefined;
 
 const app = await buildApp({
+  projectDocuments: auth && process.env.ORBIT_DOCUMENT_STORAGE_DIR
+    ? {
+        db: database,
+        auth,
+        authorization: new ProjectAuthorizationService(database),
+        storage: new LocalDocumentStorage(process.env.ORBIT_DOCUMENT_STORAGE_DIR),
+      }
+    : undefined,
   planning,
   originalIntent,
   authExchange:
