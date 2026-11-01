@@ -32,6 +32,7 @@ import { DomainEffectsWorker } from "./modules/execution/domain-effects-worker.j
 import { ProjectEventStream } from "./modules/events/project-event-stream.js";
 import { PostgresWebhookInboxStore } from "./modules/integrations/github/webhook-inbox.js";
 import { GithubWebhookWorker } from "./modules/integrations/github/webhook-worker.js";
+import { ProjectKnowledgeRefreshWorker } from "./modules/context/project-knowledge-refresh-worker.js";
 import { WhyProvenanceQuery } from "./modules/provenance/why-provenance-query.js";
 import { TaskService } from "./modules/tasks/task-service.js";
 import { MuseSparkTaskDrafter } from "./modules/tasks/task-drafter.js";
@@ -123,6 +124,20 @@ const planning: PlanningRouteOptions | undefined = auth
         : undefined,
     }
   : undefined;
+
+const knowledgeRefreshWorker =
+  process.env.MODEL_API_KEY && process.env.ORBIT_SYSTEM_PRINCIPAL_ID
+    ? new ProjectKnowledgeRefreshWorker(
+        database,
+        documentStorage,
+        new MetaModelApiClient({
+          apiKey: process.env.MODEL_API_KEY,
+          baseUrl: process.env.MODEL_API_BASE_URL,
+        }),
+        process.env.ORBIT_SYSTEM_PRINCIPAL_ID,
+        process.env.ORBIT_GITHUB_EVIDENCE_TOKEN,
+      )
+    : undefined;
 
 const app = await buildApp({
   knowledge: auth
@@ -282,6 +297,7 @@ const app = await buildApp({
 const workerTimer = setInterval(() => {
   void webhookWorker.processBatch().catch((error) => app.log.error(error));
   void analysisWorker?.processBatch().catch((error) => app.log.error(error));
+  void knowledgeRefreshWorker?.processBatch().catch((error) => app.log.error(error));
   void effectsWorker.processBatch().catch((error) => app.log.error(error));
 }, 5000);
 void webhookWorker.processBatch().catch((error) => app.log.error(error));

@@ -80,6 +80,103 @@ async function summarize(model: StructuredJsonClient, input: unknown): Promise<S
     }),
   );
 }
+export async function generateProjectKnowledgeSnapshot(
+  options: Pick<KnowledgeOptions, "db" | "storage" | "model" | "githubToken">,
+  organizationId: string,
+  projectId: string,
+  principalId: string,
+  origin?: {
+    kind: "github_merge";
+    jobId: string;
+    repository: string;
+    commitSha: string;
+    pullNumber: number;
+  },
+): Promise<Record<string, unknown>> {
+  const { db, storage, model, githubToken } = options;
+  if (!model) throw new DomainError("promotion_unavailable", "Muse Spark is not configured.");
+  if (origin) {
+    const previous = await db.query<Record<string, unknown>>(
+      "SELECT id,revision,content,created_at,review_status FROM project_knowledge_snapshots WHERE organization_id=$1 AND project_id=$2 AND content->'origin'->>'jobId'=$3 LIMIT 1",
+      [organizationId, projectId, origin.jobId],
+    );
+    if (previous.rows[0]) return previous.rows[0];
+  }
+  const [sources, repos, intents] = await Promise.all([
+    db.query<SourceRow>(
+      "SELECT id,original_filename,media_type,sha256,storage_key,version FROM project_documents WHERE organization_id=$1 AND project_id=$2 ORDER BY created_at,id LIMIT 10",
+      [organizationId, projectId],
+    ),
+    db.query<RepoRow>(
+      "SELECT full_name FROM project_repositories WHERE organization_id=$1 AND project_id=$2 ORDER BY created_at,id LIMIT 3",
+      [organizationId, projectId],
+    ),
+    db.query<{ statement: string } & Record<string, unknown>>(
+      "SELECT statement FROM intents WHERE organization_id=$1 AND project_id=$2 LIMIT 1",
+      [organizationId, projectId],
+    ),
+  ]);
+  const documents = [];
+  for (const row of sources.rows) {
+    const bytes = await storage.get(row.storage_key);
+    const hash = (await import("node:crypto")).createHash("sha256").update(bytes).digest("hex");
+    if (hash !== row.sha256)
+      throw new DomainError("validation", "Source integrity verification failed.");
+    const extracted = await extractDocumentText(row.media_type, bytes);
+    const excerpt = extracted.slice(0, 6_000);
+    if (!excerpt) continue;
+    const summary = await summarize(model, {
+      kind: "document",
+      filename: row.original_filename,
+      excerpt,
+    });
+    documents.push({
+      id: row.id,
+      version: row.version,
+      filename: row.original_filename,
+      sha256: row.sha256,
+      summary,
+    });
+  }
+  const repositories = [];
+  for (const repo of repos.rows) {
+    const evidence = await collectRepositoryEvidence(repo.full_name, githubToken);
+    repositories.push({
+      fullName: repo.full_name,
+      inspected: evidence.inspected,
+      commitSha: evidence.commitSha,
+      truncated: evidence.truncated,
+      totalCandidates: evidence.totalCandidates,
+      summary: evidence.files.length
+        ? await summarize(model, {
+            kind: "repository",
+            repository: repo.full_name,
+            commitSha: evidence.commitSha,
+            coverage: "Representative source files only, not an exhaustive audit",
+            files: evidence.files,
+          })
+        : null,
+    });
+  }
+  const summary = await summarize(model, {
+    kind: "project",
+    originalIntent: intents.rows[0]?.statement ?? "",
+    documents: documents.map(({ filename, summary }) => ({ filename, summary })),
+    repositories,
+  });
+  const content = { summary, documents, repositories, ...(origin ? { origin } : {}) };
+  const stored = await db.query<Record<string, unknown>>(
+    `INSERT INTO project_knowledge_snapshots (id,organization_id,project_id,revision,content,created_by_principal_id,base_approved_revision)
+       VALUES ($1,$2,$3,(SELECT COALESCE(MAX(revision),0)+1 FROM project_knowledge_snapshots WHERE organization_id=$2 AND project_id=$3),$4::jsonb,$5,(SELECT COALESCE(MAX(approved_revision),0) FROM project_knowledge_heads WHERE organization_id=$2 AND project_id=$3))
+       RETURNING id,revision,content,created_at`,
+    [randomUUID(), organizationId, projectId, JSON.stringify(content), principalId],
+  );
+
+  if (!stored.rows[0])
+    throw new DomainError("invalid_state", "Knowledge snapshot was not created.");
+  return stored.rows[0];
+}
+
 export async function registerProjectKnowledgeRoutes(
   app: FastifyInstance,
   { db, auth, authorization, storage, model, githubToken }: KnowledgeOptions,
@@ -174,82 +271,13 @@ export async function registerProjectKnowledgeRoutes(
       const principal = auth.verify(req.headers.authorization);
       const actor = await authorization.authorize(principal.id, req.params.projectId, "review");
       if (!model) throw new DomainError("promotion_unavailable", "Muse Spark is not configured.");
-      const [sources, repos, intents] = await Promise.all([
-        db.query<SourceRow>(
-          "SELECT id,original_filename,media_type,sha256,storage_key,version FROM project_documents WHERE organization_id=$1 AND project_id=$2 ORDER BY created_at,id LIMIT 10",
-          [actor.organizationId, actor.projectId],
-        ),
-        db.query<RepoRow>(
-          "SELECT full_name FROM project_repositories WHERE organization_id=$1 AND project_id=$2 ORDER BY created_at,id LIMIT 3",
-          [actor.organizationId, actor.projectId],
-        ),
-        db.query<{ statement: string } & Record<string, unknown>>(
-          "SELECT statement FROM intents WHERE organization_id=$1 AND project_id=$2 LIMIT 1",
-          [actor.organizationId, actor.projectId],
-        ),
-      ]);
-      const documents = [];
-      for (const row of sources.rows) {
-        const bytes = await storage.get(row.storage_key);
-        const hash = (await import("node:crypto")).createHash("sha256").update(bytes).digest("hex");
-        if (hash !== row.sha256)
-          throw new DomainError("validation", "Source integrity verification failed.");
-        const extracted = await extractDocumentText(row.media_type, bytes);
-        const excerpt = extracted.slice(0, 6_000);
-        if (!excerpt) continue;
-        const summary = await summarize(model, {
-          kind: "document",
-          filename: row.original_filename,
-          excerpt,
-        });
-        documents.push({
-          id: row.id,
-          version: row.version,
-          filename: row.original_filename,
-          sha256: row.sha256,
-          summary,
-        });
-      }
-      const repositories = [];
-      for (const repo of repos.rows) {
-        const evidence = await collectRepositoryEvidence(repo.full_name, githubToken);
-        repositories.push({
-          fullName: repo.full_name,
-          inspected: evidence.inspected,
-          commitSha: evidence.commitSha,
-          truncated: evidence.truncated,
-          totalCandidates: evidence.totalCandidates,
-          summary: evidence.files.length
-            ? await summarize(model, {
-                kind: "repository",
-                repository: repo.full_name,
-                commitSha: evidence.commitSha,
-                coverage: "Representative source files only, not an exhaustive audit",
-                files: evidence.files,
-              })
-            : null,
-        });
-      }
-      const summary = await summarize(model, {
-        kind: "project",
-        originalIntent: intents.rows[0]?.statement ?? "",
-        documents: documents.map(({ filename, summary }) => ({ filename, summary })),
-        repositories,
-      });
-      const content = { summary, documents, repositories };
-      const stored = await db.query<Record<string, unknown>>(
-        `INSERT INTO project_knowledge_snapshots (id,organization_id,project_id,revision,content,created_by_principal_id,base_approved_revision)
-       VALUES ($1,$2,$3,(SELECT COALESCE(MAX(revision),0)+1 FROM project_knowledge_snapshots WHERE organization_id=$2 AND project_id=$3),$4::jsonb,$5,(SELECT COALESCE(MAX(approved_revision),0) FROM project_knowledge_heads WHERE organization_id=$2 AND project_id=$3))
-       RETURNING id,revision,content,created_at`,
-        [
-          randomUUID(),
-          actor.organizationId,
-          actor.projectId,
-          JSON.stringify(content),
-          principal.id,
-        ],
+      const snapshot = await generateProjectKnowledgeSnapshot(
+        { db, storage, model, githubToken },
+        actor.organizationId,
+        actor.projectId,
+        principal.id,
       );
-      return reply.code(201).send({ snapshot: stored.rows[0] });
+      return reply.code(201).send({ snapshot });
     },
   );
 }
