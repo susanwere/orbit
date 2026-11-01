@@ -147,6 +147,7 @@ try {
 
   await page.getByRole("button", { name: /^WORK ITEM Jobs viewer/ }).waitFor();
   assert.equal(mutations.length, 0, "Opening the canvas must remain read-only");
+  await page.getByRole("button", { name: "Reset canvas view", exact: true }).click();
   await page.getByRole("button", { name: "Zoom in", exact: true }).click();
   await page.getByText("120%", { exact: true }).waitFor();
   await page.getByRole("button", { name: "Zoom out", exact: true }).click();
@@ -287,12 +288,23 @@ try {
     "Successful save returns to text view",
   );
   await page.getByRole("button", { name: "Approve plan", exact: true }).click();
-  await page.getByText("Plan approved", { exact: true }).waitFor();
+  await page.getByText("● Approved plan", { exact: true }).waitFor();
   assert.equal(await page.locator(".canvas-plan-section textarea").count(), 0);
   assert.equal(await page.getByRole("button", { name: "Edit", exact: true }).count(), 0);
   assert.equal(await page.getByRole("button", { name: "Save changes", exact: true }).count(), 0);
   await page.getByRole("button", { name: "Workflow", exact: true }).click();
   assert.equal(mutations.length, 2, "Plan edits and approval must not start execution");
+  assert.equal(
+    await page
+      .locator(".workgraph-plan-approved")
+      .evaluate((badge) => getComputedStyle(badge).color),
+    "rgb(100, 230, 142)",
+  );
+  assert.equal(
+    await page.locator(".workgraph-footer, .orbit-plan-footer").count(),
+    0,
+    "Canvas has no footer bars",
+  );
   await page.setViewportSize({ width: 375, height: 812 });
   await page.getByRole("button", { name: "Fit graph to view", exact: true }).click();
   await page.screenshot({ path: "/tmp/orbit-plan-canvas/mobile.png", fullPage: true });

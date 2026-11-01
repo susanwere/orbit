@@ -82,27 +82,18 @@
   outline: 2px solid #91adff;
   outline-offset: 3px;
 }
-.workgraph-footer {
-  display: flex;
-  justify-content: space-between;
-  gap: 1rem;
-  padding: 0.75rem 1rem;
-  color: #a7b3c8;
-  font-size: 0.75rem;
-  border-top: 1px solid #29344b;
-}
-.workgraph-footer details {
+.canvas-node-list {
   position: relative;
 }
-.workgraph-footer summary {
+.canvas-node-list summary {
   cursor: pointer;
 }
-.workgraph-footer ul {
+.canvas-node-list ul {
   list-style: none;
   padding: 1rem;
   margin: 0;
   position: absolute;
-  bottom: 100%;
+  top: calc(100% + 8px);
   right: 0;
   width: min(320px, 85vw);
   max-height: 300px;
@@ -112,7 +103,7 @@
   border-radius: 12px;
   box-shadow: 0 15px 40px #000b;
 }
-.workgraph-footer li button {
+.canvas-node-list li button {
   font: inherit;
   color: #e5ecff;
   background: transparent;
@@ -122,7 +113,7 @@
   width: 100%;
   cursor: pointer;
 }
-.workgraph-footer li button:focus-visible {
+.canvas-node-list li button:focus-visible {
   outline: 2px solid #a8c2ff;
 }
 @media (max-width: 800px) {
@@ -132,7 +123,35 @@
   .workgraph-legend {
     gap: 0.6rem;
   }
-  .workgraph-footer {
-    flex-wrap: wrap;
-  }
+}
+
+.workgraph-node {
+  overflow-wrap: anywhere;
+}
+.workgraph-node .workgraph-status {
+  height: 28px;
+  min-height: 28px;
+  overflow: auto;
+  letter-spacing: normal;
+  line-height: 14px;
+}
+.workgraph-node small {
+  height: 2.6em;
+  min-height: 2.6em;
+}
+.workgraph-scene {
+  touch-action: none;
+  cursor: grab;
+}
+.workgraph-scene.is-dragging {
+  cursor: grabbing;
+  user-select: none;
+}
+.workgraph-scene:focus-visible {
+  outline: 2px solid #c399ff;
+  outline-offset: -3px;
+}
+
+.workgraph-node {
+  pointer-events: auto;
 }

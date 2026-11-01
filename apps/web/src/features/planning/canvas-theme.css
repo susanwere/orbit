@@ -205,16 +205,11 @@
   border-color: #c594ff;
   outline-color: #ae7be8;
 }
-.orbit-workspace .workgraph-footer {
-  border-color: #382a4b;
-  color: #bcadce;
-  background: #100b1bc9;
-}
-.orbit-workspace .workgraph-footer ul {
+.orbit-workspace .canvas-node-list ul {
   background: #1b1029;
   border-color: #8960ad;
 }
-.orbit-workspace .workgraph-footer li button {
+.orbit-workspace .canvas-node-list li button {
   color: #f0e6ff;
 }
 .canvas-view-controls {
@@ -1189,4 +1184,67 @@
   width: 18px;
   height: 18px;
   flex-basis: 18px;
+}
+
+.orbit-workspace .workgraph-legend .workgraph-plan-approved {
+  color: #64e68e;
+}
+.workgraph-plan-approved > span {
+  color: inherit;
+}
+.canvas-plan-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-left: auto;
+}
+.canvas-plan-actions button {
+  padding: 8px 12px;
+  border: 1px solid #62427f;
+  border-radius: 9px;
+  background: #20132e;
+  color: #f5eeff;
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+.canvas-plan-actions .cta-primary {
+  border-color: #a57bff;
+  background: linear-gradient(#9355ff, #5720ed);
+}
+.canvas-plan-actions button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.orbit-workspace-main > .canvas-plan-actions {
+  padding: 16px 24px;
+}
+.canvas-action-error {
+  padding: 12px 24px;
+}
+.canvas-node-list {
+  align-self: center;
+  border: 1px solid #48315e;
+  border-radius: 13px;
+  color: #eee2ff;
+  background: #171021ed;
+  font-size: 12px;
+}
+.canvas-node-list summary {
+  padding: 13px;
+}
+.canvas-node-list ul {
+  z-index: 25;
+}
+.orbit-full-canvas {
+  display: flex;
+  flex-direction: column;
+  height: 100svh;
+  min-height: 620px;
+}
+.orbit-workspace .workgraph-root {
+  flex: 1;
+  height: auto;
 }

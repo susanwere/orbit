@@ -302,6 +302,46 @@ function ProjectPlanCanvas({
     openItem(key);
   }
 
+  const planActions =
+    !isLoading && !showComposer && !approved ? (
+      <div id="canvas-plan-actions" className="canvas-plan-actions" aria-label="Plan actions">
+        <button
+          type="button"
+          disabled={busy}
+          onClick={() => {
+            void latest();
+          }}
+        >
+          Reload latest
+        </button>
+        {status === "READY_FOR_REVIEW" && graph && (
+          <>
+            {!projectSection && (
+              <button
+                type="button"
+                disabled={busy || !dirty}
+                onClick={() => {
+                  void save();
+                }}
+              >
+                Save changes
+              </button>
+            )}
+            <button
+              type="button"
+              className="cta-primary"
+              disabled={busy || dirty || !graph}
+              onClick={() => {
+                void approve();
+              }}
+            >
+              Approve plan
+            </button>
+          </>
+        )}
+      </div>
+    ) : null;
+
   return (
     <main className="orbit-workspace">
       <CanvasSidebar
@@ -346,6 +386,12 @@ function ProjectPlanCanvas({
         <h1 id="plan-heading" className="canvas-heading-accessible">
           {selectedItem ? selectedItem.title : "Workflow Canvas"}
         </h1>
+        {!showComposer && (projectSection || selectedItem) && planActions}
+        {error && (
+          <p role="alert" className="intent-error canvas-action-error">
+            {error}
+          </p>
+        )}
         {isIntentOpen && originalIntent && (
           <section
             className="canvas-intent-detail"
@@ -763,12 +809,11 @@ function ProjectPlanCanvas({
           </section>
         ) : (
           <section className="orbit-full-canvas" aria-label="Plan overview">
-            <div className="orbit-workspace-stage-head">
-              <span>PROJECT WORK GRAPH</span>
-              <strong>
-                {graph?.workItems.length ?? 0} {approved ? "approved" : "proposed"} work items
-              </strong>
-            </div>
+            {!approved && graph && (
+              <div className="canvas-execution-status">
+                <span>{graph.workItems.length} proposed work items</span>
+              </div>
+            )}
             {(originalIntent || graph) &&
               (planningPending || status === "FAILED" || canGeneratePlan || error) && (
                 <div className="canvas-planning-notice">
@@ -812,11 +857,7 @@ function ProjectPlanCanvas({
               )}
             {approved && (
               <div className="canvas-execution-status">
-                <span>
-                  {executionSteps.length
-                    ? `${executionSteps.filter((step) => step.state === "COMPLETED").length} of ${executionSteps.length} steps completed`
-                    : "No materialized execution steps"}
-                </span>
+                <span>{graph?.workItems.length ?? 0} approved work items</span>
                 <button type="button" onClick={refreshExecution}>
                   Refresh execution status
                 </button>
@@ -825,6 +866,7 @@ function ProjectPlanCanvas({
             )}
             {originalIntent || graph ? (
               <WorkGraphCanvas
+                planActions={planActions}
                 items={graph?.workItems ?? []}
                 intent={originalIntent?.statement ?? "Original intent"}
                 approved={approved}
@@ -856,67 +898,6 @@ function ProjectPlanCanvas({
               </p>
             )}
           </section>
-        )}
-        {!isLoading && !showComposer && (
-          <footer id="canvas-plan-actions" className="orbit-plan-footer">
-            <div>
-              <strong>
-                {status === "GENERATING"
-                  ? "Planning in progress"
-                  : status === "FAILED"
-                    ? "Planning failed"
-                    : status === null
-                      ? "Original intent saved"
-                      : approved
-                        ? "Plan approved"
-                        : dirty
-                          ? "You have unsaved changes"
-                          : "Review the proposed plan"}
-              </strong>
-              <small>Human approval does not start agents or execute code.</small>
-              {error && (
-                <p role="alert" className="intent-error">
-                  {error}
-                </p>
-              )}
-            </div>
-            <div className="orbit-plan-footer-actions">
-              <button
-                type="button"
-                disabled={busy}
-                onClick={() => {
-                  void latest();
-                }}
-              >
-                Reload latest
-              </button>
-              {status === "READY_FOR_REVIEW" && graph && (
-                <>
-                  {!projectSection && (
-                    <button
-                      type="button"
-                      disabled={busy || !dirty}
-                      onClick={() => {
-                        void save();
-                      }}
-                    >
-                      Save changes
-                    </button>
-                  )}
-                  <button
-                    type="button"
-                    className="cta-primary"
-                    disabled={busy || dirty || !graph}
-                    onClick={() => {
-                      void approve();
-                    }}
-                  >
-                    Approve plan
-                  </button>
-                </>
-              )}
-            </div>
-          </footer>
         )}
       </div>
     </main>
