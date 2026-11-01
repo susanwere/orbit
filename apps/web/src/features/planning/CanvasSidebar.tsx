@@ -9,6 +9,8 @@ interface CanvasSidebarProps {
   readonly isComposerOpen: boolean;
   readonly activeSection: PlanSectionKey | null;
   readonly hasGraph: boolean;
+  readonly isContextOpen: boolean;
+  readonly onOpenContext: () => void;
   readonly onOpenSection: (section: PlanSectionKey) => void;
   readonly onOpenComposer: () => void;
   readonly onBack: () => void;
@@ -24,6 +26,8 @@ export function CanvasSidebar({
   isComposerOpen,
   activeSection,
   hasGraph,
+  isContextOpen,
+  onOpenContext,
   onOpenSection,
   onOpenComposer,
   onBack,
@@ -53,6 +57,14 @@ export function CanvasSidebar({
         >
           <SidebarIcon kind="composer" />
           Composer
+        </button>
+        <button
+          type="button"
+          aria-current={isContextOpen ? "page" : undefined}
+          onClick={onOpenContext}
+        >
+          <SidebarIcon kind="plan" />
+          Project Context
         </button>
         <details className="canvas-sidebar-items">
           <summary>
