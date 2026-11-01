@@ -8,12 +8,11 @@ interface CanvasComposerProps {
   readonly onSubmitIntent?: (statement: string, files: readonly File[]) => Promise<void>;
 }
 
-/** Editable canvas draft. Generation remains on Intent until this entry point is connected. */
+/** Create the original Intent and document-backed plan directly from the canvas. */
 export function CanvasComposer({
   isPreview = false,
   draftIdea,
   onDraftChange,
-  onOpenIntent,
   onSubmitIntent,
 }: CanvasComposerProps) {
   const [attachments, setAttachments] = useState<File[]>([]);
