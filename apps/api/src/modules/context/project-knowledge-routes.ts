@@ -172,6 +172,7 @@ export async function generateProjectKnowledgeSnapshot(
     [randomUUID(), organizationId, projectId, JSON.stringify(content), principalId],
   );
 
+  if (!stored.rows[0]) throw new DomainError("invalid_state", "Knowledge snapshot was not created.");
   return stored.rows[0];
 }
 
