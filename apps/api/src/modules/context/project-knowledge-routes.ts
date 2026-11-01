@@ -85,10 +85,17 @@ export async function generateProjectKnowledgeSnapshot(
   organizationId: string,
   projectId: string,
   principalId: string,
-  origin?: { kind: "github_merge"; repository: string; commitSha: string; pullNumber: number },
+  origin?: { kind: "github_merge"; jobId: string; repository: string; commitSha: string; pullNumber: number },
 ): Promise<Record<string, unknown>> {
   const { db, storage, model, githubToken } = options;
   if (!model) throw new DomainError("promotion_unavailable", "Muse Spark is not configured.");
+  if (origin) {
+    const previous = await db.query<Record<string, unknown>>(
+      "SELECT id,revision,content,created_at,review_status FROM project_knowledge_snapshots WHERE organization_id=$1 AND project_id=$2 AND content->'origin'->>'jobId'=$3 LIMIT 1",
+      [organizationId, projectId, origin.jobId],
+    );
+    if (previous.rows[0]) return previous.rows[0];
+  }
       const [sources, repos, intents] = await Promise.all([
         db.query<SourceRow>(
           "SELECT id,original_filename,media_type,sha256,storage_key,version FROM project_documents WHERE organization_id=$1 AND project_id=$2 ORDER BY created_at,id LIMIT 10",
