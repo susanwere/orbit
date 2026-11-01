@@ -27,6 +27,8 @@ export interface ApprovedAgent {
 
 export interface ExecutionStep {
   readonly id: string;
+  readonly plan_id?: string;
+  readonly plan_revision?: number;
   readonly executor?: "agent" | "human" | "system";
   readonly title?: string;
   readonly completion_kind?: "github_ci" | "human_review";
