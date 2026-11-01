@@ -17,3 +17,6 @@
 *.key
 *.p12
 *.pfx
+
+# Disposable worker checkouts and generated mount policies
+.orbit-local/

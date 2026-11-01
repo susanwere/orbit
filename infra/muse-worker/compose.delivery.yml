@@ -1,6 +1,7 @@
 # Separate trusted delivery container: no Muse credential. For disposable repos only.
 services:
   muse-delivery:
+    image: orbit-muse-worker:local
     profiles: ["muse-delivery"]
     build:
       context: .
@@ -14,6 +15,7 @@ services:
       DATABASE_URL: postgres://orbit:orbit@postgres:5432/orbit
       ORBIT_MUSE_ISOLATED_WORKER: "true"
       ORBIT_WORKER_SANDBOX_CONFIRMED: "yes"
+      ORBIT_WORKER_POLICY: /run/orbit-policy.json
       ORBIT_WORKER_WORKSPACE: /workspace
       ORBIT_WORKER_BASE_BRANCH: main
       ORBIT_WORKER_JOB_ID: ${ORBIT_WORKER_JOB_ID:-}
@@ -24,6 +26,15 @@ services:
       - type: bind
         source: ${ORBIT_DISPOSABLE_CHECKOUT:?Set ORBIT_DISPOSABLE_CHECKOUT to an absolute disposable checkout path}
         target: /workspace
+        read_only: false
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ${ORBIT_WORKER_POLICY_FILE:?Set the exact job policy path}
+        target: /run/orbit-policy.json
+        read_only: true
+        bind:
+          create_host_path: false
     working_dir: /orbit/apps/api
     read_only: true
     tmpfs:

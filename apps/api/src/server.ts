@@ -5,6 +5,7 @@ import type { OriginalIntentOptions } from "./modules/intent/original-intent-rou
 import { StepSessionBindingService } from "./modules/execution/step-session-binding-service.js";
 import { WorkflowStepExecutionService } from "./modules/execution/workflow-step-execution-service.js";
 import { MuseExecutionJobService } from "./modules/execution/muse-execution-worker.js";
+import { GithubCiMonitor } from "./modules/execution/github-ci-monitor.js";
 import { GithubCiEvidenceService } from "./modules/execution/github-ci-evidence-service.js";
 import { ApprovedStepMaterializer } from "./modules/execution/approved-step-materializer.js";
 import { HumanGateService } from "./modules/execution/human-gate-service.js";
@@ -31,6 +32,10 @@ import { ProjectEventStream } from "./modules/events/project-event-stream.js";
 import { PostgresWebhookInboxStore } from "./modules/integrations/github/webhook-inbox.js";
 import { GithubWebhookWorker } from "./modules/integrations/github/webhook-worker.js";
 import { WhyProvenanceQuery } from "./modules/provenance/why-provenance-query.js";
+import { TaskService } from "./modules/tasks/task-service.js";
+import { MuseSparkTaskDrafter } from "./modules/tasks/task-drafter.js";
+import { TaskExecutionService } from "./modules/tasks/task-execution-service.js";
+import { MuseDeliveryRequestService } from "./modules/execution/muse-delivery-request-service.js";
 
 const port = Number(process.env.PORT ?? 4000);
 const host = process.env.HOST ?? "0.0.0.0";
@@ -140,6 +145,9 @@ const app = await buildApp({
         auth,
         db: database,
         authorization: new ProjectAuthorizationService(database),
+        ciMonitor: process.env.ORBIT_GITHUB_EVIDENCE_TOKEN
+          ? new GithubCiMonitor(database, process.env.ORBIT_GITHUB_EVIDENCE_TOKEN)
+          : undefined,
         evidence: process.env.ORBIT_GITHUB_EVIDENCE_TOKEN
           ? new GithubCiEvidenceService(
               database,
@@ -189,6 +197,37 @@ const app = await buildApp({
         authorization: new ProjectAuthorizationService(database),
         stream: new ProjectEventStream(database),
         auth,
+      }
+    : undefined,
+  tasks: auth
+    ? {
+        auth,
+        tasks: new TaskService(
+          database,
+          new ProjectAuthorizationService(database),
+          process.env.MODEL_API_KEY
+            ? new MuseSparkTaskDrafter(
+                new MetaModelApiClient({
+                  apiKey: process.env.MODEL_API_KEY,
+                  baseUrl: process.env.MODEL_API_BASE_URL,
+                }),
+              )
+            : undefined,
+        ),
+        execution: new TaskExecutionService(
+          database,
+          new ProjectAuthorizationService(database),
+          new ApprovedStepMaterializer(database, new ProjectAuthorizationService(database)),
+          new AgentSessionService(
+            database,
+            new ProjectAuthorizationService(database),
+            new AgentContextSnapshotService(database, new ProjectAuthorizationService(database)),
+          ),
+          new StepSessionBindingService(database, new ProjectAuthorizationService(database)),
+          new WorkflowStepExecutionService(database, new ProjectAuthorizationService(database)),
+          new MuseExecutionJobService(database, new ProjectAuthorizationService(database)),
+          new MuseDeliveryRequestService(database, new ProjectAuthorizationService(database)),
+        ),
       }
     : undefined,
   decisionReview: auth ? decisionReview : undefined,

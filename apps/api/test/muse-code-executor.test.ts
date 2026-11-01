@@ -27,7 +27,9 @@ describe("Muse Code executor adapter", () => {
       },
     });
     const result = await adapter.execute(request);
-    expect(args.slice(0, 3)).toEqual(["exec", "--disable-approval", "--json"]);
+    expect(args.slice(0, 2)).toEqual(["exec", "--disable-approval"]);
+    expect(args).toContain("--trust-workspace");
+    expect(args).toContain("--json");
     expect(args).toContain("--max-model-steps");
     expect(result).toEqual({
       provider: "meta-muse-code",
@@ -35,6 +37,30 @@ describe("Muse Code executor adapter", () => {
       events: [{ type: "started" }, { type: "finished" }],
       outputTruncated: false,
     });
+  });
+
+  it("withholds shell and web tools in the local file-edit container", async () => {
+    const adapter = new MuseCodeCliExecutor(
+      {
+        run: async (arguments_) => {
+          expect(arguments_).toEqual(
+            expect.arrayContaining([
+              "--disable-shell",
+              "--disable-web-tools",
+              "--no-foreign-personal-context",
+              "--no-session-log",
+              "--sandbox-network",
+              "restricted",
+            ]),
+          );
+          expect(arguments_).not.toContain("--disable-sandbox");
+          expect(arguments_).not.toContain("--yolo");
+          return { exitCode: 0, stdout: "" };
+        },
+      },
+      true,
+    );
+    await adapter.execute(request);
   });
 
   it("rejects requests outside resource limits before launching", async () => {

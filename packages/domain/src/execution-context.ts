@@ -7,6 +7,7 @@ export interface AuthorizationBasis {
   readonly agentDefinitionVersion: number;
   readonly capabilities: readonly string[];
   readonly policyEvaluationIds: readonly Id[];
+  readonly workflowReviewEvidenceIds?: readonly Id[];
 }
 
 export interface ContextSnapshotItem {

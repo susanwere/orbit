@@ -1,4 +1,5 @@
 import type { FastifyInstance } from "fastify";
+import { DomainError } from "@orbit/domain";
 import type { AuthVerifier } from "../auth/verified-principal.js";
 import type { AgentSessionService } from "./agent-session-service.js";
 import type { MuseExecutionJobService } from "../execution/muse-execution-worker.js";
@@ -54,7 +55,12 @@ export async function registerAgentSessionRoutes(
   });
   app.post<{
     Params: { projectId: string };
-    Body: { agentDefinitionId: string; workItemId: string; mission: string };
+    Body: {
+      agentDefinitionId: string;
+      workItemId: string;
+      mission: string;
+      repairSourceJobId?: string;
+    };
   }>("/projects/:projectId/agent-sessions/self", async (req, reply) => {
     const principal = opts.auth.verify(req.headers.authorization);
     const body = req.body;
@@ -65,6 +71,7 @@ export async function registerAgentSessionRoutes(
       agentDefinitionId: body?.agentDefinitionId ?? "",
       workItemId: body?.workItemId ?? "",
       mission: body?.mission ?? "",
+      repairSourceJobId: body?.repairSourceJobId,
     });
     return reply.status(201).send(result);
   });
@@ -99,17 +106,20 @@ export async function registerAgentSessionRoutes(
         };
       },
     );
-    app.post<{ Params: { projectId: string; sessionId: string } }>(
-      "/projects/:projectId/agent-sessions/:sessionId/dispatch-muse",
-      async (req, reply) => {
-        const principal = opts.auth.verify(req.headers.authorization);
-        const job = await opts.museJobs!.enqueue({
-          projectId: req.params.projectId,
-          sessionId: req.params.sessionId,
-          principalId: principal.id,
-        });
-        return reply.status(202).send({ job });
-      },
-    );
+    app.post<{
+      Params: { projectId: string; sessionId: string };
+      Body: { executeLocally?: unknown };
+    }>("/projects/:projectId/agent-sessions/:sessionId/dispatch-muse", async (req, reply) => {
+      const principal = opts.auth.verify(req.headers.authorization);
+      if (req.body?.executeLocally !== undefined && typeof req.body.executeLocally !== "boolean")
+        throw new DomainError("validation", "executeLocally must be a boolean.");
+      const job = await opts.museJobs!.enqueue({
+        projectId: req.params.projectId,
+        sessionId: req.params.sessionId,
+        principalId: principal.id,
+        executeLocally: req.body?.executeLocally === true,
+      });
+      return reply.status(202).send({ job });
+    });
   }
 }

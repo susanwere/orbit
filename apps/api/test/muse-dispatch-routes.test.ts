@@ -34,7 +34,29 @@ describe("authenticated Muse dispatch queue", () => {
     });
     expect(accepted.statusCode).toBe(202);
     expect(accepted.json().job.status).toBe("QUEUED");
-    expect(calls).toEqual([{ projectId: "project", sessionId: "session", principalId: "human" }]);
+    expect(calls).toEqual([
+      { projectId: "project", sessionId: "session", principalId: "human", executeLocally: false },
+    ]);
+    const invalid = await app.inject({
+      method: "POST",
+      url: route,
+      headers: { authorization: "Bearer valid" },
+      payload: { executeLocally: "true" },
+    });
+    expect(invalid.statusCode).toBe(400);
+    const local = await app.inject({
+      method: "POST",
+      url: route,
+      headers: { authorization: "Bearer valid" },
+      payload: { executeLocally: true },
+    });
+    expect(local.statusCode).toBe(202);
+    expect(calls[1]).toEqual({
+      projectId: "project",
+      sessionId: "session",
+      principalId: "human",
+      executeLocally: true,
+    });
     await app.close();
   });
 });

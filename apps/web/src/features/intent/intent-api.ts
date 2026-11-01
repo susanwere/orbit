@@ -27,6 +27,9 @@ export interface ApprovedAgent {
 
 export interface ExecutionStep {
   readonly id: string;
+  readonly executor?: "agent" | "human" | "system";
+  readonly title?: string;
+  readonly completion_kind?: "github_ci" | "human_review";
   readonly state: string;
   readonly blocker_reason: string | null;
   readonly work_item_key: string;
@@ -35,44 +38,148 @@ export interface ExecutionStep {
   readonly approval_required: boolean;
   readonly approved_at: string | null;
   readonly agent_session_id: string | null;
+  readonly ci_repair_source_job_id?: string | null;
 }
 
 export interface MuseJobStatus {
   readonly id: string;
   readonly status: string;
   readonly workflow_step_id: string;
+  readonly local_execution_state?:
+    | "REQUESTED"
+    | "PREPARING"
+    | "RUNNING"
+    | "FINISHED"
+    | "ERROR"
+    | null;
+  readonly local_execution_error?: string | null;
+  readonly needs_revision_replacement?: boolean;
+  readonly needs_ci_repair_retry?: boolean;
+  readonly repair_source_job_id?: string | null;
+  readonly context_snapshot_id?: string | null;
+  readonly repair_repository?: string | null;
+  readonly repair_pull_number?: number | null;
+  readonly repair_base_sha?: string | null;
+  readonly repair_ci_report?: { summary: string } | null;
+  readonly review_output?: string | null;
+  readonly output_hash?: string | null;
+  readonly output_source?: string | null;
+  readonly changed_paths?: readonly string[] | null;
   readonly attempts: number;
   readonly started_at: string | null;
   readonly finished_at: string | null;
   readonly failure_reason: string | null;
+  readonly delivery_state?: "REQUESTED" | "RUNNING" | "FINISHED" | "ERROR" | null;
+  readonly delivery_error?: string | null;
+  readonly github_head_sha?: string | null;
+  readonly github_ci_state?: "WAITING" | "PENDING" | "FAILED" | "PASSED" | null;
+  readonly github_review_state?: "DRAFT" | "READY" | "ERROR" | null;
+  readonly github_review_error?: string | null;
+  readonly github_ci_report?: {
+    summary: string;
+    runs: readonly {
+      id: number;
+      name: string;
+      conclusion: string | null;
+      url: string;
+      failures: readonly string[];
+    }[];
+  } | null;
+  readonly github_ci_url?: string | null;
+  readonly github_ci_run_id?: string | null;
   readonly github_repository: string | null;
   readonly github_pull_number: number | null;
 }
 
+export type ProjectTaskState =
+  | "DRAFT"
+  | "STARTING"
+  | "ACTIVE"
+  | "NEEDS_INPUT"
+  | "IN_REVIEW"
+  | "DONE"
+  | "FAILED";
+
+export interface ProjectTask {
+  readonly id: string;
+  readonly task_key: string;
+  readonly title: string;
+  readonly prompt: string;
+  readonly revision: number;
+  readonly state: ProjectTaskState;
+  readonly display_state?: ProjectTaskState;
+  readonly session_id?: string | null;
+  readonly dependency_keys?: readonly string[];
+  readonly blocked_by?: readonly string[] | null;
+  readonly automatic_repairs?: number;
+  readonly last_error?: string | null;
+  readonly github_repository?: string | null;
+  readonly github_pull_number?: number | null;
+  readonly github_ci_state?: string | null;
+  readonly github_review_state?: string | null;
+  readonly delivery_state?: string | null;
+  readonly has_human_executor?: boolean;
+  readonly has_agent_executor?: boolean;
+}
+
 export interface ProjectIntentApi {
   getIntent(projectId: string): Promise<StoredIntent | null>;
+  getTasks(projectId: string): Promise<readonly ProjectTask[]>;
+  updateTask(
+    projectId: string,
+    taskId: string,
+    revision: number,
+    title: string,
+    prompt: string,
+  ): Promise<ProjectTask>;
+  addTask(
+    projectId: string,
+    request: string,
+  ): Promise<{ existingTaskId: string | null; task: ProjectTask | null }>;
+  executeTask(projectId: string, taskId: string, agentDefinitionId: string): Promise<void>;
+  approveTaskProposal(projectId: string, taskId: string, note?: string): Promise<ProjectTask>;
   submitIntent(projectId: string, statement: string): Promise<StoredIntent>;
   getPlan(projectId: string): Promise<ProjectPlan | null>;
   generatePlan(projectId: string): Promise<ProjectPlan>;
   updatePlan(projectId: string, expectedRevision: number, content: unknown): Promise<ProjectPlan>;
   approvePlan(projectId: string, expectedRevision: number): Promise<ProjectPlan>;
+  connectRepository(projectId: string, repository: string): Promise<ConnectedRepository>;
   getRepositories(projectId: string): Promise<readonly ConnectedRepository[]>;
+  authorizeProposalReview(projectId: string, stepId: string): Promise<void>;
+  reviewOutput(
+    projectId: string,
+    stepId: string,
+    outputHash: string,
+    note?: string,
+    decision?: "approve" | "reject",
+  ): Promise<void>;
+  completeHumanReview(projectId: string, stepId: string, note?: string): Promise<void>;
   prepareExecution(projectId: string): Promise<unknown>;
   getExecutionSteps(projectId: string): Promise<readonly ExecutionStep[]>;
   getApprovedAgents(projectId: string): Promise<readonly ApprovedAgent[]>;
   onboardMuse(projectId: string, repository: string): Promise<void>;
   approveExecutionStep(projectId: string, stepId: string): Promise<void>;
+  retireUnstartedJob(projectId: string, stepId: string, jobId: string): Promise<void>;
+  requestDelivery(
+    projectId: string,
+    stepId: string,
+    jobId: string,
+    outputHash: string,
+  ): Promise<void>;
   authorizeExecutionRetry(projectId: string, stepId: string): Promise<void>;
   createAgentSession(
     projectId: string,
     definitionId: string,
     workItemId: string,
     mission: string,
+    repairSourceJobId?: string,
   ): Promise<string>;
   bindExecutionSession(projectId: string, stepId: string, sessionId: string): Promise<void>;
   startAgentSession(projectId: string, sessionId: string): Promise<void>;
   dispatchMuse(projectId: string, sessionId: string): Promise<void>;
   getMuseJob(projectId: string, sessionId: string): Promise<MuseJobStatus | null>;
+  inspectGithubCi(projectId: string, stepId: string, jobId: string): Promise<void>;
+  prepareCiRepair(projectId: string, stepId: string, jobId: string): Promise<void>;
   verifyGithubCi(
     projectId: string,
     stepId: string,
@@ -148,6 +255,34 @@ export function createIntentApi(
           expectedRevision,
         })
       ).plan,
+    authorizeProposalReview: async (id, stepId) => {
+      await request(
+        `${path(id)}/execution/steps/${encodeURIComponent(stepId)}/authorize-proposal-review`,
+        "POST",
+        { acknowledgeNonCodeStep: true },
+      );
+    },
+    requestDelivery: async (id, stepId, jobId, outputHash) => {
+      await request(
+        `${path(id)}/execution/steps/${encodeURIComponent(stepId)}/request-delivery`,
+        "POST",
+        { jobId, outputHash, acknowledgePush: true },
+      );
+    },
+    reviewOutput: async (id, stepId, outputHash, note, decision) => {
+      await request(
+        `${path(id)}/execution/steps/${encodeURIComponent(stepId)}/review-output`,
+        "POST",
+        { outputHash, note, ...(decision ? { decision } : {}) },
+      );
+    },
+    completeHumanReview: async (id, stepId, note) => {
+      await request(
+        `${path(id)}/execution/steps/${encodeURIComponent(stepId)}/complete-human-review`,
+        "POST",
+        { note },
+      );
+    },
     prepareExecution: async (id) => request<unknown>(`${path(id)}/execution/prepare`, "POST"),
     onboardMuse: async (id, repository) => {
       await request(path(id) + "/approved-agents/muse", "POST", { repository, approved: true });
@@ -156,8 +291,43 @@ export function createIntentApi(
       (await request<{ agents: ApprovedAgent[] }>(`${path(id)}/approved-agents`)).agents,
     getExecutionSteps: async (id) =>
       (await request<{ steps: ExecutionStep[] }>(`${path(id)}/execution/steps`)).steps,
+    getTasks: async (id) => (await request<{ tasks: ProjectTask[] }>(`${path(id)}/tasks`)).tasks,
+    updateTask: async (id, taskId, revision, title, prompt) =>
+      (
+        await request<{ task: ProjectTask }>(
+          `${path(id)}/tasks/${encodeURIComponent(taskId)}`,
+          "PATCH",
+          { revision, title, prompt },
+        )
+      ).task,
+    addTask: async (id, taskRequest) =>
+      request<{ existingTaskId: string | null; task: ProjectTask | null }>(
+        `${path(id)}/tasks`,
+        "POST",
+        { request: taskRequest },
+      ),
+    executeTask: async (id, taskId, agentDefinitionId) => {
+      await request(`${path(id)}/tasks/${encodeURIComponent(taskId)}/execute`, "POST", {
+        agentDefinitionId,
+      });
+    },
+    approveTaskProposal: async (id, taskId, note) =>
+      (
+        await request<{ task: ProjectTask }>(
+          `${path(id)}/tasks/${encodeURIComponent(taskId)}/approve-proposal`,
+          "POST",
+          { note },
+        )
+      ).task,
     approveExecutionStep: async (id, stepId) => {
       await request(`${path(id)}/execution/steps/${encodeURIComponent(stepId)}/approve`, "POST");
+    },
+    retireUnstartedJob: async (id, stepId, jobId) => {
+      await request(
+        `${path(id)}/execution/steps/${encodeURIComponent(stepId)}/retire-unstarted-job`,
+        "POST",
+        { jobId, acknowledgeReplacement: true },
+      );
     },
     authorizeExecutionRetry: async (id, stepId) => {
       await request(
@@ -166,12 +336,13 @@ export function createIntentApi(
         { acknowledgeFailedAttempt: true },
       );
     },
-    createAgentSession: async (id, agentDefinitionId, workItemId, mission) =>
+    createAgentSession: async (id, agentDefinitionId, workItemId, mission, repairSourceJobId) =>
       (
         await request<{ session: { id: string } }>(`${path(id)}/agent-sessions/self`, "POST", {
           agentDefinitionId,
           workItemId,
           mission,
+          repairSourceJobId,
         })
       ).session.id,
     bindExecutionSession: async (id, stepId, sessionId) => {
@@ -188,6 +359,7 @@ export function createIntentApi(
       await request(
         `${path(id)}/agent-sessions/${encodeURIComponent(sessionId)}/dispatch-muse`,
         "POST",
+        { executeLocally: true },
       );
     },
     getMuseJob: async (id, sessionId) =>
@@ -196,6 +368,20 @@ export function createIntentApi(
           `${path(id)}/agent-sessions/${encodeURIComponent(sessionId)}/muse-job`,
         )
       ).job,
+    inspectGithubCi: async (id, stepId, jobId) => {
+      await request(
+        `${path(id)}/execution/steps/${encodeURIComponent(stepId)}/inspect-github-ci`,
+        "POST",
+        { jobId },
+      );
+    },
+    prepareCiRepair: async (id, stepId, jobId) => {
+      await request(
+        `${path(id)}/execution/steps/${encodeURIComponent(stepId)}/prepare-ci-repair`,
+        "POST",
+        { jobId, acknowledgeRepair: true },
+      );
+    },
     verifyGithubCi: async (id, stepId, repository, runId, pullNumber) => {
       await request(
         `${path(id)}/execution/steps/${encodeURIComponent(stepId)}/verify-github-ci`,
@@ -203,6 +389,8 @@ export function createIntentApi(
         { repository, runId, pullNumber },
       );
     },
+    connectRepository: async (id, repository) =>
+      request<ConnectedRepository>(`${path(id)}/repositories`, "POST", { repository }),
     getRepositories: async (id) =>
       (await request<{ repositories: ConnectedRepository[] }>(`${path(id)}/repositories`))
         .repositories,

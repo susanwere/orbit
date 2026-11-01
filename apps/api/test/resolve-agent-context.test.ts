@@ -106,8 +106,14 @@ describe("agent context snapshot resolution", () => {
     expect(snapshot.excludedPaths).toContain("/attributes/secret");
     expect(JSON.stringify(snapshot)).not.toContain("do-not-include");
   });
-  it("denies snapshots above agent clearance", () => {
-    expect(() => resolve({ ...agent, maxContextClassification: "PUBLIC" })).toThrow();
+  it("excludes internal content for a public agent and classifies the empty snapshot correctly", () => {
+    const snapshot = resolve({ ...agent, maxContextClassification: "PUBLIC" });
+    expect(snapshot.items).toEqual([]);
+    expect(snapshot.includedPaths).toEqual([]);
+    expect(snapshot.maxClassification).toBe("PUBLIC");
+    expect(snapshot.excludedPaths).toContain("/currentIntent");
+    expect(JSON.stringify(snapshot)).not.toContain("do-not-include");
+    expect(resolve().maxClassification).toBe("INTERNAL");
   });
   it("rejects cross-organization agent definitions", () => {
     expect(() => resolve({ ...agent, organizationId: "other" })).toThrow();

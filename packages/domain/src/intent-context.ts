@@ -31,6 +31,27 @@ export interface ProposedContextConstraint {
 
 export type ContextConstraintPreview = ContextConstraint | ProposedContextConstraint;
 
+/** Shared execution instructions published by an authenticated human review. */
+export interface WorkflowReviewContext {
+  readonly evidenceId: Id;
+  readonly stepId: Id;
+  readonly planId: Id;
+  readonly planRevision: number;
+  readonly workItemKey: string;
+  readonly workflowIndex: number;
+  readonly stepIndex: number;
+  readonly stepTitle: string;
+  readonly approvedByPrincipalId: Id;
+  readonly approvedAt: string;
+  readonly comment: string;
+  readonly proposal?: {
+    readonly jobId: Id;
+    readonly contentHash: string;
+    readonly content: string;
+    readonly source: "execution" | "read_only_recovery";
+  };
+}
+
 export interface ProjectContext {
   readonly projectId: Id;
   readonly originalIntentId: Id;
@@ -39,6 +60,7 @@ export interface ProjectContext {
    * The original Intent entity is never rewritten.
    */
   readonly currentIntent: string;
+  readonly workflowReviews?: readonly WorkflowReviewContext[];
   readonly constraints: readonly ContextConstraint[];
   readonly attributes: Readonly<Record<string, JsonValue>>;
 }
@@ -47,6 +69,7 @@ export interface ProjectContextPreview {
   readonly projectId: Id;
   readonly originalIntentId: Id;
   readonly currentIntent: string;
+  readonly workflowReviews?: readonly WorkflowReviewContext[];
   readonly constraints: readonly ContextConstraintPreview[];
   readonly attributes: Readonly<Record<string, JsonValue>>;
 }

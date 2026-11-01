@@ -19,7 +19,9 @@
     "format": "prettier --write .",
     "format:check": "prettier --check \"apps/**/*.{ts,tsx,js,jsx,mjs,cjs,json,css,scss}\" \"packages/**/*.{ts,tsx,js,jsx,mjs,cjs,json,css,scss}\"",
     "format:api": "prettier --write \"apps/api/**/*.{ts,tsx,js,jsx,mjs,cjs,json}\"",
-    "format:web": "prettier --write \"apps/web/**/*.{ts,tsx,js,jsx,mjs,cjs,json,css,scss}\""
+    "format:web": "prettier --write \"apps/web/**/*.{ts,tsx,js,jsx,mjs,cjs,json,css,scss}\"",
+    "muse:local": "node --env-file-if-exists=.env.local --env-file-if-exists=apps/api/.env.local --import tsx apps/api/src/muse-local-worker.ts",
+    "muse:local:serve": "node --env-file-if-exists=.env.local --env-file-if-exists=apps/api/.env.local --import tsx apps/api/src/muse-local-consumer.ts"
   },
   "engines": {
     "node": ">=22"

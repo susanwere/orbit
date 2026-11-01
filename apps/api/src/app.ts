@@ -53,6 +53,7 @@ import {
   registerProjectEventRoutes,
   type EventRouteOptions,
 } from "./modules/events/project-event-route.js";
+import { registerTaskRoutes, type TaskRouteOptions } from "./modules/tasks/task-routes.js";
 
 export interface AppOptions {
   readonly authExchange?: AuthExchangeOptions;
@@ -74,6 +75,7 @@ export interface AppOptions {
   readonly notifications?: NotificationRouteOptions;
   readonly eventStream?: EventRouteOptions;
   readonly whyProvenance?: WhyProvenanceRouteOptions;
+  readonly tasks?: TaskRouteOptions;
 }
 
 export async function buildApp(options: AppOptions = {}) {
@@ -146,6 +148,10 @@ export async function buildApp(options: AppOptions = {}) {
 
   if (options.whyProvenance) {
     await app.register(registerWhyProvenanceRoutes, options.whyProvenance);
+  }
+
+  if (options.tasks) {
+    await app.register(registerTaskRoutes, options.tasks);
   }
 
   return app;

@@ -7,6 +7,10 @@ import {
 } from "@orbit/domain";
 import type { SqlDatabase, SqlExecutor } from "@orbit/db";
 import type { ProjectAuthorizationService } from "../projects/project-authorization.js";
+import {
+  synchronizeWorkflowReviewContext,
+  missionWithWorkflowContext,
+} from "./workflow-review-context.js";
 import { resolveContextSnapshot } from "./resolve-agent-context.js";
 
 interface CurrentVersionRow extends Record<string, unknown> {
@@ -64,6 +68,7 @@ export class AgentContextSnapshotService {
       mission: string;
     },
   ): Promise<ContextSnapshot> {
+    await synchronizeWorkflowReviewContext(tx, input.projectId, input.agent.organizationId);
     // Lock current head before resolving; an approved context change cannot
     // sneak in between reading the head and persisting the snapshot.
     const result = await tx.query<CurrentVersionRow>(
@@ -72,8 +77,9 @@ export class AgentContextSnapshotService {
        FROM project_context_heads h
        JOIN context_versions cv ON cv.id = h.current_context_version_id
          AND cv.project_id = h.project_id
-       WHERE h.project_id = $1 FOR SHARE OF h`,
-      [input.projectId],
+       WHERE h.project_id = $1 AND h.organization_id = $2
+         AND cv.organization_id = h.organization_id FOR SHARE OF h`,
+      [input.projectId, input.agent.organizationId],
     );
     const row = result.rows[0];
     if (!row) throw new DomainError("not_found", "Current project context not found.");
@@ -96,7 +102,7 @@ export class AgentContextSnapshotService {
       approvedByPrincipalId: d.approved_by_principal_id,
       createdAt: iso(d.created_at),
     }));
-    const snapshot = resolveContextSnapshot({
+    const resolvedSnapshot = resolveContextSnapshot({
       id: `snapshot_${this.id()}`,
       version: {
         id: row.id,
@@ -109,10 +115,23 @@ export class AgentContextSnapshotService {
       },
       activeDecisions: active,
       agent: input.agent,
-      mission: input.mission,
+      mission: missionWithWorkflowContext(input.mission, row.content.workflowReviews ?? []),
       requestedByPrincipalId: input.requestedByPrincipalId,
       createdAt: this.clock(),
     });
+    const snapshot: ContextSnapshot = {
+      ...resolvedSnapshot,
+      authorizationBasis: {
+        ...resolvedSnapshot.authorizationBasis,
+        ...(row.content.workflowReviews?.length
+          ? {
+              workflowReviewEvidenceIds: row.content.workflowReviews.map(
+                (review) => review.evidenceId,
+              ),
+            }
+          : {}),
+      },
+    };
     await tx.query<Record<string, never>>(
       `INSERT INTO context_snapshots (
         id, organization_id, project_id, source_context_version_id, mission,

@@ -9,6 +9,15 @@ import type {
   MuseJobStatus,
   ApprovedAgent,
 } from "./intent-api.js";
+import {
+  loadExecutionStatus,
+  canReplaceQueuedSession,
+  canRequestDelivery,
+} from "./execution-status.js";
+import { authorizeFreshCiRepair } from "./ci-repair.js";
+import { MuseAttemptDetails } from "./MuseAttemptDetails.js";
+import { TaskList } from "./TaskList.js";
+import type { ProjectTask } from "./intent-api.js";
 import "./intent-entry.css";
 
 interface IntentEntryProps {
@@ -26,6 +35,9 @@ export function IntentEntry({ project, api, onBack }: IntentEntryProps) {
   const [repositories, setRepositories] = useState<readonly ConnectedRepository[]>([]);
   const [phase, setPhase] = useState<Phase>("loading");
   const [error, setError] = useState<string | null>(null);
+  const [repositoryInput, setRepositoryInput] = useState("");
+  const [registrationError, setRegistrationError] = useState<string | null>(null);
+  const [registrationBusy, setRegistrationBusy] = useState(false);
   const [repositoryError, setRepositoryError] = useState(false);
   const [repositoryLoading, setRepositoryLoading] = useState(true);
   const [reviewOpen, setReviewOpen] = useState(false);
@@ -36,6 +48,11 @@ export function IntentEntry({ project, api, onBack }: IntentEntryProps) {
   const [executionLoaded, setExecutionLoaded] = useState(false);
   const [stepActionPending, setStepActionPending] = useState<string | null>(null);
   const [museJobs, setMuseJobs] = useState<Record<string, MuseJobStatus | null>>({});
+  const [executionNotice, setExecutionNotice] = useState<string | null>(null);
+  const [reviewNotes, setReviewNotes] = useState<Record<string, string>>({});
+  const [deliveryAcknowledgements, setDeliveryAcknowledgements] = useState<Record<string, boolean>>(
+    {},
+  );
   const [githubRunIds, setGithubRunIds] = useState<Record<string, string>>({});
   const [agentDefinitionId, setAgentDefinitionId] = useState("");
   const [approvedAgents, setApprovedAgents] = useState<readonly ApprovedAgent[]>([]);
@@ -44,7 +61,46 @@ export function IntentEntry({ project, api, onBack }: IntentEntryProps) {
   const [onboardingApproved, setOnboardingApproved] = useState(false);
   const [onboardingBusy, setOnboardingBusy] = useState(false);
   const [pendingSessionIds, setPendingSessionIds] = useState<Record<string, string>>({});
+  const [projectTasks, setProjectTasks] = useState<readonly ProjectTask[]>([]);
   const busy = phase === "loading" || phase === "saving" || phase === "planning";
+
+  const refreshTasks = useCallback(async () => {
+    const loadedTasks = await api.getTasks(project.id);
+    setProjectTasks(loadedTasks);
+  }, [api, project.id]);
+
+  useEffect(() => {
+    if (!plan || (plan.status !== "APPROVED" && plan.status !== "READY_FOR_REVIEW")) return;
+    let cancelled = false;
+    void api
+      .getTasks(project.id)
+      .then((loadedTasks) => {
+        if (!cancelled) setProjectTasks(loadedTasks);
+      })
+      .catch(() => {
+        if (!cancelled) setProjectTasks([]);
+      });
+    void api
+      .getApprovedAgents(project.id)
+      .then((agents) => {
+        if (cancelled) return;
+        setApprovedAgents(agents);
+        setAgentCatalogError(null);
+        setAgentDefinitionId((current) =>
+          agents.some((agent) => agent.id === current)
+            ? current
+            : agents.length === 1 && agents[0]?.provider.toLowerCase() === "meta"
+              ? agents[0].id
+              : "",
+        );
+      })
+      .catch(() => {
+        if (!cancelled) setAgentCatalogError("Could not load approved agents.");
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [api, project.id, plan?.status]);
 
   const refresh = useCallback(async () => {
     setPhase("loading");
@@ -87,12 +143,16 @@ export function IntentEntry({ project, api, onBack }: IntentEntryProps) {
       if (intentResult.value) setStatement(intentResult.value.statement);
       setPlan(planResult.value);
       if (planResult.value?.status === "APPROVED") {
-        void api
-          .getExecutionSteps(project.id)
-          .then((steps) => {
+        void loadExecutionStatus(api, project.id)
+          .then((status) => {
             if (!cancelled) {
-              setExecutionSteps(steps);
+              setExecutionSteps(status.steps);
+              setMuseJobs(status.jobs);
               setExecutionLoaded(true);
+              if (status.jobRefreshFailed)
+                setExecutionError(
+                  "Could not refresh some Muse jobs. Refresh execution status to retry.",
+                );
             }
           })
           .catch(() => {
@@ -143,6 +203,45 @@ export function IntentEntry({ project, api, onBack }: IntentEntryProps) {
     };
   }, [api, project.id, plan?.status]);
 
+  const hasActiveLocalExecution = Object.values(museJobs).some(
+    (job) =>
+      Boolean(
+        job?.github_pull_number &&
+          executionSteps.some(
+            (step) => step.id === job.workflow_step_id && step.state === "RUNNING",
+          ),
+      ) ||
+      ["REQUESTED", "RUNNING"].includes(job?.delivery_state ?? "") ||
+      job?.status === "RUNNING" ||
+      (job?.status === "QUEUED" &&
+        ["REQUESTED", "PREPARING", "RUNNING"].includes(job.local_execution_state ?? "")),
+  );
+  useEffect(() => {
+    if (!hasActiveLocalExecution) return;
+    let cancelled = false;
+    let timer: ReturnType<typeof setTimeout>;
+    const poll = async () => {
+      try {
+        const status = await loadExecutionStatus(api, project.id);
+        if (cancelled) return;
+        setExecutionSteps(status.steps);
+        setMuseJobs((current) => ({ ...current, ...status.jobs }));
+        if (status.jobRefreshFailed)
+          setExecutionError("Some job statuses could not refresh. Retrying automatically.");
+        else setExecutionError(null);
+      } catch {
+        if (!cancelled)
+          setExecutionError("Could not refresh local execution status. Retrying automatically.");
+      }
+      if (!cancelled) timer = setTimeout(() => void poll(), 2000);
+    };
+    timer = setTimeout(() => void poll(), 500);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [api, project.id, hasActiveLocalExecution]);
+
   async function reloadRepositories() {
     setRepositoryLoading(true);
     setRepositoryError(false);
@@ -158,6 +257,30 @@ export function IntentEntry({ project, api, onBack }: IntentEntryProps) {
       setRepositoryError(true);
     } finally {
       setRepositoryLoading(false);
+    }
+  }
+
+  async function connectRepository() {
+    if (!repositoryInput.trim() || registrationBusy) return;
+    setRegistrationBusy(true);
+    setRegistrationError(null);
+    try {
+      const registration = await api.connectRepository(project.id, repositoryInput.trim());
+      setRepositories((current) => [
+        ...current.filter((repository) => repository.id !== registration.id),
+        registration,
+      ]);
+      setOnboardingRepository(registration.full_name);
+      setRepositoryInput("");
+      await reloadRepositories();
+    } catch (failure) {
+      setRegistrationError(
+        failure instanceof Error
+          ? failure.message
+          : "Could not connect repository. Retry to continue.",
+      );
+    } finally {
+      setRegistrationBusy(false);
     }
   }
 
@@ -196,8 +319,12 @@ export function IntentEntry({ project, api, onBack }: IntentEntryProps) {
   async function loadExecutionSteps() {
     setExecutionError(null);
     try {
-      setExecutionSteps(await api.getExecutionSteps(project.id));
+      const status = await loadExecutionStatus(api, project.id);
+      setExecutionSteps(status.steps);
+      setMuseJobs(status.jobs);
       setExecutionLoaded(true);
+      if (status.jobRefreshFailed)
+        setExecutionError("Could not refresh some Muse jobs. Refresh execution status to retry.");
     } catch (failure) {
       setExecutionError(
         failure instanceof Error ? failure.message : "Could not load execution status.",
@@ -212,6 +339,7 @@ export function IntentEntry({ project, api, onBack }: IntentEntryProps) {
     if (stepActionPending) return;
     setStepActionPending(step.id);
     setExecutionError(null);
+    setExecutionNotice(null);
     try {
       if (action === "approve") {
         await api.approveExecutionStep(project.id, step.id);
@@ -248,6 +376,7 @@ export function IntentEntry({ project, api, onBack }: IntentEntryProps) {
             agentDefinitionId.trim(),
             `work:${plan.id}:${step.work_item_key}`,
             mission,
+            step.ci_repair_source_job_id ?? undefined,
           );
           setPendingSessionIds((current) => ({ ...current, [step.id]: sessionId! }));
         }
@@ -266,6 +395,106 @@ export function IntentEntry({ project, api, onBack }: IntentEntryProps) {
       setExecutionSteps(await api.getExecutionSteps(project.id));
     } catch (failure) {
       setExecutionError(failure instanceof Error ? failure.message : "Step action failed.");
+    } finally {
+      setStepActionPending(null);
+    }
+  }
+
+  async function reviewStep(
+    step: ExecutionStep,
+    action: "authorize" | "output" | "human" | "reject" | "replace",
+  ) {
+    if (stepActionPending) return;
+    setStepActionPending(step.id);
+    setExecutionError(null);
+    try {
+      const note = reviewNotes[step.id] ?? "";
+      if (action === "replace") {
+        const job = step.agent_session_id ? museJobs[step.agent_session_id] : null;
+        if (!job || !canReplaceQueuedSession(step, job))
+          throw new Error(
+            "Refresh status. Replacement is only needed for an unstarted job missing revision feedback.",
+          );
+        await api.retireUnstartedJob(project.id, step.id, job.id);
+        await api.authorizeExecutionRetry(project.id, step.id);
+      } else if (action === "authorize") await api.authorizeProposalReview(project.id, step.id);
+      else if (action === "human") await api.completeHumanReview(project.id, step.id, note);
+      else {
+        const outputHash = step.agent_session_id
+          ? museJobs[step.agent_session_id]?.output_hash
+          : null;
+        if (!outputHash) throw new Error("Refresh and review the retained output first.");
+        await api.reviewOutput(
+          project.id,
+          step.id,
+          outputHash,
+          note,
+          action === "reject" ? "reject" : "approve",
+        );
+      }
+      await loadExecutionSteps();
+    } catch (failure) {
+      const message =
+        failure instanceof Error
+          ? failure.message
+          : "Review failed. Your instructions are preserved.";
+      if (action === "replace") await loadExecutionSteps();
+      setExecutionError(message);
+    } finally {
+      setStepActionPending(null);
+    }
+  }
+
+  async function requestDelivery(step: ExecutionStep) {
+    const job = step.agent_session_id ? museJobs[step.agent_session_id] : null;
+    if (
+      stepActionPending ||
+      !deliveryAcknowledgements[step.id] ||
+      !canRequestDelivery(step, job) ||
+      !job?.output_hash
+    )
+      return;
+    setStepActionPending(step.id);
+    setExecutionError(null);
+    try {
+      await api.requestDelivery(project.id, step.id, job.id, job.output_hash);
+      await loadExecutionSteps();
+    } catch (failure) {
+      setExecutionError(
+        failure instanceof Error
+          ? failure.message
+          : "Could not request PR delivery. Refresh status before retrying.",
+      );
+    } finally {
+      setStepActionPending(null);
+    }
+  }
+
+  async function inspectCi(step: ExecutionStep, prepareRepair = false) {
+    const job = step.agent_session_id ? museJobs[step.agent_session_id] : null;
+    if (!job || stepActionPending) return;
+    setStepActionPending(step.id);
+    setExecutionError(null);
+    try {
+      if (prepareRepair) {
+        await authorizeFreshCiRepair(api, project.id, step, job);
+        setPendingSessionIds((current) => {
+          const remainingSessions = { ...current };
+          delete remainingSessions[step.id];
+          return remainingSessions;
+        });
+        setExecutionNotice(
+          "CI repair authorized. No Muse job was started. Create and bind a new repair session, then explicitly start and execute it.",
+        );
+      } else await api.inspectGithubCi(project.id, step.id, job.id);
+      await loadExecutionSteps();
+    } catch (failure) {
+      await loadExecutionSteps();
+      setExecutionError(
+        failure instanceof Error
+          ? failure.message
+          : "CI inspection could not finish; no execution was started.",
+      );
     } finally {
       setStepActionPending(null);
     }
@@ -294,7 +523,7 @@ export function IntentEntry({ project, api, onBack }: IntentEntryProps) {
         runId,
         job.github_pull_number,
       );
-      setExecutionSteps(await api.getExecutionSteps(project.id));
+      await loadExecutionSteps();
     } catch (failure) {
       setExecutionError(failure instanceof Error ? failure.message : "CI verification failed.");
     } finally {
@@ -473,6 +702,16 @@ export function IntentEntry({ project, api, onBack }: IntentEntryProps) {
             <button type="button" className="cta-primary" onClick={() => setReviewOpen(true)}>
               {plan.status === "APPROVED" ? "View approved plan" : "Review proposed plan"}
             </button>
+            {projectTasks.length > 0 && (
+              <TaskList
+                projectId={project.id}
+                api={api}
+                tasks={projectTasks}
+                agentDefinitionId={agentDefinitionId}
+                onTasksChanged={setProjectTasks}
+                onRefresh={refreshTasks}
+              />
+            )}
             {plan.status === "APPROVED" && (
               <div className="execution-dashboard" role="region" aria-label="Execution dashboard">
                 <strong>Workflow execution</strong>
@@ -546,6 +785,7 @@ export function IntentEntry({ project, api, onBack }: IntentEntryProps) {
                         <label htmlFor="muse-repository">Repository</label>
                         <select
                           id="muse-repository"
+                          disabled={repositoryLoading || registrationBusy}
                           value={onboardingRepository}
                           onChange={(event) => setOnboardingRepository(event.target.value)}
                         >
@@ -568,10 +808,28 @@ export function IntentEntry({ project, api, onBack }: IntentEntryProps) {
                         )}
                         {!repositoryLoading && !repositoryError && repositories.length === 0 && (
                           <p role="status">
-                            No repository registration was found for this project. Your original
-                            project and intent are safe. Check the project repository connection.
+                            No repository registration was found for this project. Connect a GitHub
+                            repository below to continue with this project.
                           </p>
                         )}
+                        <label htmlFor="muse-repository-registration">
+                          GitHub repository URL or owner/repo
+                        </label>
+                        <input
+                          id="muse-repository-registration"
+                          value={repositoryInput}
+                          onChange={(event) => setRepositoryInput(event.target.value)}
+                          placeholder="susanwere/private-test"
+                          disabled={registrationBusy}
+                        />
+                        <button
+                          type="button"
+                          disabled={registrationBusy || !repositoryInput.trim()}
+                          onClick={() => void connectRepository()}
+                        >
+                          {registrationBusy ? "Connecting repository…" : "Connect repository"}
+                        </button>
+                        {registrationError && <p role="alert">{registrationError}</p>}
                         <label>
                           <input
                             type="checkbox"
@@ -614,11 +872,24 @@ export function IntentEntry({ project, api, onBack }: IntentEntryProps) {
                             </strong>
                             {" · "}
                             {step.state}
-                            {step.blocker_reason && (
+                            {step.ci_repair_source_job_id && " · CI repair"}
+                            {step.agent_session_id &&
+                              step.state !== "COMPLETED" &&
+                              museJobs[step.agent_session_id]?.status === "TURN_FINISHED" && (
+                                <span>
+                                  {" "}
+                                  {step.completion_kind === "human_review"
+                                    ? "· Muse proposal ready for human review"
+                                    : "· Muse turn finished; awaiting delivery and CI verification"}
+                                </span>
+                              )}
+                            {step.state === "BLOCKED" && step.blocker_reason && (
                               <span> · Blocked: {step.blocker_reason.replaceAll("_", " ")}</span>
                             )}
                           </summary>
-                          {step.approval_required &&
+                          {step.title && <p>{step.title}</p>}
+                          {step.executor !== "human" &&
+                            step.approval_required &&
                             !step.approved_at &&
                             step.state === "BLOCKED" && (
                               <button
@@ -629,7 +900,9 @@ export function IntentEntry({ project, api, onBack }: IntentEntryProps) {
                                 {stepActionPending === step.id ? "Approving…" : "Approve step"}
                               </button>
                             )}
-                          {!step.agent_session_id &&
+                          {step.executor !== "human" &&
+                            step.executor !== "system" &&
+                            !step.agent_session_id &&
                             step.state === "BLOCKED" &&
                             step.blocker_reason !== "prerequisite_incomplete" &&
                             step.blocker_reason !== "human_approval_required" && (
@@ -654,15 +927,34 @@ export function IntentEntry({ project, api, onBack }: IntentEntryProps) {
                                 Start authorized session
                               </button>
                             )}
-                          {step.agent_session_id && step.state === "RUNNING" && (
-                            <button
-                              type="button"
-                              disabled={Boolean(stepActionPending)}
-                              onClick={() => void actOnStep(step, "dispatch")}
-                            >
-                              Queue Muse Code
-                            </button>
-                          )}
+                          {step.agent_session_id &&
+                            step.state === "RUNNING" &&
+                            museJobs[step.agent_session_id] === null && (
+                              <button
+                                type="button"
+                                disabled={Boolean(stepActionPending)}
+                                onClick={() => void actOnStep(step, "dispatch")}
+                              >
+                                Execute Muse Code locally
+                              </button>
+                            )}
+                          {step.agent_session_id &&
+                            step.state === "RUNNING" &&
+                            museJobs[step.agent_session_id]?.status === "QUEUED" &&
+                            museJobs[step.agent_session_id]?.needs_revision_replacement === false &&
+                            (!museJobs[step.agent_session_id]?.local_execution_state ||
+                              museJobs[step.agent_session_id]?.local_execution_state ===
+                                "ERROR") && (
+                              <button
+                                type="button"
+                                disabled={Boolean(stepActionPending)}
+                                onClick={() => void actOnStep(step, "dispatch")}
+                              >
+                                {museJobs[step.agent_session_id]?.local_execution_state === "ERROR"
+                                  ? "Retry local setup"
+                                  : "Execute queued job locally"}
+                              </button>
+                            )}
                           {step.agent_session_id && (
                             <button
                               type="button"
@@ -672,9 +964,55 @@ export function IntentEntry({ project, api, onBack }: IntentEntryProps) {
                               Check Muse job
                             </button>
                           )}
+                          {canReplaceQueuedSession(
+                            step,
+                            step.agent_session_id ? museJobs[step.agent_session_id] : null,
+                          ) && (
+                            <div>
+                              <p>
+                                To include revision feedback in a fresh session, retire this
+                                unstarted job. Its existing snapshot is preserved; no Muse execution
+                                starts.
+                              </p>
+                              <button
+                                type="button"
+                                disabled={Boolean(stepActionPending)}
+                                onClick={() => void reviewStep(step, "replace")}
+                              >
+                                Retire queued session and authorize a fresh attempt
+                              </button>
+                            </div>
+                          )}
+                          <MuseAttemptDetails
+                            step={step}
+                            job={step.agent_session_id ? museJobs[step.agent_session_id] : null}
+                          />
                           {step.agent_session_id && museJobs[step.agent_session_id] && (
                             <p role="status">
                               Muse job: {museJobs[step.agent_session_id]?.status}
+                              {museJobs[step.agent_session_id]?.local_execution_state &&
+                                ` · Local worker: ${museJobs[step.agent_session_id]?.local_execution_state}`}
+                              {museJobs[step.agent_session_id]?.local_execution_error && (
+                                <span role="alert">
+                                  {" "}
+                                  · {museJobs[step.agent_session_id]?.local_execution_error}
+                                </span>
+                              )}
+                              {museJobs[step.agent_session_id]?.local_execution_state ===
+                                "REQUESTED" &&
+                                " · Waiting for the local worker to pick up this request."}
+                              {museJobs[step.agent_session_id]?.status === "QUEUED" &&
+                                museJobs[step.agent_session_id]?.needs_revision_replacement ===
+                                  false &&
+                                " · Session is current. No replacement needed."}
+                              {step.state !== "COMPLETED" &&
+                                step.completion_kind !== "human_review" &&
+                                museJobs[step.agent_session_id]?.status === "TURN_FINISHED" &&
+                                (museJobs[step.agent_session_id]?.changed_paths?.length === 0
+                                  ? museJobs[step.agent_session_id]?.needs_ci_repair_retry
+                                    ? " · No files changed. CI remains failed; authorize a fresh CI repair below."
+                                    : " · No files changed. There is no new code to deliver; review the retained response."
+                                  : " · The Muse turn ended. The step stays running until delivery and CI are independently verified.")}
                               {museJobs[step.agent_session_id]?.github_pull_number
                                 ? ` · PR #${museJobs[step.agent_session_id]?.github_pull_number}`
                                 : ""}
@@ -682,6 +1020,186 @@ export function IntentEntry({ project, api, onBack }: IntentEntryProps) {
                                 ? ` · ${museJobs[step.agent_session_id]?.failure_reason}`
                                 : ""}
                             </p>
+                          )}
+                          {step.agent_session_id &&
+                            (museJobs[step.agent_session_id]?.status === "TURN_FINISHED" ||
+                              museJobs[step.agent_session_id]?.review_output) && (
+                              <section aria-label="Agent output review">
+                                <h4>Agent response</h4>
+                                {museJobs[step.agent_session_id]?.review_output ? (
+                                  <>
+                                    {museJobs[step.agent_session_id]?.output_source ===
+                                      "read_only_recovery" && (
+                                      <p>
+                                        This is a new read-only proposal. The original turn's
+                                        response was not retained.
+                                      </p>
+                                    )}
+                                    <pre
+                                      style={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}
+                                    >
+                                      {museJobs[step.agent_session_id]?.review_output}
+                                    </pre>
+                                    {step.state === "RUNNING" &&
+                                      !step.ci_repair_source_job_id &&
+                                      !museJobs[step.agent_session_id]?.repair_source_job_id &&
+                                      museJobs[step.agent_session_id]?.changed_paths?.length ===
+                                        0 &&
+                                      step.completion_kind !== "human_review" && (
+                                        <>
+                                          <p>
+                                            For proposal-only work with no code changes, an
+                                            administrator can explicitly authorize human review.
+                                            Code changes still require GitHub CI.
+                                          </p>
+                                          <button
+                                            type="button"
+                                            disabled={Boolean(stepActionPending)}
+                                            onClick={() => void reviewStep(step, "authorize")}
+                                          >
+                                            Authorize proposal-only review
+                                          </button>
+                                        </>
+                                      )}
+                                  </>
+                                ) : (
+                                  <p>
+                                    The response was not retained by the older worker. Regenerate a
+                                    read-only proposal locally before reviewing this step.
+                                  </p>
+                                )}
+                              </section>
+                            )}
+                          {((step.executor === "human" &&
+                            !step.agent_session_id &&
+                            ["BLOCKED", "READY"].includes(step.state) &&
+                            step.blocker_reason !== "prerequisite_incomplete") ||
+                            (step.completion_kind === "human_review" &&
+                              step.state === "RUNNING" &&
+                              step.agent_session_id &&
+                              museJobs[step.agent_session_id]?.output_hash)) && (
+                            <section aria-label="Human review decision">
+                              <label htmlFor={`review-note-${step.id}`}>
+                                Optional comment or changes to the proposal (shared with subsequent
+                                agents)
+                              </label>
+                              <textarea
+                                id={`review-note-${step.id}`}
+                                maxLength={2000}
+                                value={reviewNotes[step.id] ?? ""}
+                                onChange={(event) =>
+                                  setReviewNotes((current) => ({
+                                    ...current,
+                                    [step.id]: event.target.value,
+                                  }))
+                                }
+                              />
+                              <p>
+                                Approval preserves the proposal and optional comments as project
+                                context for later workflows. It does not verify code or CI.
+                              </p>
+                              <button
+                                type="button"
+                                disabled={Boolean(stepActionPending)}
+                                onClick={() =>
+                                  void reviewStep(
+                                    step,
+                                    step.executor === "human" ? "human" : "output",
+                                  )
+                                }
+                              >
+                                Approve reviewed content and complete this step
+                              </button>
+                              {step.executor !== "human" && (
+                                <button
+                                  type="button"
+                                  disabled={
+                                    Boolean(stepActionPending) || !reviewNotes[step.id]?.trim()
+                                  }
+                                  onClick={() => void reviewStep(step, "reject")}
+                                >
+                                  Request revision (a new authorized attempt is required)
+                                </button>
+                              )}
+                            </section>
+                          )}
+                          {step.agent_session_id &&
+                            step.state === "RUNNING" &&
+                            museJobs[step.agent_session_id]?.needs_ci_repair_retry && (
+                              <section aria-label="CI repair made no changes">
+                                <p>
+                                  The repair turn changed no files. It did not fix the CI failure or
+                                  update the PR.
+                                </p>
+                                <p>{museJobs[step.agent_session_id]?.repair_ci_report?.summary}</p>
+                                <button
+                                  type="button"
+                                  disabled={Boolean(stepActionPending)}
+                                  onClick={() => void inspectCi(step, true)}
+                                >
+                                  Authorize a fresh CI repair
+                                </button>
+                                <p>
+                                  Then create and bind a fresh session and explicitly execute it.
+                                  The finished turn and snapshot stay unchanged.
+                                </p>
+                              </section>
+                            )}
+                          {step.agent_session_id &&
+                            museJobs[step.agent_session_id]?.delivery_state && (
+                              <div role="status">
+                                PR delivery: {museJobs[step.agent_session_id]?.delivery_state}
+                                {museJobs[step.agent_session_id]?.delivery_state === "REQUESTED" &&
+                                  " · Waiting for the local worker. Keep npm run muse:local:serve running for this project."}
+                                {museJobs[step.agent_session_id]?.delivery_state === "RUNNING" &&
+                                  " · Creating a branch, commit and pull request."}
+                                {museJobs[step.agent_session_id]?.delivery_error && (
+                                  <p role="alert">
+                                    {museJobs[step.agent_session_id]?.delivery_error}
+                                  </p>
+                                )}
+                              </div>
+                            )}
+                          {canRequestDelivery(
+                            step,
+                            step.agent_session_id ? museJobs[step.agent_session_id] : null,
+                          ) && (
+                            <section aria-label="Deliver generated changes">
+                              <p>
+                                Generated files:{" "}
+                                {step.agent_session_id
+                                  ? museJobs[step.agent_session_id]?.changed_paths?.join(", ")
+                                  : ""}
+                              </p>
+                              <label>
+                                <input
+                                  type="checkbox"
+                                  checked={deliveryAcknowledgements[step.id] ?? false}
+                                  onChange={(event) =>
+                                    setDeliveryAcknowledgements((current) => ({
+                                      ...current,
+                                      [step.id]: event.target.checked,
+                                    }))
+                                  }
+                                />
+                                I reviewed the generated changes and authorize pushing them to
+                                susanwere/private-test and opening a pull request.
+                              </label>
+                              <button
+                                type="button"
+                                disabled={
+                                  Boolean(stepActionPending) || !deliveryAcknowledgements[step.id]
+                                }
+                                onClick={() => void requestDelivery(step)}
+                              >
+                                Push generated changes and create PR
+                              </button>
+                              <p>
+                                Delivery does not complete the step. Review and merge the PR after
+                                CI passes, then independently verify its GitHub Actions evidence
+                                here.
+                              </p>
+                            </section>
                           )}
                           {step.agent_session_id &&
                             museJobs[step.agent_session_id]?.github_pull_number &&
@@ -694,32 +1212,109 @@ export function IntentEntry({ project, api, onBack }: IntentEntryProps) {
                                 >
                                   Review generated pull request
                                 </a>
-                                <label htmlFor={`github-run-${step.id}`}>
-                                  GitHub Actions run ID
-                                </label>
-                                <input
-                                  id={`github-run-${step.id}`}
-                                  type="number"
-                                  min="1"
-                                  step="1"
-                                  value={githubRunIds[step.id] ?? ""}
-                                  onChange={(event) =>
-                                    setGithubRunIds((current) => ({
-                                      ...current,
-                                      [step.id]: event.target.value,
-                                    }))
-                                  }
-                                  placeholder="From the Actions run URL"
-                                />
-                                <button
-                                  type="button"
-                                  disabled={
-                                    Boolean(stepActionPending) || !githubRunIds[step.id]?.trim()
-                                  }
-                                  onClick={() => void verifyCi(step)}
-                                >
-                                  Verify GitHub CI
-                                </button>
+                                <p role="status">
+                                  PR:{" "}
+                                  {museJobs[step.agent_session_id]?.github_review_state ?? "DRAFT"}{" "}
+                                  · CI:{" "}
+                                  {museJobs[step.agent_session_id]?.github_ci_state ?? "WAITING"}
+                                </p>
+                                {museJobs[step.agent_session_id]?.github_review_error && (
+                                  <p role="alert">
+                                    {museJobs[step.agent_session_id]?.github_review_error}
+                                  </p>
+                                )}
+                                {museJobs[step.agent_session_id]?.github_ci_report && (
+                                  <section aria-label="CI diagnostics">
+                                    <p>
+                                      {museJobs[step.agent_session_id]?.github_ci_report?.summary}
+                                    </p>
+                                    <p>
+                                      These are job and failed-step summaries. Open GitHub for full
+                                      logs; raw logs and credentials are not sent to Muse.
+                                    </p>
+                                  </section>
+                                )}
+                                {step.state === "RUNNING" && (
+                                  <button
+                                    type="button"
+                                    disabled={Boolean(stepActionPending)}
+                                    onClick={() => void inspectCi(step)}
+                                  >
+                                    Check CI and failures
+                                  </button>
+                                )}
+                                {step.state === "RUNNING" &&
+                                  museJobs[step.agent_session_id]?.github_ci_state === "FAILED" && (
+                                    <div>
+                                      <p>
+                                        Share these failure diagnostics with a fresh authorized Muse
+                                        session. The existing response, snapshot and PR history are
+                                        preserved; no model starts yet.
+                                      </p>
+                                      <button
+                                        type="button"
+                                        disabled={Boolean(stepActionPending)}
+                                        onClick={() => void inspectCi(step, true)}
+                                      >
+                                        Authorize CI repair with Muse
+                                      </button>
+                                    </div>
+                                  )}
+                                <p>
+                                  Delivered commit:{" "}
+                                  <code>{museJobs[step.agent_session_id]?.github_head_sha}</code>
+                                </p>
+                                {museJobs[step.agent_session_id]?.github_ci_url &&
+                                step.state === "COMPLETED" ? (
+                                  <p>
+                                    CI and merged PR independently verified by ORBIT.{" "}
+                                    <a
+                                      href={
+                                        museJobs[step.agent_session_id]?.github_ci_url ?? undefined
+                                      }
+                                      target="_blank"
+                                      rel="noreferrer"
+                                    >
+                                      View GitHub Actions evidence (run{" "}
+                                      {museJobs[step.agent_session_id]?.github_ci_run_id})
+                                    </a>
+                                  </p>
+                                ) : (
+                                  <p>
+                                    CI has not been verified by ORBIT. After CI passes and the PR is
+                                    merged, enter the CI run ID below.
+                                  </p>
+                                )}
+                                {step.state !== "COMPLETED" && (
+                                  <>
+                                    <label htmlFor={`github-run-${step.id}`}>
+                                      GitHub Actions run ID
+                                    </label>
+                                    <input
+                                      id={`github-run-${step.id}`}
+                                      type="number"
+                                      min="1"
+                                      step="1"
+                                      value={githubRunIds[step.id] ?? ""}
+                                      onChange={(event) =>
+                                        setGithubRunIds((current) => ({
+                                          ...current,
+                                          [step.id]: event.target.value,
+                                        }))
+                                      }
+                                      placeholder="From the Actions run URL"
+                                    />
+                                    <button
+                                      type="button"
+                                      disabled={
+                                        Boolean(stepActionPending) || !githubRunIds[step.id]?.trim()
+                                      }
+                                      onClick={() => void verifyCi(step)}
+                                    >
+                                      Verify GitHub CI
+                                    </button>
+                                  </>
+                                )}
                               </div>
                             )}
                           {step.state === "FAILED" && (
@@ -741,6 +1336,7 @@ export function IntentEntry({ project, api, onBack }: IntentEntryProps) {
               </section>
             )}
             {executionSummary && <p role="status">{executionSummary}</p>}
+            {executionNotice && <p role="status">{executionNotice}</p>}
             {executionError && (
               <p role="alert" className="intent-error">
                 {executionError}

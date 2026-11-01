@@ -147,7 +147,22 @@ describe.skipIf(!databaseUrl)("Project and GitHub repository API (PostgreSQL)", 
           payload: { repository: "susanwere/orbit" },
         })
       ).statusCode,
-    ).toBe(400);
+    ).toBe(201);
+    const repeatedRegistrations = await Promise.all(
+      Array.from({ length: 3 }, () =>
+        app.inject({
+          method: "POST",
+          url: `/projects/${projectId}/repositories`,
+          headers: token(admin),
+          payload: { repository: "susanwere/orbit" },
+        }),
+      ),
+    );
+    for (const registration of repeatedRegistrations) {
+      expect(registration.statusCode).toBe(201);
+      expect(registration.json().id).toBe(connected.json().id);
+      expect(registration.json().created_at).toBe(connected.json().created_at);
+    }
     const list = await app.inject({
       method: "GET",
       url: `/projects/${projectId}/repositories`,

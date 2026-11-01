@@ -1,4 +1,6 @@
-import { spawn } from "node:child_process";
+import { spawn, execFile } from "node:child_process";
+import { promisify } from "node:util";
+import { extractMuseReviewOutput } from "./muse-review-output.js";
 import { mkdtemp, writeFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
@@ -14,6 +16,8 @@ export interface EngineeringExecutionResult {
   readonly exitCode: number | null;
   readonly events: readonly unknown[];
   readonly outputTruncated: boolean;
+  readonly reviewOutput?: string;
+  readonly changedPaths?: readonly string[];
 }
 export interface EngineeringExecutor {
   execute(request: EngineeringExecutionRequest): Promise<EngineeringExecutionResult>;
@@ -27,12 +31,16 @@ export interface MuseProcessRunner {
       timeoutMs: number;
       maxOutputBytes: number;
     },
-  ): Promise<{ exitCode: number | null; stdout: string }>;
+  ): Promise<{ exitCode: number | null; stdout: string; changedPaths?: readonly string[] }>;
 }
 
 /** Explicitly for a separate, pre-provisioned, restricted worker container. */
 export class MuseCodeCliExecutor implements EngineeringExecutor {
-  constructor(private readonly runner: MuseProcessRunner) {}
+  constructor(
+    private readonly runner: MuseProcessRunner,
+    private readonly fileOnly = false,
+    private readonly readOnly = false,
+  ) {}
   async execute(request: EngineeringExecutionRequest): Promise<EngineeringExecutionResult> {
     if (!request.mission.trim() || request.mission.length > 12000)
       throw new Error("Bounded execution mission required.");
@@ -51,10 +59,36 @@ export class MuseCodeCliExecutor implements EngineeringExecutor {
     try {
       const prompt = join(temporary, "mission.txt");
       await writeFile(prompt, request.mission, { mode: 0o600 });
+      // fileOnly=true is the locked-down Mode used before. fileOnly=false
+      // is the allowed-shell Mode requested by the human operator for
+      // dependency repair (e.g. allowing npm to regenerate package-lock.json).
+      const shellAllowed = this.fileOnly === false;
       const run = await this.runner.run(
         [
           "exec",
           "--disable-approval",
+          ...(this.fileOnly
+            ? [
+                "--trust-workspace",
+                "--disable-shell",
+                "--disable-web-tools",
+                "--no-foreign-personal-context",
+                "--no-session-log",
+                "--contributor-mode",
+                "off",
+                "--sandbox-network",
+                "restricted",
+              ]
+            : shellAllowed
+              ? [
+                  "--trust-workspace",
+                  "--no-foreign-personal-context",
+                  "--no-session-log",
+                  "--contributor-mode",
+                  "off",
+                ]
+              : []),
+          ...(this.readOnly ? ["--disable-write"] : []),
           "--json",
           "--prompt-file",
           prompt,
@@ -74,7 +108,10 @@ export class MuseCodeCliExecutor implements EngineeringExecutor {
           // The CLI can emit non-JSON diagnostics. They are not trusted execution evidence.
         }
       }
+      const reviewOutput = extractMuseReviewOutput(events);
       return {
+        ...(reviewOutput ? { reviewOutput } : {}),
+        ...(run.changedPaths ? { changedPaths: run.changedPaths } : {}),
         provider: "meta-muse-code",
         exitCode: run.exitCode,
         events,
@@ -88,6 +125,7 @@ export class MuseCodeCliExecutor implements EngineeringExecutor {
 
 /** Only usable from an isolated host with an OS sandbox and scoped workspace. */
 export class LocalMuseProcessRunner implements MuseProcessRunner {
+  constructor(private readonly collectRepositoryChanges = false) {}
   async run(
     args: readonly string[],
     options: {
@@ -96,7 +134,11 @@ export class LocalMuseProcessRunner implements MuseProcessRunner {
       maxOutputBytes: number;
     },
   ) {
-    return new Promise<{ exitCode: number | null; stdout: string }>((accept, reject) => {
+    return new Promise<{
+      exitCode: number | null;
+      stdout: string;
+      changedPaths?: readonly string[];
+    }>((accept, reject) => {
       const child = spawn("muse", [...args], {
         cwd: options.cwd,
         env: {
@@ -125,11 +167,47 @@ export class LocalMuseProcessRunner implements MuseProcessRunner {
         stdout += chunk.toString("utf8");
       });
       child.on("error", fail);
-      child.on("close", (code) => {
+      child.on("close", async (code) => {
         if (settled) return;
-        settled = true;
         clearTimeout(timer);
-        accept({ exitCode: code, stdout });
+        if (!this.collectRepositoryChanges) {
+          settled = true;
+          accept({ exitCode: code, stdout });
+          return;
+        }
+        try {
+          const changed = await promisify(execFile)(
+            "git",
+            [
+              "-c",
+              "core.fsmonitor=false",
+              "-c",
+              "core.hooksPath=/dev/null",
+              "ls-files",
+              "--modified",
+              "--others",
+              "-z",
+            ],
+            {
+              cwd: options.cwd,
+              timeout: 10000,
+              env: {
+                PATH: process.env.PATH,
+                HOME: process.env.HOME,
+                GIT_CONFIG_NOSYSTEM: "1",
+                GIT_CONFIG_GLOBAL: "/dev/null",
+              },
+            },
+          );
+          settled = true;
+          accept({
+            exitCode: code,
+            stdout,
+            changedPaths: [...new Set(changed.stdout.split("\0").filter(Boolean))],
+          });
+        } catch {
+          fail(new Error("Could not verify changed repository paths."));
+        }
       });
     });
   }

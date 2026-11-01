@@ -34,6 +34,7 @@ function fixture(authorized = true) {
       binding: { bind: async () => ({ id: "step", agent_session_id: "session" }) } as never,
       execution: {
         approve: async () => ({ id: "step", approved_by_principal_id: "human" }),
+        retireUnstartedJob: async () => ({ stepId: "step", state: "FAILED" }),
         authorizeRetry: async () => ({ id: "step", state: "BLOCKED", agent_session_id: null }),
       } as never,
       materializer: {
@@ -58,6 +59,105 @@ function fixture(authorized = true) {
 }
 
 describe("workflow step routes", () => {
+  it("authenticates every new review action before reading or changing a step", async () => {
+    const testFixture = fixture();
+    const app = await testFixture.app;
+    for (const action of [
+      "authorize-proposal-review",
+      "review-output",
+      "complete-human-review",
+      "request-delivery",
+      "verify-github-ci",
+      "inspect-github-ci",
+      "prepare-ci-repair",
+    ]) {
+      const response = await app.inject({
+        method: "POST",
+        url: `/projects/project/execution/steps/step/${action}`,
+        payload: {},
+      });
+      expect(response.statusCode).toBe(401);
+    }
+    expect(testFixture.queried).toBe(0);
+    await app.close();
+  });
+  it("reports missing independent CI credentials without completing the step", async () => {
+    const testFixture = fixture();
+    const app = await testFixture.app;
+    const response = await app.inject({
+      method: "POST",
+      url: "/projects/project/execution/steps/step/verify-github-ci",
+      headers: { authorization: "Bearer token" },
+      payload: { repository: "susanwere/private-test", runId: 123, pullNumber: 42 },
+    });
+    expect(response.statusCode).toBe(400);
+    expect(response.json().message).toContain("ORBIT_GITHUB_EVIDENCE_TOKEN");
+    expect(testFixture.queried).toBe(0);
+    await app.close();
+  });
+  it("requires explicit push consent before recording delivery", async () => {
+    const testFixture = fixture();
+    const app = await testFixture.app;
+    for (const payload of [
+      {},
+      { jobId: "job", outputHash: "hash" },
+      { jobId: 42, outputHash: "hash", acknowledgePush: true },
+    ]) {
+      expect(
+        (
+          await app.inject({
+            method: "POST",
+            url: "/projects/project/execution/steps/step/request-delivery",
+            headers: { authorization: "Bearer token" },
+            payload,
+          })
+        ).statusCode,
+      ).toBe(400);
+    }
+    expect(testFixture.queried).toBe(0);
+    await app.close();
+  });
+  it("requires explicit acknowledgment and an exact job ID for queued-session retirement", async () => {
+    const testFixture = fixture();
+    const app = await testFixture.app;
+    const url = "/projects/project/execution/steps/step/retire-unstarted-job";
+    const headers = { authorization: "Bearer token" };
+    expect(
+      (
+        await app.inject({
+          method: "POST",
+          url,
+          headers,
+          payload: { jobId: "musejob_4a560794-a548-4f63-b11e-398e22414306" },
+        })
+      ).statusCode,
+    ).toBe(400);
+    expect(
+      (
+        await app.inject({
+          method: "POST",
+          url,
+          headers,
+          payload: { jobId: "bad", acknowledgeReplacement: true },
+        })
+      ).statusCode,
+    ).toBe(400);
+    expect(
+      (
+        await app.inject({
+          method: "POST",
+          url,
+          headers,
+          payload: {
+            jobId: "musejob_4a560794-a548-4f63-b11e-398e22414306",
+            acknowledgeReplacement: true,
+          },
+        })
+      ).statusCode,
+    ).toBe(200);
+    await app.close();
+  });
+
   it("binds a scoped session through authenticated route", async () => {
     const f = fixture();
     const app = await f.app;
