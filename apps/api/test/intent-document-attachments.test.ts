@@ -6,8 +6,7 @@ describe("original intent document associations", () => {
   function setup(ownedDocuments: string[]) {
     const statements: string[] = [];
     const attachments: string[] = [];
-    const db = {
-      query: async (sql: string, params: unknown[] = []) => {
+    const query = async (sql: string, params: unknown[] = []) => {
         statements.push(sql);
         if (sql.includes("SELECT id,version FROM project_documents")) {
           return {
@@ -33,9 +32,10 @@ describe("original intent document associations", () => {
           return { rows: [] };
         }
         return { rows: [] };
-      },
-      transaction: async <T>(run: (transaction: { query: typeof db.query }) => Promise<T>) =>
-        run(db),
+    };
+    const db = {
+      query,
+      transaction: async <T>(run: (transaction: { query: typeof query }) => Promise<T>) => run({ query }),
     };
     const originalIntent = {
       db,
