@@ -213,7 +213,8 @@ function ProjectPlanCanvas({
     }
   }
   async function submitCanvasIntent(statement: string, files: readonly File[]) {
-    if (currentIntent || busy || isLoading) throw new Error("Original Intent is already saved or unavailable.");
+    if (currentIntent || busy || isLoading)
+      throw new Error("Original Intent is already saved or unavailable.");
     setBusy(true);
     setError(null);
     try {
@@ -236,10 +237,19 @@ function ProjectPlanCanvas({
             reader.readAsDataURL(file);
           });
           const extension = file.name.toLowerCase().split(".").pop();
-          const mediaType = extension === "md" ? "text/markdown" : extension === "txt" ? "text/plain" :
-            extension === "pdf" ? "application/pdf" :
-            "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
-          const result = await api.uploadDocument(project.id, { filename: file.name, mediaType, base64 });
+          const mediaType =
+            extension === "md"
+              ? "text/markdown"
+              : extension === "txt"
+                ? "text/plain"
+                : extension === "pdf"
+                  ? "application/pdf"
+                  : "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+          const result = await api.uploadDocument(project.id, {
+            filename: file.name,
+            mediaType,
+            base64,
+          });
           id = result.id;
           setUploadedFileIds((previous) => ({ ...previous, [fileKey]: result.id }));
         }
@@ -256,7 +266,11 @@ function ProjectPlanCanvas({
         setPlanningFailure(proposed.failure_reason);
         onUpdated(proposed);
       } catch (cause) {
-        setError(cause instanceof Error ? cause.message : "Intent saved, but plan generation failed. Retry from the workflow page.");
+        setError(
+          cause instanceof Error
+            ? cause.message
+            : "Intent saved, but plan generation failed. Retry from the workflow page.",
+        );
         setStatus("FAILED");
       }
     } finally {

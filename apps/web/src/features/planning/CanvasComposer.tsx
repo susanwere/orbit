@@ -20,7 +20,12 @@ export function CanvasComposer({
   const [submitting, setSubmitting] = useState(false);
   const [submissionError, setSubmissionError] = useState<string | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
-  const ready = !isPreview && Boolean(draftIdea.trim()) && draftIdea.length <= 10000 && !submitting && Boolean(onSubmitIntent);
+  const ready =
+    !isPreview &&
+    Boolean(draftIdea.trim()) &&
+    draftIdea.length <= 10000 &&
+    !submitting &&
+    Boolean(onSubmitIntent);
 
   async function submit() {
     if (!ready || !onSubmitIntent) return;
@@ -111,11 +116,23 @@ export function CanvasComposer({
             aria-label="Attach supporting documents"
             onChange={(event) => {
               const incoming = Array.from(event.target.files ?? []);
-              const combined = [...attachments, ...incoming].filter((file, index, all) =>
-                all.findIndex((item) => item.name === file.name && item.size === file.size && item.lastModified === file.lastModified) === index,
+              const combined = [...attachments, ...incoming].filter(
+                (file, index, all) =>
+                  all.findIndex(
+                    (item) =>
+                      item.name === file.name &&
+                      item.size === file.size &&
+                      item.lastModified === file.lastModified,
+                  ) === index,
               );
               const validExtension = /\.(pdf|docx|md|txt)$/i;
-              if (combined.length > 10 || combined.some((file) => !validExtension.test(file.name) || file.size < 1 || file.size > 5 * 1024 * 1024)) {
+              if (
+                combined.length > 10 ||
+                combined.some(
+                  (file) =>
+                    !validExtension.test(file.name) || file.size < 1 || file.size > 5 * 1024 * 1024,
+                )
+              ) {
                 setSubmissionError("Choose up to 10 PDF, DOCX, Markdown or TXT files, 5 MB each.");
               } else {
                 setAttachments(combined);
@@ -127,13 +144,23 @@ export function CanvasComposer({
           {attachments.map((file, index) => (
             <span key={file.name + file.lastModified + index} className="canvas-attachment-chip">
               {file.name}
-              <button type="button" disabled={submitting} aria-label={`Remove ${file.name}`}
-                onClick={() => setAttachments((items) => items.filter((_, i) => i !== index))}>×</button>
+              <button
+                type="button"
+                disabled={submitting}
+                aria-label={`Remove ${file.name}`}
+                onClick={() => setAttachments((items) => items.filter((_, i) => i !== index))}
+              >
+                ×
+              </button>
             </span>
           ))}
         </div>
       )}
-      {submissionError && <p className="intent-error" role="alert">{submissionError}</p>}
+      {submissionError && (
+        <p className="intent-error" role="alert">
+          {submissionError}
+        </p>
+      )}
       <div className="canvas-composer-actions">
         <button
           type="button"
@@ -159,7 +186,9 @@ export function CanvasComposer({
         <button
           type="button"
           className="canvas-composer-generate"
-          onClick={() => { void submit(); }}
+          onClick={() => {
+            void submit();
+          }}
           disabled={!ready}
           aria-describedby="canvas-draft-help"
         >
@@ -170,9 +199,7 @@ export function CanvasComposer({
         {isPreview ? (
           "Preview only. Your saved intent and plan are unchanged."
         ) : (
-          <>
-            Attach supporting documents and generate your plan here.
-          </>
+          <>Attach supporting documents and generate your plan here.</>
         )}
       </p>
       <ul className="canvas-composer-benefits" aria-label="Workflow capabilities">
