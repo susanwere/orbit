@@ -5,7 +5,8 @@
 export async function recordIntentVoice(
   onStarted: () => void,
 ): Promise<{ stop: () => Promise<Blob>; cancel: () => void }> {
-  if (!navigator.mediaDevices?.getUserMedia) throw new Error("Microphone capture requires HTTPS or localhost.");
+  if (!navigator.mediaDevices?.getUserMedia)
+    throw new Error("Microphone capture requires HTTPS or localhost.");
   const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
   const context = new AudioContext();
   try {
@@ -33,7 +34,8 @@ export async function recordIntentVoice(
       stop: async () => {
         cleanup();
         const frames = chunks.reduce((sum, chunk) => sum + chunk.length, 0);
-        if (frames < context.sampleRate / 4) throw new Error("Recording too short. Speak for at least a moment.");
+        if (frames < context.sampleRate / 4)
+          throw new Error("Recording too short. Speak for at least a moment.");
         const duration = frames / context.sampleRate;
         if (duration > 60) throw new Error("Record at most 60 seconds per clip.");
         const outputFrames = Math.floor(duration * 16000);
@@ -42,20 +44,32 @@ export async function recordIntentVoice(
         const write = (position: number, text: string) => {
           for (let i = 0; i < text.length; i++) view.setUint8(position + i, text.charCodeAt(i));
         };
-        write(0, "RIFF"); view.setUint32(4, wav.byteLength - 8, true); write(8, "WAVE");
-        write(12, "fmt "); view.setUint32(16, 16, true); view.setUint16(20, 1, true);
-        view.setUint16(22, 1, true); view.setUint32(24, 16000, true);
-        view.setUint32(28, 32000, true); view.setUint16(32, 2, true);
-        view.setUint16(34, 16, true); write(36, "data");
+        write(0, "RIFF");
+        view.setUint32(4, wav.byteLength - 8, true);
+        write(8, "WAVE");
+        write(12, "fmt ");
+        view.setUint32(16, 16, true);
+        view.setUint16(20, 1, true);
+        view.setUint16(22, 1, true);
+        view.setUint32(24, 16000, true);
+        view.setUint32(28, 32000, true);
+        view.setUint16(32, 2, true);
+        view.setUint16(34, 16, true);
+        write(36, "data");
         view.setUint32(40, outputFrames * 2, true);
         const flattened = new Float32Array(frames);
         let offset = 0;
-        for (const chunk of chunks) { flattened.set(chunk, offset); offset += chunk.length; }
+        for (const chunk of chunks) {
+          flattened.set(chunk, offset);
+          offset += chunk.length;
+        }
         for (let i = 0; i < outputFrames; i++) {
-          const position = i * context.sampleRate / 16000;
+          const position = (i * context.sampleRate) / 16000;
           const left = Math.floor(position);
           const fraction = position - left;
-          const sample = (flattened[left] ?? 0) * (1 - fraction) + (flattened[Math.min(left + 1, frames - 1)] ?? 0) * fraction;
+          const sample =
+            (flattened[left] ?? 0) * (1 - fraction) +
+            (flattened[Math.min(left + 1, frames - 1)] ?? 0) * fraction;
           const value = Math.max(-1, Math.min(1, sample));
           view.setInt16(44 + i * 2, Math.round(value * (value < 0 ? 32768 : 32767)), true);
         }

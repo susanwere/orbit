@@ -305,7 +305,12 @@ export function createIntentApi(
 
   const path = (id: string) => `/projects/${encodeURIComponent(id)}`;
   return {
-    transcribeVoice: async (id, audioBase64) => (await request<{ transcript: string }>(`${path(id)}/voice/transcribe`, "POST", { audioBase64 })).transcript,
+    transcribeVoice: async (id, audioBase64) =>
+      (
+        await request<{ transcript: string }>(`${path(id)}/voice/transcribe`, "POST", {
+          audioBase64,
+        })
+      ).transcript,
     getIntent: async (id) =>
       (await request<{ intent: StoredIntent | null }>(`${path(id)}/intent`)).intent,
     uploadDocument: (id, file) =>

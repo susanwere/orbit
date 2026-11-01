@@ -3,7 +3,10 @@ import {
   type ProjectDocumentRouteOptions,
 } from "./modules/documents/project-document-routes.js";
 import cors from "@fastify/cors";
-import { registerMuseVoiceRoutes, type MuseVoiceOptions } from "./modules/voice/muse-voice-routes.js";
+import {
+  registerMuseVoiceRoutes,
+  type MuseVoiceOptions,
+} from "./modules/voice/muse-voice-routes.js";
 import {
   registerProjectKnowledgeRoutes,
   type KnowledgeOptions,

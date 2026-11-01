@@ -23,9 +23,17 @@ export function CanvasComposer({
   const [submissionError, setSubmissionError] = useState<string | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
   const voiceSession = useRef<Awaited<ReturnType<typeof recordIntentVoice>> | null>(null);
-  const [voiceState, setVoiceState] = useState<"idle" | "starting" | "recording" | "transcribing">("idle");
+  const [voiceState, setVoiceState] = useState<"idle" | "starting" | "recording" | "transcribing">(
+    "idle",
+  );
   const [voiceError, setVoiceError] = useState<string | null>(null);
-  useEffect(() => () => { voiceSession.current?.cancel(); voiceSession.current = null; }, []);
+  useEffect(
+    () => () => {
+      voiceSession.current?.cancel();
+      voiceSession.current = null;
+    },
+    [],
+  );
   async function toggleVoice() {
     if (voiceState === "recording") {
       const session = voiceSession.current;
@@ -40,7 +48,9 @@ export function CanvasComposer({
         onDraftChange([draftIdea.trim(), transcript].filter(Boolean).join("\\n").slice(0, 10000));
       } catch (cause) {
         setVoiceError(cause instanceof Error ? cause.message : "Transcription failed.");
-      } finally { setVoiceState("idle"); }
+      } finally {
+        setVoiceState("idle");
+      }
       return;
     }
     if (voiceState !== "idle" || !onTranscribeVoice) return;
@@ -195,15 +205,39 @@ export function CanvasComposer({
           {submissionError}
         </p>
       )}
-      {voiceError && <p role="alert" className="intent-error">{voiceError}</p>}
-      {voiceState !== "idle" && <p role="status">{voiceState === "recording" ? "Recording. Press the microphone again to transcribe." : voiceState === "transcribing" ? "Muse Voice is transcribing…" : "Requesting microphone access…"}</p>}
+      {voiceError && (
+        <p role="alert" className="intent-error">
+          {voiceError}
+        </p>
+      )}
+      {voiceState !== "idle" && (
+        <p role="status">
+          {voiceState === "recording"
+            ? "Recording. Press the microphone again to transcribe."
+            : voiceState === "transcribing"
+              ? "Muse Voice is transcribing…"
+              : "Requesting microphone access…"}
+        </p>
+      )}
       <div className="canvas-composer-actions">
         <button
           type="button"
           className="canvas-composer-voice"
-          disabled={isPreview || submitting || !onTranscribeVoice || voiceState === "transcribing" || voiceState === "starting"}
-          onClick={() => { void toggleVoice(); }}
-          aria-label={voiceState === "recording" ? "Stop voice recording and transcribe" : "Record an Intent with Muse Voice"}
+          disabled={
+            isPreview ||
+            submitting ||
+            !onTranscribeVoice ||
+            voiceState === "transcribing" ||
+            voiceState === "starting"
+          }
+          onClick={() => {
+            void toggleVoice();
+          }}
+          aria-label={
+            voiceState === "recording"
+              ? "Stop voice recording and transcribe"
+              : "Record an Intent with Muse Voice"
+          }
           aria-pressed={voiceState === "recording"}
           title={voiceState === "recording" ? "Stop recording" : "Record an Intent with Muse Voice"}
         >
