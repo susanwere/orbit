@@ -23,7 +23,7 @@ export async function registerMuseVoiceRoutes(app: FastifyInstance, options: Mus
   app.post<{
     Params: { projectId: string };
     Body: { audioBase64?: unknown };
-  }>("/projects/:projectId/voice/transcribe", async (request) => {
+  }>("/projects/:projectId/voice/transcribe", { bodyLimit: 8_000_000 }, async (request) => {
     const principal = options.auth.verify(request.headers.authorization);
     await options.authorization.authorize(principal.id, request.params.projectId, "review");
     const encoded = request.body?.audioBase64;
