@@ -78,20 +78,41 @@ async function summarize(model: StructuredJsonClient, input: unknown): Promise<S
     }),
   );
 }
-async function githubReadme(repository: string, token?: string): Promise<string | null> {
-  if (!/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(repository)) return null;
-  const response = await fetch(`https://api.github.com/repos/${repository}/readme`, {
-    headers: {
-      Accept: "application/vnd.github.raw+json",
-      "User-Agent": "Orbit-Knowledge",
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    },
-    signal: AbortSignal.timeout(7_000),
+async function githubEvidence(repository: string, token?: string): Promise<{ files: { path: string; text: string }[]; inspected: string[] }> {
+  if (!/^[A-Za-z0-9_.-]+\\/[A-Za-z0-9_.-]+$/.test(repository)) return { files: [], inspected: [] };
+  const headers = {
+    Accept: "application/vnd.github+json",
+    "User-Agent": "Orbit-Knowledge",
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+  };
+  const base = `https://api.github.com/repos/${repository}`;
+  const metadata = await fetch(base, { headers, signal: AbortSignal.timeout(7_000) });
+  if (!metadata.ok) return { files: [], inspected: [] };
+  const details = await metadata.json() as { default_branch?: string };
+  const branch = details.default_branch;
+  if (!branch || !/^[a-zA-Z0-9._/-]+$/.test(branch)) return { files: [], inspected: [] };
+  const tree = await fetch(`${base}/git/trees/${encodeURIComponent(branch)}?recursive=1`, {
+    headers, signal: AbortSignal.timeout(7_000),
   });
-  if (!response.ok) return null;
-  const length = Number(response.headers.get("content-length") ?? 0);
-  if (length > 120_000) return null;
-  return (await response.text()).slice(0, 12_000);
+  if (!tree.ok) return { files: [], inspected: [] };
+  const manifest = await tree.json() as { tree?: { path: string; type: string; size?: number }[]; truncated?: boolean };
+  const candidates = (manifest.tree ?? []).filter((entry) =>
+    entry.type === "blob" &&
+    (entry.size ?? 0) <= 30_000 &&
+    /(^|\\/)(README[^/]*|package.json|pyproject.toml|Cargo.toml|Gemfile|go.mod|tsconfig.json|vite.config.ts|next.config.js|next.config.ts|src\\/[^/]+\\.(tsx?|jsx?)|app\\/[^/]+\\.(tsx?|jsx?))$/i.test(entry.path) &&
+    !/(^|\\/)(node_modules|dist|build|vendor|\\.git)\\//.test(entry.path)
+  ).slice(0, 12);
+  const files: { path: string; text: string }[] = [];
+  for (const item of candidates) {
+    const response = await fetch(`https://raw.githubusercontent.com/${repository}/${encodeURIComponent(branch)}/${item.path.split("/").map(encodeURIComponent).join("/")}`, {
+      headers: token ? { Authorization: `Bearer ${token}`, "User-Agent": "Orbit-Knowledge" } : { "User-Agent": "Orbit-Knowledge" },
+      signal: AbortSignal.timeout(7_000),
+    });
+    if (!response.ok) continue;
+    const content = (await response.text()).slice(0, 5_000);
+    files.push({ path: item.path, text: content });
+  }
+  return { files, inspected: files.map((file) => file.path) };
 }
 
 export async function registerProjectKnowledgeRoutes(
@@ -151,7 +172,7 @@ export async function registerProjectKnowledgeRoutes(
       }
       const repositories = [];
       for (const repo of repos.rows) {
-        const readme = await githubReadme(repo.full_name, githubToken);
+        const evidence = await githubEvidence(repo.full_name, githubToken);
         repositories.push({
           fullName: repo.full_name,
           inspected: Boolean(readme),
