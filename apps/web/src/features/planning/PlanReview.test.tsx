@@ -24,7 +24,9 @@ describe("canvas composer visibility", () => {
       />,
     );
     expect(markup).toContain('id="canvas-project-idea"');
-    expect(markup).toContain("Draft not saved");
+    expect(markup).toContain("Attach supporting documents and generate your plan here.");
+    expect(markup).toContain('aria-label="Attach supporting documents"');
+    expect(markup).toContain('accept=".pdf,.docx,.md,.txt"');
     expect(markup).toContain("Generate plan");
     expect(markup).not.toContain("Approve plan");
     expect(sendRequest).not.toHaveBeenCalled();
