@@ -14,5 +14,3 @@ CREATE TABLE project_knowledge_heads (
   PRIMARY KEY (organization_id, project_id),
   FOREIGN KEY (organization_id, project_id) REFERENCES projects(organization_id, id)
 );
-CREATE UNIQUE INDEX project_knowledge_approved_once
-  ON project_knowledge_snapshots(project_id) WHERE review_status = 'APPROVED' AND reviewed_at IS NULL;
