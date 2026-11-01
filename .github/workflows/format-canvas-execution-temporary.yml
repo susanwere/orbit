@@ -1,0 +1,28 @@
+name: Format canvas execution (temporary)
+on:
+  push:
+    branches: [feat/canvas-first-workflow-execution]
+    paths: [.github/workflows/format-canvas-execution-temporary.yml]
+permissions:
+  contents: write
+jobs:
+  format:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/canvas-first-workflow-execution
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npx prettier --write apps/web/src/App.tsx apps/web/src/features/planning/ProjectCanvas.tsx apps/web/src/features/planning/CanvasExecution.tsx apps/web/src/features/planning/PlanReview.tsx apps/web/src/features/planning/CanvasSidebar.tsx
+      - run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add apps/web/src
+          if ! git diff --cached --quiet; then
+            git commit -m "style: format canvas execution"
+            git push origin HEAD:feat/canvas-first-workflow-execution
+          fi
