@@ -4,6 +4,7 @@ import { CanvasComposer } from "./CanvasComposer.js";
 import { PlanSection, type PlanSectionKey } from "./PlanSection.js";
 import { CanvasSidebar } from "./CanvasSidebar.js";
 import { ProjectContextDocuments } from "./ProjectContextDocuments.js";
+import { CanvasExecution } from "./CanvasExecution.js";
 import "../projects/project-dashboard.css";
 import { WorkGraphCanvas } from "./WorkGraphCanvas.js";
 import type { CreatedProject } from "../projects/project-api.js";
@@ -105,7 +106,7 @@ function ProjectPlanCanvas({
   isLoading = false,
 }: Props) {
   const [canvasSection, setCanvasSection] = useState<
-    "workflow" | "composer" | "context" | PlanSectionKey
+    "workflow" | "composer" | "context" | "execution" | PlanSectionKey
   >("workflow");
   const [canvasDraftIdea, setCanvasDraftIdea] = useState("");
   const [currentIntent, setCurrentIntent] = useState(originalIntent);
@@ -144,8 +145,12 @@ function ProjectPlanCanvas({
   const showComposer =
     !isLoading && (canvasSection === "composer" || (!currentIntent && status === null));
   const isContextOpen = canvasSection === "context";
+  const isExecutionOpen = canvasSection === "execution";
   const projectSection =
-    canvasSection !== "workflow" && canvasSection !== "composer" && canvasSection !== "context"
+    canvasSection !== "workflow" &&
+    canvasSection !== "composer" &&
+    canvasSection !== "context" &&
+    canvasSection !== "execution"
       ? canvasSection
       : null;
   const planningPending = status === "GENERATING";
@@ -433,6 +438,11 @@ function ProjectPlanCanvas({
         activeSection={projectSection}
         hasGraph={Boolean(graph)}
         isContextOpen={isContextOpen}
+        isExecutionOpen={isExecutionOpen}
+        onOpenExecution={() => {
+          setCanvasSection("execution");
+          setSelectedItemKey(null);
+        }}
         onOpenContext={() => {
           setCanvasSection("context");
           setSelectedItemKey(null);
@@ -468,7 +478,11 @@ function ProjectPlanCanvas({
         <h1 id="plan-heading" className="canvas-heading-accessible">
           {selectedItem ? selectedItem.title : "Workflow Canvas"}
         </h1>
-        {!showComposer && !isContextOpen && (projectSection || selectedItem) && planActions}
+        {!showComposer &&
+          !isContextOpen &&
+          !isExecutionOpen &&
+          (projectSection || selectedItem) &&
+          planActions}
         {error && (
           <p role="alert" className="intent-error canvas-action-error">
             {error}
@@ -483,11 +497,13 @@ function ProjectPlanCanvas({
             isPreview={Boolean(currentIntent) || status !== null}
             draftIdea={canvasDraftIdea}
             onDraftChange={setCanvasDraftIdea}
-            onOpenIntent={onBack}
+            onOpenIntent={() => setCanvasSection("workflow")}
             onSubmitIntent={submitCanvasIntent}
           />
         ) : isContextOpen ? (
           <ProjectContextDocuments api={api} projectId={project.id} />
+        ) : isExecutionOpen ? (
+          <CanvasExecution api={api} projectId={project.id} />
         ) : projectSection ? (
           <PlanSection
             key={projectSection}
@@ -730,8 +746,8 @@ function ProjectPlanCanvas({
                               Review CI evidence
                             </a>
                           )}
-                          <button type="button" onClick={onBack}>
-                            Open authorized execution controls on Intent
+                          <button type="button" onClick={() => setCanvasSection("execution")}>
+                            Open execution controls
                           </button>
                         </section>
                       )}
@@ -792,8 +808,8 @@ function ProjectPlanCanvas({
                         </>
                       )}
                       <p className="orbit-detail-muted">
-                        Execution is not available from this planning view. Prerequisite completion
-                        must be verified by the execution service.
+                        Execute from the canvas Execution panel. Prerequisite completion must be
+                        verified by the execution service.
                       </p>
                     </div>
                   ) : (

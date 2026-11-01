@@ -10,6 +10,8 @@ interface CanvasSidebarProps {
   readonly activeSection: PlanSectionKey | null;
   readonly hasGraph: boolean;
   readonly isContextOpen: boolean;
+  readonly isExecutionOpen: boolean;
+  readonly onOpenExecution: () => void;
   readonly onOpenContext: () => void;
   readonly onOpenSection: (section: PlanSectionKey) => void;
   readonly onOpenComposer: () => void;
@@ -27,6 +29,8 @@ export function CanvasSidebar({
   activeSection,
   hasGraph,
   isContextOpen,
+  isExecutionOpen,
+  onOpenExecution,
   onOpenContext,
   onOpenSection,
   onOpenComposer,
@@ -40,7 +44,7 @@ export function CanvasSidebar({
         Orbit
       </a>
       <button type="button" className="canvas-sidebar-back" onClick={onBack}>
-        ← Intent
+        ← Projects
       </button>
       <div className="canvas-sidebar-project">
         <span>PROJECT</span>
@@ -65,6 +69,14 @@ export function CanvasSidebar({
         >
           <SidebarIcon kind="plan" />
           Project Context
+        </button>
+        <button
+          type="button"
+          aria-current={isExecutionOpen ? "page" : undefined}
+          onClick={onOpenExecution}
+        >
+          <SidebarIcon kind="plan" />
+          Execute workflows
         </button>
         <details className="canvas-sidebar-items">
           <summary>
