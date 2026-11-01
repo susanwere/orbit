@@ -246,7 +246,7 @@ export function createIntentApi(
     getIntentDocuments: async (id) =>
       (await request<{ documents: { id: string; original_filename: string; media_type: string; size_bytes: number }[] }>(`${path(id)}/intent/documents`)).documents,
     submitIntent: async (id, statement, documentIds = []) =>
-      (await request<{ intent: StoredIntent }>(`${path(id)}/intent`, "POST", { statement, documentIds })).intent,
+      (await request<{ intent: StoredIntent }>(`${path(id)}/intent`, "POST", { statement, ...(documentIds.length ? { documentIds } : {}) })).intent,
     getPlan: async (id) => (await request<{ plan: ProjectPlan | null }>(`${path(id)}/plan`)).plan,
     generatePlan: async (id) =>
       (await request<{ plan: ProjectPlan }>(`${path(id)}/plan`, "POST")).plan,
