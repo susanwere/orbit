@@ -40,7 +40,7 @@ try {
       contentType: "application/javascript",
       body: `window.google = { accounts: { id: {
     initialize(configuration) { window.testCredentialCallback = configuration.callback; },
-    renderButton(container) { const button = document.createElement('button'); button.textContent = 'Sign in with Google'; button.style.cssText = 'background:transparent;color:white;border:0;padding:8px;font-size:20px'; button.onclick = () => window.testCredentialCallback({credential:'mock-provider-credential'}); container.append(button); },
+    renderButton(container) { const button = document.createElement('button'); button.textContent = 'Sign in with Google'; button.style.cssText = 'background:#1a73e8;color:white;border:0;border-radius:4px;padding:8px;font-size:20px;width:100%;min-height:40px'; button.onclick = () => window.testCredentialCallback({credential:'mock-provider-credential'}); container.append(button); },
     disableAutoSelect() {}
   } } };`,
     }),

@@ -37,7 +37,7 @@
   align-items: center;
   justify-content: center;
   gap: 14px;
-  font-size: 44px;
+  font-size: 40px;
   font-weight: 650;
   margin-bottom: 34px;
 }
@@ -54,23 +54,23 @@
   border-bottom-color: #214ff3;
 }
 .sign-in-card h1 {
-  font-size: clamp(28px, 3vw, 36px);
+  font-size: clamp(26px, 3vw, 32px);
   margin: 0 0 16px;
   letter-spacing: -0.8px;
 }
 .sign-in-subtitle {
-  font-size: 20px;
+  font-size: 18px;
   line-height: 1.5;
   color: #b0bdd5;
   margin: 0 0 40px;
 }
 .sign-in-action {
-  min-height: 46px;
+  width: min(100%, 400px);
+  min-height: 44px;
+  margin-inline: auto;
   display: flex;
   justify-content: center;
-  border-radius: 10px;
-  background: linear-gradient(120deg, #007aff, #2148f2);
-  padding: 8px;
+  border-radius: 4px;
 }
 .sign-in-action > div {
   width: 100%;
@@ -79,10 +79,6 @@
 }
 .sign-in-action[aria-busy="true"] {
   opacity: 0.6;
-}
-.sign-in-action:focus-within {
-  outline: 3px solid #92c9ff;
-  outline-offset: 5px;
 }
 .sign-in-divider {
   display: flex;
@@ -98,7 +94,7 @@
 }
 .sign-in-explanation {
   color: #aab8d2;
-  font-size: 17px;
+  font-size: 16px;
   line-height: 1.6;
   margin: 0;
 }
@@ -125,11 +121,11 @@
   padding-left: 48px;
 }
 .sign-in-benefits h2 {
-  font-size: 18px;
+  font-size: 16px;
   margin: 6px 0 10px;
 }
 .sign-in-benefits p {
-  font-size: 17px;
+  font-size: 16px;
   color: #aab8d2;
   line-height: 1.5;
   margin: 0;
@@ -207,10 +203,10 @@
     padding: 36px 22px;
   }
   .sign-in-brand {
-    font-size: 36px;
+    font-size: 32px;
   }
   .sign-in-subtitle {
-    font-size: 17px;
+    font-size: 16px;
   }
   .sign-in-desktop-break {
     display: none;
@@ -224,6 +220,9 @@
   .sign-in-benefits li + li {
     border: 0;
     padding: 0;
+  }
+  .sign-in-benefits p {
+    font-size: 15px;
   }
   .sign-in-benefits h2 {
     margin-top: 0;
