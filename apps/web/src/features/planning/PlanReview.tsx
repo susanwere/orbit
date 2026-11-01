@@ -499,6 +499,7 @@ function ProjectPlanCanvas({
             onDraftChange={setCanvasDraftIdea}
             onOpenIntent={() => setCanvasSection("workflow")}
             onSubmitIntent={submitCanvasIntent}
+            onTranscribeVoice={(audioBase64) => api.transcribeVoice(project.id, audioBase64)}
           />
         ) : isContextOpen ? (
           <ProjectContextDocuments api={api} projectId={project.id} />
