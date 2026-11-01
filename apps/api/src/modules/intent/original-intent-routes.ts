@@ -74,37 +74,34 @@ export async function registerOriginalIntentRoutes(
         throw new DomainError("validation", "Provide up to 10 distinct document IDs.");
       }
       const id = randomUUID();
-      const result = await db.transaction(async (tx) => {
-        if (documentIds.length) {
-          const owned = await tx.query<{ id: string; version: number } & Record<string, unknown>>(
-            `SELECT id,version FROM project_documents
-             WHERE organization_id=$1 AND project_id=$2 AND id=ANY($3::text[])`,
-            [access.organizationId, access.projectId, documentIds],
-          );
-          if (owned.rows.length !== documentIds.length) {
-            throw new DomainError(
-              "validation",
-              "One or more documents do not belong to this project.",
-            );
-          }
-        }
-        const created = await tx.query<IntentRow>(
-          `INSERT INTO intents(id,organization_id,project_id,statement,created_by_principal_id)
+      const insert = async (executor: Pick<SqlDatabase, "query">) => executor.query<IntentRow>(
+        `INSERT INTO intents(id,organization_id,project_id,statement,created_by_principal_id)
          VALUES($1,$2,$3,$4,$5)
          ON CONFLICT (project_id) DO NOTHING
          RETURNING id,organization_id,project_id,statement,created_by_principal_id,created_at`,
-          [id, access.organizationId, access.projectId, statement.trim(), principal.id],
-        );
-        if (created.rows[0] && documentIds.length) {
-          await tx.query(
-            `INSERT INTO intent_document_attachments(intent_id,organization_id,project_id,document_id,document_version)
-             SELECT $1,$2,$3,id,version FROM project_documents
-             WHERE organization_id=$2 AND project_id=$3 AND id=ANY($4::text[])`,
-            [id, access.organizationId, access.projectId, documentIds],
-          );
-        }
-        return created;
-      });
+        [id, access.organizationId, access.projectId, statement.trim(), principal.id],
+      );
+      const result = documentIds.length
+        ? await db.transaction(async (tx) => {
+            const owned = await tx.query<{ id: string; version: number } & Record<string, unknown>>(
+              `SELECT id,version FROM project_documents
+               WHERE organization_id=$1 AND project_id=$2 AND id=ANY($3::text[])`,
+              [access.organizationId, access.projectId, documentIds],
+            );
+            if (owned.rows.length !== documentIds.length)
+              throw new DomainError("validation", "One or more documents do not belong to this project.");
+            const created = await insert(tx);
+            if (created.rows[0]) {
+              await tx.query(
+                `INSERT INTO intent_document_attachments(intent_id,organization_id,project_id,document_id,document_version)
+                 SELECT $1,$2,$3,id,version FROM project_documents
+                 WHERE organization_id=$2 AND project_id=$3 AND id=ANY($4::text[])`,
+                [id, access.organizationId, access.projectId, documentIds],
+              );
+            }
+            return created;
+          })
+        : await insert(db);
       if (!result.rows[0]) {
         return reply.code(409).send({
           error: "original_intent_exists",
