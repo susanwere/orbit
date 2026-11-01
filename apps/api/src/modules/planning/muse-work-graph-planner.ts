@@ -26,7 +26,13 @@ export interface ProposedWorkGraph {
 }
 
 export interface PlanningInput {
-  readonly sourceDocuments?: readonly { id: string; version: number; filename: string; sha256: string; excerpt: string }[];
+  readonly sourceDocuments?: readonly {
+    id: string;
+    version: number;
+    filename: string;
+    sha256: string;
+    excerpt: string;
+  }[];
   readonly originalIntent: string;
   readonly knownDecisions: readonly string[];
   readonly knownConstraints: readonly string[];
@@ -226,8 +232,11 @@ export class MuseWorkGraphPlanner implements WorkGraphPlanner {
         knownDecisions: input.knownDecisions.slice(0, 20).map((s) => s.slice(0, 500)),
         knownConstraints: input.knownConstraints.slice(0, 20).map((s) => s.slice(0, 500)),
         sourceDocuments: (input.sourceDocuments ?? []).slice(0, 10).map((doc) => ({
-          id: doc.id, version: doc.version, filename: doc.filename,
-          sha256: doc.sha256, excerpt: doc.excerpt.slice(0, 8_000),
+          id: doc.id,
+          version: doc.version,
+          filename: doc.filename,
+          sha256: doc.sha256,
+          excerpt: doc.excerpt.slice(0, 8_000),
         })),
       }),
     });

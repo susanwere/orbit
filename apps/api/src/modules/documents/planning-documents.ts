@@ -27,7 +27,10 @@ export async function extractDocumentText(mediaType: string, bytes: Buffer): Pro
   if (bytes.length > 5 * 1024 * 1024) throw new Error("Document exceeds extraction limit.");
   if (mediaType === "text/plain" || mediaType === "text/markdown") {
     const decoded = new TextDecoder("utf-8", { fatal: true }).decode(bytes);
-    return decoded.replace(/\r\n?/g, "\n").replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/g, "").trim();
+    return decoded
+      .replace(/\r\n?/g, "\n")
+      .replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/g, "")
+      .trim();
   }
   if (mediaType === "application/pdf") {
     const module = await import("pdf-parse");

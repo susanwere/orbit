@@ -123,7 +123,13 @@ export async function registerPlanningRoutes(
             })
           : [];
         const sourceDocuments = documentStorage
-          ? await loadPlanningDocuments(db, documentStorage, actor.organizationId, actor.projectId, intent.id)
+          ? await loadPlanningDocuments(
+              db,
+              documentStorage,
+              actor.organizationId,
+              actor.projectId,
+              intent.id,
+            )
           : [];
         const proposed = await planner.propose({
           sourceDocuments,
