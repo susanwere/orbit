@@ -210,8 +210,22 @@ try {
     });
   assert.equal(sidebarOrder, true, "Workflow appears below Plan details");
   assert.equal(await planDetailsToggle.textContent(), "Plan details");
-  await planDetailsToggle.click();
+  assert.equal(
+    await page.locator(".canvas-sidebar-items").getAttribute("open"),
+    null,
+    "Plan details starts collapsed",
+  );
   assert.equal(await page.getByRole("button", { name: "Workflow", exact: true }).isVisible(), true);
+  assert.equal(
+    await page.getByRole("button", { name: "Proposed Outcome", exact: true }).isVisible(),
+    false,
+  );
+  await planDetailsToggle.click();
+  assert.equal(
+    await page.getByRole("button", { name: "Proposed Outcome", exact: true }).isVisible(),
+    true,
+  );
+  await planDetailsToggle.press("Enter");
   assert.equal(
     await page.getByRole("button", { name: "Proposed Outcome", exact: true }).isVisible(),
     false,

@@ -54,7 +54,7 @@ export function CanvasSidebar({
           <SidebarIcon kind="composer" />
           Composer
         </button>
-        <details className="canvas-sidebar-items" open>
+        <details className="canvas-sidebar-items">
           <summary>
             <SidebarIcon kind="plan" />
             Plan details
