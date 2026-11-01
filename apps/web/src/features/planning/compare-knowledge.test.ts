@@ -15,7 +15,10 @@ const make = (version: number, features: string[]): ProjectKnowledgeSnapshot => 
 
 describe("context version comparison", () => {
   it("detects additions and removals relative to approved knowledge", () => {
-    const changes = compareKnowledgeVersions(make(2, ["Search", "Auth"]), make(1, ["Search", "Legacy"]));
+    const changes = compareKnowledgeVersions(
+      make(2, ["Search", "Auth"]),
+      make(1, ["Search", "Legacy"]),
+    );
     expect(changes.addedFeatures).toEqual(["Auth"]);
     expect(changes.removedFeatures).toEqual(["Legacy"]);
     expect(changes.architectureChanged).toBe(false);

@@ -22,12 +22,8 @@ export function compareKnowledgeVersions(
   const added = (next: readonly string[], before: readonly string[]) =>
     next.filter((item) => !before.includes(item));
   const old = previous?.summary;
-  const repositories = new Map(
-    (previous?.repositories ?? []).map((repo) => [repo.fullName, repo]),
-  );
-  const documents = new Map(
-    (previous?.documents ?? []).map((doc) => [doc.id, doc]),
-  );
+  const repositories = new Map((previous?.repositories ?? []).map((repo) => [repo.fullName, repo]));
+  const documents = new Map((previous?.documents ?? []).map((doc) => [doc.id, doc]));
   return {
     summaryChanged: current.summary.summary !== (old?.summary ?? ""),
     architectureChanged: current.summary.architecture !== (old?.architecture ?? ""),
