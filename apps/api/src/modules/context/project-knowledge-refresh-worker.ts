@@ -50,6 +50,7 @@ export class ProjectKnowledgeRefreshWorker {
           this.principalId,
           {
             kind: "github_merge",
+            jobId: job.id,
             repository: job.repository_full_name,
             commitSha: job.merge_commit_sha,
             pullNumber: job.pull_number,
