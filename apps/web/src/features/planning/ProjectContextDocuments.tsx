@@ -67,7 +67,7 @@ export function ProjectContextDocuments({
   const approved = snapshots.find((item) => item.review_status === "APPROVED");
   const comparisonBase =
     approved?.id === latest?.id
-      ? snapshots.find((item) => item.id !== latest.id && item.review_status === "APPROVED")
+      ? snapshots.find((item) => item.id !== latest?.id && item.review_status === "APPROVED")
       : approved;
   const changes = latest ? compareKnowledgeVersions(latest, comparisonBase) : null;
   async function review(decision: "approve" | "request_changes") {
