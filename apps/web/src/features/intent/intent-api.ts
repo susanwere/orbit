@@ -161,7 +161,13 @@ export interface ProjectKnowledgeSnapshot {
 export interface ProjectIntentApi {
   getProjectKnowledge(projectId: string): Promise<readonly ProjectKnowledgeSnapshot[]>;
   refreshProjectKnowledge(projectId: string): Promise<ProjectKnowledgeSnapshot>;
-  reviewProjectKnowledge(projectId: string, snapshotId: string, revision: number, decision: "approve" | "request_changes", note?: string): Promise<ProjectKnowledgeSnapshot>;
+  reviewProjectKnowledge(
+    projectId: string,
+    snapshotId: string,
+    revision: number,
+    decision: "approve" | "request_changes",
+    note?: string,
+  ): Promise<ProjectKnowledgeSnapshot>;
   getIntent(projectId: string): Promise<StoredIntent | null>;
   getTasks(projectId: string): Promise<readonly ProjectTask[]>;
   updateTask(

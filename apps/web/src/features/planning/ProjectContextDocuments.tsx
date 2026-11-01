@@ -76,7 +76,7 @@ export function ProjectContextDocuments({
         decision,
         reviewNote,
       );
-      setSnapshots((items) => items.map((item) => item.id === updated.id ? updated : item));
+      setSnapshots((items) => items.map((item) => (item.id === updated.id ? updated : item)));
       setReviewNote("");
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Review could not be saved.");

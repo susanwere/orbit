@@ -108,27 +108,38 @@ export async function registerProjectKnowledgeRoutes(
     if (decision === "request_changes" && !note?.trim())
       throw new DomainError("validation", "Review feedback is required.");
     return db.transaction(async (tx) => {
-      await tx.query(
-        "SELECT id FROM projects WHERE organization_id=$1 AND id=$2 FOR UPDATE",
-        [actor.organizationId, actor.projectId],
-      );
-      const current = await tx.query<{
-        id: string;
-        revision: number;
-        base_approved_revision: number;
-      } & Record<string, unknown>>(
+      await tx.query("SELECT id FROM projects WHERE organization_id=$1 AND id=$2 FOR UPDATE", [
+        actor.organizationId,
+        actor.projectId,
+      ]);
+      const current = await tx.query<
+        {
+          id: string;
+          revision: number;
+          base_approved_revision: number;
+        } & Record<string, unknown>
+      >(
         "SELECT id,revision,base_approved_revision FROM project_knowledge_snapshots WHERE organization_id=$1 AND project_id=$2 AND id=$3 AND revision=$4 AND review_status='PROPOSED' FOR UPDATE",
         [actor.organizationId, actor.projectId, req.params.snapshotId, expectedRevision],
       );
       const candidate = current.rows[0];
       if (!candidate)
-        throw new DomainError("stale_context_version", "Knowledge proposal changed or was already reviewed.");
+        throw new DomainError(
+          "stale_context_version",
+          "Knowledge proposal changed or was already reviewed.",
+        );
       const head = await tx.query<{ approved_revision: number } & Record<string, unknown>>(
         "SELECT approved_revision FROM project_knowledge_heads WHERE organization_id=$1 AND project_id=$2",
         [actor.organizationId, actor.projectId],
       );
-      if (decision === "approve" && candidate.base_approved_revision !== (head.rows[0]?.approved_revision ?? 0))
-        throw new DomainError("stale_context_version", "Approved knowledge changed. Refresh and review a new proposal.");
+      if (
+        decision === "approve" &&
+        candidate.base_approved_revision !== (head.rows[0]?.approved_revision ?? 0)
+      )
+        throw new DomainError(
+          "stale_context_version",
+          "Approved knowledge changed. Refresh and review a new proposal.",
+        );
       const updated = await tx.query<Record<string, unknown>>(
         "UPDATE project_knowledge_snapshots SET review_status=$4,review_note=$5,reviewed_by_principal_id=$6,reviewed_at=now() WHERE organization_id=$1 AND project_id=$2 AND id=$3 RETURNING id,revision,content,created_at,review_status,review_note,base_approved_revision,reviewed_at",
         [
