@@ -126,3 +126,23 @@ export async function exchangeEmailPassword(
   }
   return parseSession(await response.json());
 }
+
+export async function emailAccountAction(
+  apiBaseUrl: string,
+  action: "verify" | "forgot-password" | "reset-password",
+  payload: Record<string, string>,
+): Promise<void> {
+  const response = await fetch(new URL(`/auth/email/${action}`, apiBaseUrl), {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json", "X-Orbit-Session": "1" },
+    body: JSON.stringify(payload),
+  });
+  if (!response.ok) {
+    const body: unknown = await response.json().catch(() => null);
+    throw new Error(
+      body && typeof body === "object" && "message" in body && typeof body.message === "string"
+        ? body.message : "Could not complete the request.",
+    );
+  }
+}
