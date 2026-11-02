@@ -3,6 +3,7 @@ import {
   type ProjectDocumentRouteOptions,
 } from "./modules/documents/project-document-routes.js";
 import cors from "@fastify/cors";
+import { registerEmailPasswordRoutes, type EmailPasswordOptions } from "./modules/auth/email-password-routes.js";
 import {
   registerMuseVoiceRoutes,
   type MuseVoiceOptions,
@@ -69,6 +70,7 @@ import { registerTaskRoutes, type TaskRouteOptions } from "./modules/tasks/task-
 
 export interface AppOptions {
   readonly authExchange?: AuthExchangeOptions;
+  readonly emailPassword?: EmailPasswordOptions;
   readonly originalIntent?: OriginalIntentOptions;
   readonly planning?: PlanningRouteOptions;
   readonly projectManagement?: ProjectManagementOptions;
@@ -136,6 +138,7 @@ export async function buildApp(options: AppOptions = {}) {
   }));
 
   if (options.authExchange) await app.register(registerAuthExchangeRoutes, options.authExchange);
+  if (options.emailPassword) await app.register(registerEmailPasswordRoutes, options.emailPassword);
   if (options.originalIntent)
     await app.register(registerOriginalIntentRoutes, options.originalIntent);
   if (options.planning) await app.register(registerPlanningRoutes, options.planning);
