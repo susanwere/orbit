@@ -39,11 +39,11 @@ export function GoogleSignIn({ clientId, apiBaseUrl, sessionStore }: GoogleSignI
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [mode, setMode] = useState<"signup" | "login" | "forgot" | "reset" | "verify">(() => {
-    const action = new URLSearchParams(window.location.search).get("auth_action");
+    const action = new URLSearchParams(typeof window === "undefined" ? "" : window.location.search).get("auth_action");
     return action === "verify-email" ? "verify" : action === "reset-password" ? "reset" : "signup";
   });
   const [linkToken] = useState(
-    () => new URLSearchParams(window.location.search).get("token") ?? "",
+    () => new URLSearchParams(typeof window === "undefined" ? "" : window.location.search).get("token") ?? "",
   );
   const [notice, setNotice] = useState<string | null>(null);
   const [confirmPassword, setConfirmPassword] = useState("");
