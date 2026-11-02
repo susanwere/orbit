@@ -130,7 +130,7 @@ export function GoogleSignIn({ clientId, apiBaseUrl, sessionStore }: GoogleSignI
             {...{ inert: isAuthenticating ? "" : undefined }}
           />
           {!isGoogleReady && !authenticationError && <p role="status">Loading Google sign-in…</p>}
-        </div>
+        </div>}
         <form className="sign-in-action" onSubmit={(event) => {
           event.preventDefault();
           setAuthenticationError(null);
