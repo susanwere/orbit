@@ -34,7 +34,7 @@ export class RefreshSessionService {
          SELECT $2, principal.id, consumed.expires_at FROM consumed
          JOIN principals principal ON principal.id = consumed.principal_id
          WHERE principal.type = 'human' AND principal.role IN ('admin', 'member', 'viewer')
-           AND EXISTS (SELECT 1 FROM principal_oidc_identities WHERE principal_id = principal.id)
+           AND (EXISTS (SELECT 1 FROM principal_oidc_identities WHERE principal_id = principal.id)\n             OR EXISTS (SELECT 1 FROM auth_password_accounts WHERE principal_id = principal.id))
          RETURNING principal_id
        ) SELECT principal.id, principal.organization_id FROM replacement
          JOIN principals principal ON principal.id = replacement.principal_id`,
