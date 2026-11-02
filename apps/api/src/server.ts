@@ -1,4 +1,5 @@
 import { LocalDocumentStorage } from "./modules/documents/document-storage.js";
+import { ResendVerificationEmailService } from "./modules/auth/email-token-service.js";
 import { PgDatabase } from "@orbit/db";
 import { MuseWorkGraphPlanner } from "./modules/planning/muse-work-graph-planner.js";
 import type { PlanningRouteOptions } from "./modules/planning/planning-routes.js";
@@ -153,6 +154,16 @@ const app = await buildApp({
             process.env.ORBIT_WEB_ORIGINS ?? "http://localhost:5173,http://127.0.0.1:5173"
           ).split(","),
           secureCookies: process.env.NODE_ENV === "production",
+          emailService:
+            process.env.ORBIT_RESEND_API_KEY &&
+            process.env.ORBIT_EMAIL_FROM &&
+            process.env.ORBIT_APP_URL
+              ? new ResendVerificationEmailService(
+                  process.env.ORBIT_RESEND_API_KEY,
+                  process.env.ORBIT_EMAIL_FROM,
+                  process.env.ORBIT_APP_URL,
+                )
+              : undefined,
         }
       : undefined,
   museVoice:
