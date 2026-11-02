@@ -71,7 +71,8 @@ export async function registerAuthExchangeRoutes(
       throw new DomainError("unauthenticated", "Valid identity provider authentication required.");
     }
 
-    if (!options.identityVerifier) throw new DomainError("promotion_unavailable", "Google sign-in is not configured.");
+    if (!options.identityVerifier)
+      throw new DomainError("promotion_unavailable", "Google sign-in is not configured.");
     const trustedIdentity = await options.identityVerifier.verify(idToken);
     const linkedPrincipalResult = await options.database.query<LinkedPrincipalRow>(
       `SELECT principal.id, principal.organization_id

@@ -3,7 +3,10 @@ import {
   type ProjectDocumentRouteOptions,
 } from "./modules/documents/project-document-routes.js";
 import cors from "@fastify/cors";
-import { registerEmailPasswordRoutes, type EmailPasswordOptions } from "./modules/auth/email-password-routes.js";
+import {
+  registerEmailPasswordRoutes,
+  type EmailPasswordOptions,
+} from "./modules/auth/email-password-routes.js";
 import {
   registerMuseVoiceRoutes,
   type MuseVoiceOptions,

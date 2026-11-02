@@ -116,7 +116,10 @@ export async function exchangeEmailPassword(
   if (!response.ok) {
     const payload: unknown = await response.json().catch(() => null);
     const message =
-      payload && typeof payload === "object" && "message" in payload && typeof payload.message === "string"
+      payload &&
+      typeof payload === "object" &&
+      "message" in payload &&
+      typeof payload.message === "string"
         ? payload.message
         : "Could not authenticate. Check your details and try again.";
     throw new Error(message);
