@@ -223,8 +223,14 @@ export async function registerEmailPasswordRoutes(
       { principal_id: string } & Record<string, unknown>
     >("SELECT principal_id FROM auth_password_accounts WHERE email=$1", [email]);
     if (account.rows[0] && options.emailService) {
-      const token = await createEmailToken(options.database, account.rows[0].principal_id, "reset");
-      await options.emailService.send(email, "reset", token);
+      const recent = await options.database.query<Record<string, unknown>>(
+        "SELECT 1 FROM auth_email_tokens WHERE principal_id=$1 AND purpose='reset' AND created_at > NOW() - INTERVAL '60 seconds'",
+        [account.rows[0].principal_id],
+      );
+      if (!recent.rows[0]) {
+        const token = await createEmailToken(options.database, account.rows[0].principal_id, "reset");
+        await options.emailService.send(email, "reset", token);
+      }
     }
     return { message: "If the account exists, a password reset link has been sent." };
   });
