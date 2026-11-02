@@ -155,11 +155,7 @@ export function GoogleSignIn({ clientId, apiBaseUrl, sessionStore }: GoogleSignI
             const operation =
               mode === "signup" || mode === "login"
                 ? exchangeEmailPassword(apiBaseUrl, mode, email, password).then((session) => {
-                    if (session) sessionStore.setSession(session);
-                    else {
-                      setNotice("Check your inbox for a verification link.");
-                      setMode("login");
-                    }
+                    sessionStore.setSession(session);
                   })
                 : mode === "forgot"
                   ? emailAccountAction(apiBaseUrl, "forgot-password", { email }).then(() =>
