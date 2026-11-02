@@ -258,6 +258,22 @@ export function GoogleSignIn({ clientId, apiBaseUrl, sessionStore }: GoogleSignI
           {mode === "login" && (
             <button
               type="button"
+              disabled={isAuthenticating || !email.trim()}
+              onClick={() => {
+                setAuthenticationError(null);
+                void emailAccountAction(apiBaseUrl, "resend-verification", { email })
+                  .then(() => setNotice("If verification is pending, a new link has been sent."))
+                  .catch((error: unknown) =>
+                    setAuthenticationError(error instanceof Error ? error.message : "Could not request verification."),
+                  );
+              }}
+            >
+              Resend verification email
+            </button>
+          )}
+          {mode === "login" && (
+            <button
+              type="button"
               onClick={() => {
                 setMode("forgot");
                 setNotice(null);
