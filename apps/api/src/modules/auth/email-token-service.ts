@@ -41,13 +41,15 @@ export class ResendVerificationEmailService implements VerificationEmailService 
       method: "POST",
       headers: { Authorization: `Bearer ${this.apiKey}`, "Content-Type": "application/json" },
       body: JSON.stringify({
-        from: this.from, to: [email],
+        from: this.from,
+        to: [email],
         subject: kind === "verify" ? "Verify your Orbit email" : "Reset your Orbit password",
         text: `Open this link to ${kind === "verify" ? "verify your email" : "reset your password"}:\n${link.toString()}\n\nIf you did not request this, ignore this email.`,
       }),
       signal: AbortSignal.timeout(15_000),
     });
-    if (!response.ok) throw new DomainError("email_delivery_failed", "Could not send the email. Try again later.");
+    if (!response.ok)
+      throw new DomainError("email_delivery_failed", "Could not send the email. Try again later.");
   }
 }
 

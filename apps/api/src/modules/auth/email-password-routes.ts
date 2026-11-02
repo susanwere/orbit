@@ -5,7 +5,13 @@ import type { SqlDatabase } from "@orbit/db";
 import { DomainError } from "@orbit/domain";
 import { RefreshSessionService, refreshLifetimeSeconds } from "./refresh-session-service.js";
 import { OrbitAccessTokenIssuer } from "./orbit-access-token.js";
-import { createEmailToken, hashEmailToken, validEmailToken, hashNewPassword, type VerificationEmailService } from "./email-token-service.js";
+import {
+  createEmailToken,
+  hashEmailToken,
+  validEmailToken,
+  hashNewPassword,
+  type VerificationEmailService,
+} from "./email-token-service.js";
 
 const scrypt = promisify(scryptCallback);
 const loginError = () => new DomainError("unauthenticated", "Invalid email or password.");
@@ -84,7 +90,11 @@ export async function registerEmailPasswordRoutes(
   app.post<{ Body: { email?: unknown; password?: unknown } }>(
     "/auth/email/signup",
     async (request, reply) => {
-      if (!options.emailService) throw new DomainError("promotion_unavailable", "Email verification delivery is not configured.");
+      if (!options.emailService)
+        throw new DomainError(
+          "promotion_unavailable",
+          "Email verification delivery is not configured.",
+        );
       const email = normalizeEmail(request.body?.email);
       validatePassword(request.body?.password);
       const password = request.body.password;
@@ -157,7 +167,8 @@ export async function registerEmailPasswordRoutes(
         );
         throw loginError();
       }
-      if (!account.email_verified_at) throw new DomainError("forbidden", "Verify your email before signing in.");
+      if (!account.email_verified_at)
+        throw new DomainError("forbidden", "Verify your email before signing in.");
       await options.database.query("DELETE FROM auth_login_attempts WHERE email=$1", [email]);
       return issueSession(account.principal_id, account.organization_id, reply);
     },
@@ -169,42 +180,57 @@ export async function registerEmailPasswordRoutes(
       const used = await tx.query<{ principal_id: string } & Record<string, unknown>>(
         `DELETE FROM auth_email_tokens
          WHERE token_hash=$1 AND purpose='verify' AND expires_at>NOW()
-         RETURNING principal_id`, [hashEmailToken(token)],
+         RETURNING principal_id`,
+        [hashEmailToken(token)],
       );
-      if (!used.rows[0]) throw new DomainError("validation", "Verification link expired or already used.");
-      await tx.query("UPDATE auth_password_accounts SET email_verified_at=NOW() WHERE principal_id=$1", [used.rows[0].principal_id]);
+      if (!used.rows[0])
+        throw new DomainError("validation", "Verification link expired or already used.");
+      await tx.query(
+        "UPDATE auth_password_accounts SET email_verified_at=NOW() WHERE principal_id=$1",
+        [used.rows[0].principal_id],
+      );
       return true;
     });
     return { verified: result };
   });
   app.post<{ Body: { email?: unknown } }>("/auth/email/forgot-password", async (request) => {
     const email = normalizeEmail(request.body?.email);
-    const account = await options.database.query<{ principal_id: string } & Record<string, unknown>>(
-      "SELECT principal_id FROM auth_password_accounts WHERE email=$1", [email],
-    );
+    const account = await options.database.query<
+      { principal_id: string } & Record<string, unknown>
+    >("SELECT principal_id FROM auth_password_accounts WHERE email=$1", [email]);
     if (account.rows[0] && options.emailService) {
       const token = await createEmailToken(options.database, account.rows[0].principal_id, "reset");
       await options.emailService.send(email, "reset", token);
     }
     return { message: "If the account exists, a password reset link has been sent." };
   });
-  app.post<{ Body: { token?: unknown; password?: unknown } }>("/auth/email/reset-password", async (request) => {
-    const token = request.body?.token;
-    if (!validEmailToken(token)) throw new DomainError("validation", "Invalid reset link.");
-    validatePassword(request.body?.password);
-    const hashed = await hashNewPassword(request.body.password);
-    await options.database.transaction(async (tx) => {
-      const used = await tx.query<{ principal_id: string } & Record<string, unknown>>(
-        `DELETE FROM auth_email_tokens WHERE token_hash=$1 AND purpose='reset' AND expires_at>NOW()
-         RETURNING principal_id`, [hashEmailToken(token)],
-      );
-      if (!used.rows[0]) throw new DomainError("validation", "Reset link expired or already used.");
-      await tx.query("UPDATE auth_password_accounts SET password_hash=$2,updated_at=NOW() WHERE principal_id=$1",
-        [used.rows[0].principal_id, hashed]);
-      await tx.query("DELETE FROM auth_email_tokens WHERE principal_id=$1", [used.rows[0].principal_id]);
-      await tx.query("DELETE FROM auth_refresh_sessions WHERE principal_id=$1", [used.rows[0].principal_id]);
-    });
-    return { reset: true };
-  });
-
+  app.post<{ Body: { token?: unknown; password?: unknown } }>(
+    "/auth/email/reset-password",
+    async (request) => {
+      const token = request.body?.token;
+      if (!validEmailToken(token)) throw new DomainError("validation", "Invalid reset link.");
+      validatePassword(request.body?.password);
+      const hashed = await hashNewPassword(request.body.password);
+      await options.database.transaction(async (tx) => {
+        const used = await tx.query<{ principal_id: string } & Record<string, unknown>>(
+          `DELETE FROM auth_email_tokens WHERE token_hash=$1 AND purpose='reset' AND expires_at>NOW()
+         RETURNING principal_id`,
+          [hashEmailToken(token)],
+        );
+        if (!used.rows[0])
+          throw new DomainError("validation", "Reset link expired or already used.");
+        await tx.query(
+          "UPDATE auth_password_accounts SET password_hash=$2,updated_at=NOW() WHERE principal_id=$1",
+          [used.rows[0].principal_id, hashed],
+        );
+        await tx.query("DELETE FROM auth_email_tokens WHERE principal_id=$1", [
+          used.rows[0].principal_id,
+        ]);
+        await tx.query("DELETE FROM auth_refresh_sessions WHERE principal_id=$1", [
+          used.rows[0].principal_id,
+        ]);
+      });
+      return { reset: true };
+    },
+  );
 }

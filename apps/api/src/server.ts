@@ -154,9 +154,16 @@ const app = await buildApp({
             process.env.ORBIT_WEB_ORIGINS ?? "http://localhost:5173,http://127.0.0.1:5173"
           ).split(","),
           secureCookies: process.env.NODE_ENV === "production",
-          emailService: process.env.ORBIT_RESEND_API_KEY && process.env.ORBIT_EMAIL_FROM && process.env.ORBIT_APP_URL
-            ? new ResendVerificationEmailService(process.env.ORBIT_RESEND_API_KEY, process.env.ORBIT_EMAIL_FROM, process.env.ORBIT_APP_URL)
-            : undefined,
+          emailService:
+            process.env.ORBIT_RESEND_API_KEY &&
+            process.env.ORBIT_EMAIL_FROM &&
+            process.env.ORBIT_APP_URL
+              ? new ResendVerificationEmailService(
+                  process.env.ORBIT_RESEND_API_KEY,
+                  process.env.ORBIT_EMAIL_FROM,
+                  process.env.ORBIT_APP_URL,
+                )
+              : undefined,
         }
       : undefined,
   museVoice:

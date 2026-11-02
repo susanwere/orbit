@@ -42,7 +42,9 @@ export function GoogleSignIn({ clientId, apiBaseUrl, sessionStore }: GoogleSignI
     const action = new URLSearchParams(window.location.search).get("auth_action");
     return action === "verify-email" ? "verify" : action === "reset-password" ? "reset" : "signup";
   });
-  const [linkToken] = useState(() => new URLSearchParams(window.location.search).get("token") ?? "");
+  const [linkToken] = useState(
+    () => new URLSearchParams(window.location.search).get("token") ?? "",
+  );
   const [notice, setNotice] = useState<string | null>(null);
   const [confirmPassword, setConfirmPassword] = useState("");
   const [authenticationError, setAuthenticationError] = useState<string | null>(null);
@@ -145,16 +147,33 @@ export function GoogleSignIn({ clientId, apiBaseUrl, sessionStore }: GoogleSignI
             event.preventDefault();
             setAuthenticationError(null);
             setIsAuthenticating(true);
-            const operation = mode === "signup" || mode === "login"
-              ? exchangeEmailPassword(apiBaseUrl, mode, email, password).then((session) => {
-                  if (session) sessionStore.setSession(session);
-                  else { setNotice("Check your inbox for a verification link."); setMode("login"); }
-                })
-              : mode === "forgot"
-                ? emailAccountAction(apiBaseUrl, "forgot-password", { email }).then(() => setNotice("If the account exists, a reset email has been sent."))
-                : mode === "verify"
-                  ? emailAccountAction(apiBaseUrl, "verify", { token: linkToken }).then(() => { setNotice("Email verified. You can now sign in."); setMode("login"); window.history.replaceState(null, "", window.location.pathname); })
-                  : emailAccountAction(apiBaseUrl, "reset-password", { token: linkToken, password }).then(() => { setNotice("Password updated. Sign in with your new password."); setMode("login"); window.history.replaceState(null, "", window.location.pathname); });
+            const operation =
+              mode === "signup" || mode === "login"
+                ? exchangeEmailPassword(apiBaseUrl, mode, email, password).then((session) => {
+                    if (session) sessionStore.setSession(session);
+                    else {
+                      setNotice("Check your inbox for a verification link.");
+                      setMode("login");
+                    }
+                  })
+                : mode === "forgot"
+                  ? emailAccountAction(apiBaseUrl, "forgot-password", { email }).then(() =>
+                      setNotice("If the account exists, a reset email has been sent."),
+                    )
+                  : mode === "verify"
+                    ? emailAccountAction(apiBaseUrl, "verify", { token: linkToken }).then(() => {
+                        setNotice("Email verified. You can now sign in.");
+                        setMode("login");
+                        window.history.replaceState(null, "", window.location.pathname);
+                      })
+                    : emailAccountAction(apiBaseUrl, "reset-password", {
+                        token: linkToken,
+                        password,
+                      }).then(() => {
+                        setNotice("Password updated. Sign in with your new password.");
+                        setMode("login");
+                        window.history.replaceState(null, "", window.location.pathname);
+                      });
             void operation
               .catch((error: unknown) =>
                 setAuthenticationError(error instanceof Error ? error.message : "Sign-in failed."),
@@ -162,35 +181,66 @@ export function GoogleSignIn({ clientId, apiBaseUrl, sessionStore }: GoogleSignI
               .finally(() => setIsAuthenticating(false));
           }}
         >
-          {(mode === "signup" || mode === "login" || mode === "forgot") && <>
-          <label htmlFor="orbit-email">Email</label>
-          <input
-            id="orbit-email"
-            type="email"
-            required
-            autoComplete="email"
-            value={email}
-            onChange={(event) => setEmail(event.target.value)}
-          />
-          </>}
-          {(mode === "signup" || mode === "login" || mode === "reset") && <>
-          <label htmlFor="orbit-password">{mode === "reset" ? "New password" : "Password"}</label>
-          <input
-            id="orbit-password"
-            type="password"
-            required
-            minLength={mode === "signup" || mode === "reset" ? 12 : undefined}
-            autoComplete={mode === "signup" ? "new-password" : "current-password"}
-            value={password}
-            onChange={(event) => setPassword(event.target.value)}
-          />
-          </>}
-          {(mode === "signup" || mode === "reset") && <>
-            <label htmlFor="orbit-confirm-password">Confirm password</label>
-            <input id="orbit-confirm-password" type="password" required minLength={12} value={confirmPassword} autoComplete="new-password" onChange={(event) => setConfirmPassword(event.target.value)} />
-          </>}
-          <button type="submit" className="cta-primary" disabled={isAuthenticating || ((mode === "signup" || mode === "reset") && password !== confirmPassword)}>
-            {mode === "signup" ? "Create account" : mode === "login" ? "Sign in" : mode === "forgot" ? "Send reset link" : mode === "verify" ? "Verify email" : "Reset password"}
+          {(mode === "signup" || mode === "login" || mode === "forgot") && (
+            <>
+              <label htmlFor="orbit-email">Email</label>
+              <input
+                id="orbit-email"
+                type="email"
+                required
+                autoComplete="email"
+                value={email}
+                onChange={(event) => setEmail(event.target.value)}
+              />
+            </>
+          )}
+          {(mode === "signup" || mode === "login" || mode === "reset") && (
+            <>
+              <label htmlFor="orbit-password">
+                {mode === "reset" ? "New password" : "Password"}
+              </label>
+              <input
+                id="orbit-password"
+                type="password"
+                required
+                minLength={mode === "signup" || mode === "reset" ? 12 : undefined}
+                autoComplete={mode === "signup" ? "new-password" : "current-password"}
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+              />
+            </>
+          )}
+          {(mode === "signup" || mode === "reset") && (
+            <>
+              <label htmlFor="orbit-confirm-password">Confirm password</label>
+              <input
+                id="orbit-confirm-password"
+                type="password"
+                required
+                minLength={12}
+                value={confirmPassword}
+                autoComplete="new-password"
+                onChange={(event) => setConfirmPassword(event.target.value)}
+              />
+            </>
+          )}
+          <button
+            type="submit"
+            className="cta-primary"
+            disabled={
+              isAuthenticating ||
+              ((mode === "signup" || mode === "reset") && password !== confirmPassword)
+            }
+          >
+            {mode === "signup"
+              ? "Create account"
+              : mode === "login"
+                ? "Sign in"
+                : mode === "forgot"
+                  ? "Send reset link"
+                  : mode === "verify"
+                    ? "Verify email"
+                    : "Reset password"}
           </button>
           <button
             type="button"
@@ -205,8 +255,28 @@ export function GoogleSignIn({ clientId, apiBaseUrl, sessionStore }: GoogleSignI
               ? "Already have an account? Sign in"
               : "New to Orbit? Create an account"}
           </button>
-          {mode === "login" && <button type="button" onClick={() => { setMode("forgot"); setNotice(null); }}>Forgot password?</button>}
-          {(mode === "forgot" || mode === "reset" || mode === "verify") && <button type="button" onClick={() => { setMode("login"); setNotice(null); }}>Back to sign in</button>}
+          {mode === "login" && (
+            <button
+              type="button"
+              onClick={() => {
+                setMode("forgot");
+                setNotice(null);
+              }}
+            >
+              Forgot password?
+            </button>
+          )}
+          {(mode === "forgot" || mode === "reset" || mode === "verify") && (
+            <button
+              type="button"
+              onClick={() => {
+                setMode("login");
+                setNotice(null);
+              }}
+            >
+              Back to sign in
+            </button>
+          )}
         </form>
         {notice && <p role="status">{notice}</p>}
         {isAuthenticating && <p role="status">Verifying your identity…</p>}

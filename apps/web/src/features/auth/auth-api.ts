@@ -143,7 +143,8 @@ export async function emailAccountAction(
     const body: unknown = await response.json().catch(() => null);
     throw new Error(
       body && typeof body === "object" && "message" in body && typeof body.message === "string"
-        ? body.message : "Could not complete the request.",
+        ? body.message
+        : "Could not complete the request.",
     );
   }
 }

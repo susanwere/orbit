@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { hashEmailToken, newEmailToken, validEmailToken, hashNewPassword } from "../src/modules/auth/email-token-service.js";
+import {
+  hashEmailToken,
+  newEmailToken,
+  validEmailToken,
+  hashNewPassword,
+} from "../src/modules/auth/email-token-service.js";
 
 describe("email verification and password recovery primitives", () => {
   it("creates unpredictable opaque tokens and stores only hashes", () => {
