@@ -140,6 +140,12 @@ const knowledgeRefreshWorker =
     : undefined;
 
 const app = await buildApp({
+  emailPassword: auth && process.env.ORBIT_AUTH_SECRET && process.env.ORBIT_AUTH_ISSUER ? {
+    database,
+    tokenIssuer: new OrbitAccessTokenIssuer({ secret: process.env.ORBIT_AUTH_SECRET, issuer: process.env.ORBIT_AUTH_ISSUER, audience: "orbit-api" }),
+    allowedOrigins: (process.env.ORBIT_WEB_ORIGINS ?? "http://localhost:5173,http://127.0.0.1:5173").split(","),
+    secureCookies: process.env.NODE_ENV === "production",
+  } : undefined,
   museVoice:
     auth && process.env.MODEL_API_KEY
       ? {
