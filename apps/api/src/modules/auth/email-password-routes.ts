@@ -84,6 +84,7 @@ export async function registerEmailPasswordRoutes(
   app.post<{ Body: { email?: unknown; password?: unknown } }>(
     "/auth/email/signup",
     async (request, reply) => {
+      if (!options.emailService) throw new DomainError("promotion_unavailable", "Email verification delivery is not configured.");
       const email = normalizeEmail(request.body?.email);
       validatePassword(request.body?.password);
       const password = request.body.password;
@@ -115,10 +116,8 @@ export async function registerEmailPasswordRoutes(
           throw new DomainError("validation", "An account with this email already exists.");
         throw error;
       }
-      if (!options.emailService)
-        throw new DomainError("promotion_unavailable", "Email verification delivery is not configured.");
       const token = await createEmailToken(options.database, principalId, "verify");
-      await options.emailService.send(email, "verify", token);
+      await options.emailService!.send(email, "verify", token);
       return reply.code(201).send({ message: "Check your email for a verification link." });
     },
   );
