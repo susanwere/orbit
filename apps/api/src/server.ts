@@ -182,7 +182,7 @@ const app = await buildApp({
   planning,
   originalIntent,
   authExchange:
-    identityVerifier && process.env.ORBIT_AUTH_SECRET && process.env.ORBIT_AUTH_ISSUER
+    auth && process.env.ORBIT_AUTH_SECRET && process.env.ORBIT_AUTH_ISSUER
       ? {
           database,
           identityVerifier,
