@@ -264,7 +264,9 @@ export function GoogleSignIn({ clientId, apiBaseUrl, sessionStore }: GoogleSignI
                 void emailAccountAction(apiBaseUrl, "resend-verification", { email })
                   .then(() => setNotice("If verification is pending, a new link has been sent."))
                   .catch((error: unknown) =>
-                    setAuthenticationError(error instanceof Error ? error.message : "Could not request verification."),
+                    setAuthenticationError(
+                      error instanceof Error ? error.message : "Could not request verification.",
+                    ),
                   );
               }}
             >
