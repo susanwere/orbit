@@ -228,7 +228,11 @@ export async function registerEmailPasswordRoutes(
         [account.rows[0].principal_id],
       );
       if (!recent.rows[0]) {
-        const token = await createEmailToken(options.database, account.rows[0].principal_id, "reset");
+        const token = await createEmailToken(
+          options.database,
+          account.rows[0].principal_id,
+          "reset",
+        );
         await options.emailService.send(email, "reset", token);
       }
     }
