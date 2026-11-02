@@ -22,9 +22,13 @@ describe("Orbit sign-in", () => {
     expect(markup).toContain('type="email"');
     expect(markup).toContain('Create account');
   });
+
   it("offers email signup even when Google is not configured", () => {
     const markup = renderToStaticMarkup(
-      <GoogleSignIn apiBaseUrl="http://localhost:4000" sessionStore={createSessionStore()} />,
+      <GoogleSignIn
+        apiBaseUrl="http://localhost:4000"
+        sessionStore={createSessionStore()}
+      />,
     );
     expect(markup).toContain("Create account");
     expect(markup).toContain("Already have an account? Sign in");
