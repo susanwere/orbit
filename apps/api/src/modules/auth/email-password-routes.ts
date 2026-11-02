@@ -90,11 +90,6 @@ export async function registerEmailPasswordRoutes(
   app.post<{ Body: { email?: unknown; password?: unknown } }>(
     "/auth/email/signup",
     async (request, reply) => {
-      if (!options.emailService)
-        throw new DomainError(
-          "promotion_unavailable",
-          "Email verification delivery is not configured.",
-        );
       const email = normalizeEmail(request.body?.email);
       validatePassword(request.body?.password);
       const password = request.body.password;
@@ -126,9 +121,16 @@ export async function registerEmailPasswordRoutes(
           throw new DomainError("validation", "An account with this email already exists.");
         throw error;
       }
-      const token = await createEmailToken(options.database, principalId, "verify");
-      await options.emailService!.send(email, "verify", token);
-      return reply.code(201).send({ message: "Check your email for a verification link." });
+      const session = await issueSession(principalId, organizationId, reply);
+      if (options.emailService) {
+        try {
+          const token = await createEmailToken(options.database, principalId, "verify");
+          await options.emailService.send(email, "verify", token);
+        } catch {
+          // Email delivery is optional and must never block access to a new workspace.
+        }
+      }
+      return reply.code(201).send(session);
     },
   );
   app.post<{ Body: { email?: unknown; password?: unknown } }>(
@@ -167,8 +169,6 @@ export async function registerEmailPasswordRoutes(
         );
         throw loginError();
       }
-      if (!account.email_verified_at)
-        throw new DomainError("forbidden", "Verify your email before signing in.");
       await options.database.query("DELETE FROM auth_login_attempts WHERE email=$1", [email]);
       return issueSession(account.principal_id, account.organization_id, reply);
     },
