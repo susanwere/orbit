@@ -104,7 +104,7 @@ export async function exchangeEmailPassword(
   mode: "signup" | "login",
   email: string,
   password: string,
-): Promise<AuthenticatedSession> {
+): Promise<AuthenticatedSession | null> {
   const response = await withSessionLock(() =>
     fetch(new URL(`/auth/email/${mode}`, apiBaseUrl), {
       method: "POST",
@@ -124,6 +124,7 @@ export async function exchangeEmailPassword(
         : "Could not authenticate. Check your details and try again.";
     throw new Error(message);
   }
+  if (mode === "signup") return null;
   return parseSession(await response.json());
 }
 
