@@ -130,7 +130,7 @@ export async function exchangeEmailPassword(
 
 export async function emailAccountAction(
   apiBaseUrl: string,
-  action: "verify" | "forgot-password" | "reset-password",
+  action: "verify" | "resend-verification" | "forgot-password" | "reset-password",
   payload: Record<string, string>,
 ): Promise<void> {
   const response = await fetch(new URL(`/auth/email/${action}`, apiBaseUrl), {
