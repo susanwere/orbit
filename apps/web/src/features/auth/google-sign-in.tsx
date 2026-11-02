@@ -1,7 +1,7 @@
 import "./sign-in.css";
 import { useEffect, useRef, useState } from "react";
 import type { SessionStore } from "./session-store.js";
-import { exchangeIdentityToken } from "./auth-api.js";
+import { exchangeIdentityToken, exchangeEmailPassword } from "./auth-api.js";
 
 interface IdentityCredential {
   readonly credential: string;
@@ -28,7 +28,7 @@ interface GoogleIdentityWindow extends Window {
 }
 
 export interface GoogleSignInProps {
-  readonly clientId: string;
+  readonly clientId?: string;
   readonly apiBaseUrl: string;
   readonly sessionStore: SessionStore;
 }
@@ -36,12 +36,16 @@ export interface GoogleSignInProps {
 /** Google's browser identity widget supplies a signed provider ID token. */
 export function GoogleSignIn({ clientId, apiBaseUrl, sessionStore }: GoogleSignInProps) {
   const buttonContainer = useRef<HTMLDivElement>(null);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [mode, setMode] = useState<"signup" | "login">("signup");
   const [authenticationError, setAuthenticationError] = useState<string | null>(null);
   const [isGoogleReady, setIsGoogleReady] = useState(false);
   const [isAuthenticating, setIsAuthenticating] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
+    if (!clientId) return;
     const browserWindow = window as GoogleIdentityWindow;
     const scriptElement = document.createElement("script");
     scriptElement.src = "https://accounts.google.com/gsi/client";
@@ -119,14 +123,65 @@ export function GoogleSignIn({ clientId, apiBaseUrl, sessionStore }: GoogleSignI
           Plan, review, and execute software projects
           <br className="sign-in-desktop-break" /> with AI agents and your team.
         </p>
-        <div className="sign-in-action" aria-busy={isAuthenticating}>
-          <div
-            ref={buttonContainer}
-            aria-label="Google sign-in"
-            {...{ inert: isAuthenticating ? "" : undefined }}
+        {clientId && (
+          <div className="sign-in-action" aria-busy={isAuthenticating}>
+            <div
+              ref={buttonContainer}
+              aria-label="Google sign-in"
+              {...{ inert: isAuthenticating ? "" : undefined }}
+            />
+            {!isGoogleReady && !authenticationError && <p role="status">Loading Google sign-in…</p>}
+          </div>
+        )}
+        <form
+          className="sign-in-action"
+          onSubmit={(event) => {
+            event.preventDefault();
+            setAuthenticationError(null);
+            setIsAuthenticating(true);
+            void exchangeEmailPassword(apiBaseUrl, mode, email, password)
+              .then((session) => sessionStore.setSession(session))
+              .catch((error: unknown) =>
+                setAuthenticationError(error instanceof Error ? error.message : "Sign-in failed."),
+              )
+              .finally(() => setIsAuthenticating(false));
+          }}
+        >
+          <label htmlFor="orbit-email">Email</label>
+          <input
+            id="orbit-email"
+            type="email"
+            required
+            autoComplete="email"
+            value={email}
+            onChange={(event) => setEmail(event.target.value)}
           />
-          {!isGoogleReady && !authenticationError && <p role="status">Loading Google sign-in…</p>}
-        </div>
+          <label htmlFor="orbit-password">Password</label>
+          <input
+            id="orbit-password"
+            type="password"
+            required
+            minLength={mode === "signup" ? 12 : undefined}
+            autoComplete={mode === "signup" ? "new-password" : "current-password"}
+            value={password}
+            onChange={(event) => setPassword(event.target.value)}
+          />
+          <button type="submit" className="cta-primary" disabled={isAuthenticating}>
+            {mode === "signup" ? "Create account" : "Sign in"}
+          </button>
+          <button
+            type="button"
+            disabled={isAuthenticating}
+            onClick={() => {
+              setMode(mode === "signup" ? "login" : "signup");
+              setAuthenticationError(null);
+            }}
+          >
+            {mode === "signup"
+              ? "Already have an account? Sign in"
+              : "New to Orbit? Create an account"}
+          </button>
+        </form>
         {isAuthenticating && <p role="status">Verifying your identity…</p>}
         {authenticationError && (
           <p className="sign-in-error" role="alert">
@@ -139,8 +194,7 @@ export function GoogleSignIn({ clientId, apiBaseUrl, sessionStore }: GoogleSignI
           <span />
         </div>
         <p className="sign-in-explanation">
-          Use an approved Google account to access
-          <br className="sign-in-desktop-break" /> your organization's projects.
+          Sign in with email and password, or continue with your approved Google account.
         </p>
       </section>
       <ul className="sign-in-benefits" aria-label="What you can do with Orbit">

@@ -97,3 +97,32 @@ async function withSessionLock<T>(operation: () => Promise<T>): Promise<T> {
   }
   return operation();
 }
+
+/** Password credentials are sent only over the authenticated origin, never persisted in the browser. */
+export async function exchangeEmailPassword(
+  apiBaseUrl: string,
+  mode: "signup" | "login",
+  email: string,
+  password: string,
+): Promise<AuthenticatedSession> {
+  const response = await withSessionLock(() =>
+    fetch(new URL(`/auth/email/${mode}`, apiBaseUrl), {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json", "X-Orbit-Session": "1" },
+      body: JSON.stringify({ email, password }),
+    }),
+  );
+  if (!response.ok) {
+    const payload: unknown = await response.json().catch(() => null);
+    const message =
+      payload &&
+      typeof payload === "object" &&
+      "message" in payload &&
+      typeof payload.message === "string"
+        ? payload.message
+        : "Could not authenticate. Check your details and try again.";
+    throw new Error(message);
+  }
+  return parseSession(await response.json());
+}
