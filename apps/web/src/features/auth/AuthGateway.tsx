@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { refreshSession, logoutSession } from "./auth-api.js";
-import { App } from "../../App.js";
 import { AuthenticatedProjectApp } from "./AuthenticatedProjectApp.js";
 import { disableGoogleAutomaticSignIn, GoogleSignIn } from "./google-sign-in.js";
 import { createSessionStore } from "./session-store.js";
@@ -22,11 +21,10 @@ export function AuthGateway({ googleClientId, apiBaseUrl }: AuthGatewayProps) {
     () => null,
   );
 
-  const [isRestoring, setIsRestoring] = useState(Boolean(googleClientId));
+  const [isRestoring, setIsRestoring] = useState(true);
   const [sessionError, setSessionError] = useState<string | null>(null);
   const [restoreAttempt, setRestoreAttempt] = useState(0);
   useEffect(() => {
-    if (!googleClientId) return;
     let active = true;
     setIsRestoring(true);
     setSessionError(null);
@@ -44,7 +42,7 @@ export function AuthGateway({ googleClientId, apiBaseUrl }: AuthGatewayProps) {
     return () => {
       active = false;
     };
-  }, [apiBaseUrl, googleClientId, sessionStore, restoreAttempt]);
+  }, [apiBaseUrl, sessionStore, restoreAttempt]);
 
   useEffect(() => {
     if (!authenticatedSession) return;
@@ -73,10 +71,6 @@ export function AuthGateway({ googleClientId, apiBaseUrl }: AuthGatewayProps) {
       document.removeEventListener("visibilitychange", resume);
     };
   }, [apiBaseUrl, authenticatedSession, sessionStore]);
-
-  if (!googleClientId) {
-    return <App />;
-  }
 
   if (isRestoring && !authenticatedSession)
     return (
