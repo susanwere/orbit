@@ -193,6 +193,24 @@ export async function registerEmailPasswordRoutes(
     });
     return { verified: result };
   });
+  app.post<{ Body: { email?: unknown } }>("/auth/email/resend-verification", async (request) => {
+    const email = normalizeEmail(request.body?.email);
+    const account = await options.database.query<{ principal_id: string } & Record<string, unknown>>(
+      "SELECT principal_id FROM auth_password_accounts WHERE email=$1 AND email_verified_at IS NULL",
+      [email],
+    );
+    if (account.rows[0] && options.emailService) {
+      const recent = await options.database.query<Record<string, unknown>>(
+        "SELECT 1 FROM auth_email_tokens WHERE principal_id=$1 AND purpose='verify' AND created_at > NOW() - INTERVAL '60 seconds'",
+        [account.rows[0].principal_id],
+      );
+      if (!recent.rows[0]) {
+        const token = await createEmailToken(options.database, account.rows[0].principal_id, "verify");
+        await options.emailService.send(email, "verify", token);
+      }
+    }
+    return { message: "If the address is awaiting verification, we have sent a new link." };
+  });
   app.post<{ Body: { email?: unknown } }>("/auth/email/forgot-password", async (request) => {
     const email = normalizeEmail(request.body?.email);
     const account = await options.database.query<
