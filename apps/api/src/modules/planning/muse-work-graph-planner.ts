@@ -224,6 +224,7 @@ export class MuseWorkGraphPlanner implements WorkGraphPlanner {
       throw new DomainError("validation", "Original intent is required and must be bounded.");
     }
     const result = await this.client.complete({
+      timeoutMs: 90_000,
       model: this.model,
       systemPrompt: SYSTEM_PROMPT,
       schemaName: "OrbitProposedWorkGraph",

@@ -43,6 +43,23 @@ describe("direct Meta Model API client", () => {
     });
   });
 
+  it("uses a per-request timeout without changing the default for other model calls", async () => {
+    const timeout = vi.spyOn(AbortSignal, "timeout");
+    globalThis.fetch = vi
+      .fn()
+      .mockImplementation(
+        async () =>
+          new Response(
+            JSON.stringify({ choices: [{ message: { content: '{"isDecision":true}' } }] }),
+          ),
+      ) as typeof fetch;
+    const client = new MetaModelApiClient({ apiKey: "test-only-key" });
+    await client.complete({ ...request, timeoutMs: 90_000 });
+    expect(timeout).toHaveBeenLastCalledWith(90_000);
+    await client.complete(request);
+    expect(timeout).toHaveBeenLastCalledWith(20_000);
+  });
+
   it("does not echo potentially sensitive Meta error responses", async () => {
     globalThis.fetch = vi
       .fn()

@@ -1,3 +1,4 @@
+import { planningFailureMessage } from "./planning-failure.js";
 import { randomUUID } from "node:crypto";
 import { loadPlanningDocuments } from "../documents/planning-documents.js";
 import type { DocumentStorage } from "../documents/document-storage.js";
@@ -165,15 +166,16 @@ export async function registerPlanningRoutes(
         if (!saved.rows[0]) return conflict("Planning proposal changed while generating.");
         return reply.code(201).send({ plan: saved.rows[0] });
       } catch (error) {
+        const failureMessage = planningFailureMessage(error);
         await db.query(
           `UPDATE plan_proposals
-             SET status='FAILED',content=NULL,failure_reason='Planning failed; retry allowed',
+             SET status='FAILED',content=NULL,failure_reason=$3,
                  updated_at=now()
            WHERE id=$1 AND revision=$2 AND status='GENERATING'`,
-          [row.id, row.revision],
+          [row.id, row.revision, failureMessage],
         );
         if (error instanceof DomainError && error.code === "stale_context_version") throw error;
-        throw new DomainError("promotion_unavailable", "Muse planning failed. Please retry.");
+        throw new DomainError("promotion_unavailable", failureMessage);
       }
     },
   );

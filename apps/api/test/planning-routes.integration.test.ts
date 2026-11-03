@@ -194,6 +194,8 @@ describe.skipIf(!databaseUrl)("authenticated planning and human review API (Post
     expect(failed.statusCode).toBe(503);
     const state = await app.inject({ method: "GET", url, headers: token(admin) });
     expect(state.json().plan.status).toBe("FAILED");
+    expect(state.json().plan.failure_reason).toBe(failed.json().message);
+    expect(failed.json().message).not.toContain("private");
     expect(state.json().plan.content).toBeNull();
     const retried = await app.inject({ method: "POST", url, headers: token(admin) });
     expect(retried.statusCode).toBe(201);
