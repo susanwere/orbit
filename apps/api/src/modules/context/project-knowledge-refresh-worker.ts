@@ -42,6 +42,19 @@ export class ProjectKnowledgeRefreshWorker {
         return row;
       });
       if (!job) break;
+      // A refresh can span several model calls. Renew the claim so another worker
+      // never reclaims an actively running job after the ten-minute lease expires.
+      const heartbeat = setInterval(() => {
+        void this.db
+          .query(
+            "UPDATE project_knowledge_refresh_jobs SET claimed_at=now() WHERE id=$1 AND status='RUNNING'",
+            [job.id],
+          )
+          .catch((error: unknown) => {
+            console.error("Project knowledge refresh heartbeat failed", error);
+          });
+      }, 60_000);
+      heartbeat.unref();
       try {
         const snapshot = await generateProjectKnowledgeSnapshot(
           { db: this.db, storage: this.storage, model: this.model, githubToken: this.githubToken },
@@ -68,6 +81,8 @@ export class ProjectKnowledgeRefreshWorker {
            WHERE id=$1`,
           [job.id, message.slice(0, 500), Math.min(300, 2 ** job.attempts)],
         );
+      } finally {
+        clearInterval(heartbeat);
       }
       count++;
     }
