@@ -74,14 +74,6 @@ export function CanvasSidebar({
         </button>
         <button
           type="button"
-          aria-current={isExecutionOpen ? "page" : undefined}
-          onClick={onOpenExecution}
-        >
-          <SidebarIcon kind="plan" />
-          Execute workflows
-        </button>
-        <button
-          type="button"
           aria-current={activeSection ? "page" : undefined}
           onClick={() => onOpenSection(activeSection ?? "original-intent")}
         >
@@ -104,43 +96,6 @@ export function CanvasSidebar({
         >
           <SidebarIcon kind="workflow" />
           Workflow
-        </button>
-        {hasPlan ? (
-          <a
-            href="#canvas-plan-actions"
-            onClick={(event) => {
-              event.preventDefault();
-              onOverview();
-              requestAnimationFrame(() =>
-                document.getElementById("canvas-plan-actions")?.scrollIntoView({ block: "end" }),
-              );
-            }}
-          >
-            <SidebarIcon kind="approvals" />
-            Approvals
-          </a>
-        ) : (
-          <button type="button" disabled>
-            <SidebarIcon kind="approvals" />
-            Approvals
-          </button>
-        )}
-        <button
-          type="button"
-          onClick={onBack}
-          disabled={!approved}
-          title="Open the Intent page to use existing execution controls"
-        >
-          <SidebarIcon kind="execution" />
-          Executions
-        </button>
-        <button
-          type="button"
-          onClick={onBack}
-          title="Open the Intent page to view connected repositories"
-        >
-          <SidebarIcon kind="repository" />
-          Repositories
         </button>
       </nav>
       <AccountMenuHost />

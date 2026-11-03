@@ -2,7 +2,7 @@ import { Canvas } from "@react-three/fiber";
 import { Html, Line } from "@react-three/drei";
 import { useCallback, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import type { ExecutionStep, MuseJobStatus } from "../intent/intent-api.js";
-import { overallWorkflowStatus } from "./work-item-status.js";
+import { executionDisplayState, overallWorkflowStatus } from "./work-item-status.js";
 import { GraphViewport, type GraphViewportControls } from "./GraphViewport.js";
 import { layoutGraph, routeEdge, type NodeSize } from "./graph-layout.js";
 import { BASE_ZOOM, MIN_SCALE, MAX_SCALE } from "./graph-viewport.js";
@@ -98,7 +98,7 @@ export function projectExecutionGraph(
         step.work_item_key === node.target &&
         (node.workflowIndex === undefined || step.workflow_index === node.workflowIndex),
     );
-    node.executionStatus = overallWorkflowStatus(matchingSteps);
+    node.executionStatus = overallWorkflowStatus(matchingSteps, jobs);
     if (node.kind === "gate") {
       const approvalSteps = matchingSteps.filter((step) => step.approval_required);
       node.subtitle = approvalSteps.length
@@ -129,7 +129,10 @@ export function projectExecutionGraph(
           workflowIndex,
           stepIndex,
           executionStep,
-          executionStatus: executionStep?.state,
+          executionStatus: executionDisplayState(
+            executionStep,
+            executionStep?.agent_session_id ? jobs[executionStep.agent_session_id] : null,
+          ),
         });
         projection.edges.push({
           from:
@@ -161,6 +164,9 @@ export function projectExecutionGraph(
 }
 
 interface Props {
+  readonly executableItemKeys?: readonly string[];
+  readonly executingItemKey?: string | null;
+  readonly onExecute?: (workItemKey: string) => void;
   readonly planActions?: ReactNode;
   readonly items: readonly WorkItem[];
   readonly intent: string;
@@ -178,6 +184,9 @@ interface Props {
 }
 
 export function WorkGraphCanvas({
+  executableItemKeys = [],
+  executingItemKey = null,
+  onExecute,
   planActions,
   items,
   intent,
@@ -355,6 +364,18 @@ export function WorkGraphCanvas({
                   <button type="button" onClick={() => choose(node)}>
                     {node.title} · {node.kind}
                   </button>
+                  {approved &&
+                    node.target &&
+                    executableItemKeys.includes(node.target) &&
+                    onExecute && (
+                      <button
+                        type="button"
+                        disabled={executingItemKey !== null}
+                        onClick={() => onExecute(node.target!)}
+                      >
+                        Execute {node.title}
+                      </button>
+                    )}
                 </li>
               ))}
             </ul>
@@ -421,6 +442,15 @@ export function WorkGraphCanvas({
                   }}
                 >
                   <GraphNodeCard
+                    onExecute={
+                      approved &&
+                      node.target &&
+                      executableItemKeys.includes(node.target) &&
+                      onExecute
+                        ? () => onExecute(node.target!)
+                        : undefined
+                    }
+                    executionPending={executingItemKey !== null}
                     node={node}
                     selected={
                       node.target ? selectedItemKey === node.target : selectedItemKey === null
@@ -452,7 +482,11 @@ function GraphNodeCard({
   onChoose,
   onMeasure,
   onFocus,
+  onExecute,
+  executionPending,
 }: {
+  readonly onExecute?: () => void;
+  readonly executionPending?: boolean;
   readonly node: GraphNode;
   readonly selected: boolean;
   readonly onChoose: () => void;
@@ -471,38 +505,56 @@ function GraphNodeCard({
     return () => observer.disconnect();
   }, [node.id, onMeasure]);
   return (
-    <button
-      ref={buttonRef}
-      type="button"
-      className={`workgraph-node workgraph-node--${node.kind} ${selected ? "is-selected" : ""}`}
-      data-node-id={node.id}
-      data-execution-state={node.executionStatus}
-      aria-pressed={selected}
-      onClick={onChoose}
-      onFocus={(event) => {
-        if (event.currentTarget.matches(":focus-visible")) onFocus();
-      }}
-      title={node.target ? "Show this work item's configuration" : "Original project intent"}
-    >
-      <span>
-        {node.kind === "intent"
-          ? "ORIGINAL INTENT"
-          : node.kind === "work"
-            ? "WORK ITEM"
-            : node.kind.toUpperCase()}
-      </span>
-      <strong>{node.title}</strong>
-      <span
-        className="workgraph-status"
-        title={
-          node.kind === "work" && node.executionStatus
-            ? `Overall workflow status: ${node.executionStatus}`
-            : node.executionStatus
-        }
+    <div className={`workgraph-node-shell ${onExecute ? "is-ready" : ""}`}>
+      <button
+        ref={buttonRef}
+        type="button"
+        className={`workgraph-node workgraph-node--${node.kind} ${selected ? "is-selected" : ""}`}
+        data-node-id={node.id}
+        data-execution-state={node.executionStatus ?? (onExecute ? "READY" : undefined)}
+        aria-pressed={selected}
+        onClick={onChoose}
+        onFocus={(event) => {
+          if (event.currentTarget.matches(":focus-visible")) onFocus();
+        }}
+        title={node.target ? "Show this work item's configuration" : "Original project intent"}
       >
-        {node.executionStatus ?? ""}
-      </span>
-      <small title={node.subtitle}>{node.subtitle}</small>
-    </button>
+        <span>
+          {node.kind === "intent"
+            ? "ORIGINAL INTENT"
+            : node.kind === "work"
+              ? "WORK ITEM"
+              : node.kind.toUpperCase()}
+        </span>
+        <strong>{node.title}</strong>
+        <span
+          className="workgraph-status"
+          title={
+            node.kind === "work" && node.executionStatus
+              ? `Overall workflow status: ${node.executionStatus}`
+              : node.executionStatus
+          }
+        >
+          {onExecute
+            ? executionPending
+              ? "STARTING"
+              : "READY"
+            : (node.executionStatus?.replaceAll("_", " ") ?? "")}
+        </span>
+        <small title={node.subtitle}>{node.subtitle}</small>
+      </button>
+      {onExecute && (
+        <button
+          type="button"
+          className="workgraph-execute"
+          aria-label={`Execute ${node.title}`}
+          title={`Execute ${node.title}`}
+          disabled={executionPending}
+          onClick={onExecute}
+        >
+          <span aria-hidden="true">▶</span> {executionPending ? "Starting…" : "Execute"}
+        </button>
+      )}
+    </div>
   );
 }

@@ -60,3 +60,42 @@ describe("authenticated Muse dispatch queue", () => {
     await app.close();
   });
 });
+
+describe("authenticated execution activity reads", () => {
+  it("authenticates before returning activity and delegates exact project/session scoping", async () => {
+    const calls: unknown[] = [];
+    const app = await buildApp({
+      agentSessions: {
+        auth: {
+          verify: (header: string | undefined) => {
+            if (header !== "Bearer valid")
+              throw new DomainError("unauthenticated", "Missing token");
+            return { id: "human" };
+          },
+        } as never,
+        service: {} as never,
+        museJobs: {
+          getStatus: async (input: unknown) => {
+            calls.push(input);
+            return {
+              id: "job",
+              activity: [{ id: "1", message: "Muse is using an execution tool." }],
+            };
+          },
+        } as never,
+      },
+    });
+    const url = "/projects/project/agent-sessions/session/muse-job";
+    expect((await app.inject({ method: "GET", url })).statusCode).toBe(401);
+    expect(calls).toHaveLength(0);
+    const response = await app.inject({
+      method: "GET",
+      url,
+      headers: { authorization: "Bearer valid" },
+    });
+    expect(response.statusCode).toBe(200);
+    expect(response.json().job.activity).toHaveLength(1);
+    expect(calls).toEqual([{ projectId: "project", sessionId: "session", principalId: "human" }]);
+    await app.close();
+  });
+});

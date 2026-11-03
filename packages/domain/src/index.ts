@@ -8,3 +8,4 @@ export * from "./policy.js";
 export * from "./governance.js";
 export * from "./knowledge-activity.js";
 export * from "./knowledge-architecture.js";
+export * from "./execution-activity.js";

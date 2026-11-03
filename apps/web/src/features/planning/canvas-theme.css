@@ -1523,3 +1523,9 @@
   cursor: not-allowed;
   box-shadow: none;
 }
+.orbit-workspace .workgraph-node[data-execution-state="READY_FOR_REVIEW"] {
+  border-color: #72cda2;
+}
+.canvas-execution-outcome {
+  margin: 0 clamp(1.25rem, 4vw, 3rem);
+}

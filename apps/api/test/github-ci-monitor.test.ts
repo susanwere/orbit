@@ -17,6 +17,10 @@ afterEach(() => {
 function fixture(
   options: {
     failure?: boolean;
+    merged?: boolean;
+    emptyAssociations?: boolean;
+    wrongBranch?: boolean;
+    wrongCommit?: boolean;
     pending?: boolean;
     unrelated?: boolean;
     moved?: boolean;
@@ -79,7 +83,7 @@ function fixture(
           node_id: "PR_5",
           draft: options.draft ?? true,
           state: "open",
-          merged_at: null,
+          merged_at: options.merged ? "2026-11-03T12:00:00Z" : null,
           head: {
             sha: options.moved ? "b".repeat(40) : sha,
             ref: "orbit/muse-job",
@@ -113,7 +117,11 @@ function fixture(
             conclusion: options.pending ? null : options.failure ? "failure" : "success",
             repository: { full_name: "owner/repo" },
             event: "pull_request",
-            pull_requests: [{ number: options.unrelated ? 20 : 5, head: { sha } }],
+            head_sha: options.wrongCommit ? "c".repeat(40) : sha,
+            head_branch: options.wrongBranch ? "another-branch" : "orbit/muse-job",
+            pull_requests: options.emptyAssociations
+              ? []
+              : [{ number: options.unrelated ? 20 : 5, head: { sha } }],
           },
         ],
       }),
@@ -197,4 +205,23 @@ describe("CI failure feedback and draft readiness", () => {
     await expect(test.ready.markReady(input)).rejects.toMatchObject({ code: "forbidden" });
     expect(test.requests).toHaveLength(0);
   });
+});
+
+it("reports a merge for the exact delivered head without performing any merge mutation", async () => {
+  const test = fixture({ merged: true });
+  const report = await test.monitor.inspect(input);
+  expect(report.mergedAt).toBe("2026-11-03T12:00:00Z");
+  expect(report.state).toBe("PASSED");
+  expect(test.mutations()).toBe(0);
+});
+
+it("refreshes a merged PR's passing CI when GitHub removed the run association", async () => {
+  const test = fixture({ merged: true, emptyAssociations: true });
+  expect((await test.monitor.inspect(input)).state).toBe("PASSED");
+});
+it("does not grant readiness to mismatched unassociated merged CI runs", async () => {
+  for (const options of [{ wrongBranch: true }, { wrongCommit: true }]) {
+    const test = fixture({ merged: true, emptyAssociations: true, ...options });
+    expect((await test.monitor.inspect(input)).state).toBe("WAITING");
+  }
 });

@@ -13,7 +13,7 @@ export function MuseAttemptDetails({
   return (
     <section aria-label="CI repair attempt identity">
       <h4>CI repair attempt</h4>
-      {step.title && <p>Original approved step: {step.title}</p>}
+      {step.title && <p>Approved work: {step.title}</p>}
       <p>
         Repair source job: <code>{repairSourceJobId}</code>
       </p>
@@ -61,8 +61,8 @@ export function MuseAttemptDetails({
         </p>
       )}
       <p>
-        Each repair has its own session and immutable snapshot. The original workflow step and PR
-        are retained.
+        Each repair has its own session and immutable snapshot. The original work and PR are
+        retained.
       </p>
     </section>
   );

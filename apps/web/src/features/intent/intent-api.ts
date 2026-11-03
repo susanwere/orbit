@@ -1,3 +1,4 @@
+import type { ExecutionActivity } from "@orbit/domain";
 import type { KnowledgeArchitecture } from "@orbit/domain";
 import type { KnowledgeGenerationActivity } from "@orbit/domain";
 import { readKnowledgeStream } from "../planning/read-knowledge-stream.js";
@@ -47,6 +48,7 @@ export interface ExecutionStep {
 }
 
 export interface MuseJobStatus {
+  readonly activity?: readonly ExecutionActivity[];
   readonly id: string;
   readonly status: string;
   readonly workflow_step_id: string;

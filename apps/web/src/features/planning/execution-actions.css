@@ -1,0 +1,18 @@
+.workflow-execute {
+  padding: 0.6rem 1.1rem;
+  border: 1px solid #b980ff;
+  border-radius: 9px;
+  background: linear-gradient(135deg, #a344ff, #6022ef);
+  color: white;
+  font: inherit;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+.workflow-execute:disabled {
+  opacity: 0.55;
+  cursor: wait;
+}
+.workflow-execute:focus-visible {
+  outline: 2px solid #e7c5ff;
+  outline-offset: 4px;
+}

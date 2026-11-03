@@ -1,0 +1,87 @@
+.execution-summary-markdown {
+  min-width: 0;
+  color: #e5d9f0;
+  overflow-wrap: anywhere;
+  font-size: 0.84rem;
+  line-height: 1.7;
+}
+.step-execution-panel .execution-summary-markdown :is(h4, h5, h6) {
+  margin: 1.3rem 0 0.5rem;
+  font-size: 0.88rem;
+  font-weight: 650;
+  line-height: 1.4;
+  color: #f4eaff;
+}
+.step-execution-panel .execution-summary-markdown p {
+  margin: 0.65rem 0;
+  font-size: inherit;
+  line-height: inherit;
+}
+.execution-summary-markdown :is(ul, ol) {
+  margin: 0.65rem 0;
+  padding-left: 1.4rem;
+}
+.step-execution-panel .execution-summary-markdown li {
+  margin: 0.4rem 0;
+  font-size: inherit;
+  line-height: 1.7;
+}
+.execution-summary-markdown li::marker {
+  color: #ba83eb;
+}
+.execution-summary-markdown code {
+  padding: 0.12rem 0.3rem;
+  border: 1px solid #925db044;
+  border-radius: 5px;
+  background: #a366c619;
+  color: #e6c2ff;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.88em;
+}
+.execution-summary-markdown pre {
+  max-width: 100%;
+  box-sizing: border-box;
+  overflow-x: auto;
+  padding: 1rem;
+  margin: 0.9rem 0;
+  border: 1px solid #8655a766;
+  border-radius: 10px;
+  background: #0d0819;
+  white-space: pre;
+  tab-size: 2;
+  line-height: 1.65;
+}
+.execution-summary-markdown pre code {
+  display: block;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: #dfd3ed;
+  font-size: 0.76rem;
+  overflow-wrap: normal;
+}
+.execution-summary-markdown pre:focus-visible {
+  outline: 2px solid #c28bf3;
+  outline-offset: 3px;
+}
+.execution-summary-markdown blockquote {
+  margin: 1rem 0;
+  padding: 0.2rem 0 0.2rem 1rem;
+  border-left: 3px solid #9b5fc9;
+  color: #c8b1dd;
+}
+.execution-summary-markdown hr {
+  border: 0;
+  border-top: 1px solid #79519b55;
+  margin: 1rem 0;
+}
+.execution-summary-markdown > :first-child {
+  margin-top: 0;
+}
+.execution-summary-markdown > :last-child {
+  margin-bottom: 0;
+}
+.execution-summary-reference {
+  color: #dac4ef;
+}

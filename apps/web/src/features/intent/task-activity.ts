@@ -21,6 +21,14 @@ function ciRunLinks(task: EnrichedProjectTask): string | undefined {
 /** Plain-language summary of what Muse is doing right now for one task. */
 export function describeTaskActivity(task: EnrichedProjectTask): TaskActivity {
   const job = task.job;
+  if (task.displayState === "DONE") {
+    return {
+      headline: job?.github_pull_number
+        ? "Pull request merged and verified"
+        : "Finished and verified",
+      isWorking: false,
+    };
+  }
   const repairs = task.automatic_repairs ?? 0;
   const repairNote =
     repairs > 0

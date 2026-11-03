@@ -36,7 +36,7 @@ describe("CI repair identity", () => {
   it("distinguishes the current repair job/session/snapshot from its original source and step title", () => {
     const markup = renderToStaticMarkup(<MuseAttemptDetails step={step} job={job} />);
     expect(markup).toContain("CI repair attempt");
-    expect(markup).toContain("Original approved step: Propose language selector design");
+    expect(markup).toContain("Approved work: Propose language selector design");
     expect(markup).toContain("Current repair job: <code>fresh-repair-job</code>");
     expect(markup).toContain("Repair source job: <code>original-job</code>");
     expect(markup).toContain("fresh-session");

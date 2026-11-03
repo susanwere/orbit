@@ -1,13 +1,19 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { canExecuteCanvasTask } from "./canvas-task-execution.js";
 import { useCanvasExecution } from "./use-canvas-execution.js";
 import { CanvasComposer } from "./CanvasComposer.js";
 import { PlanSection, type PlanSectionKey } from "./PlanSection.js";
 import { CanvasSidebar } from "./CanvasSidebar.js";
 import { ProjectContextDocuments } from "./ProjectContextDocuments.js";
+import { ExecutionOutcomeNotice } from "./ExecutionOutcomeNotice.js";
+import { isReadyForReview, executionDisplayState } from "./work-item-status.js";
+import { AgentAuthorizationModal } from "./AgentAuthorizationModal.js";
+import { WorkItemExecutionDetails } from "./WorkItemExecutionDetails.js";
+import { workItemExecutionStatus, selectWorkItemExecution } from "./work-item-execution.js";
 import { CanvasExecution } from "./CanvasExecution.js";
 import "../projects/project-dashboard.css";
 import { WorkGraphCanvas } from "./WorkGraphCanvas.js";
-import type { CreatedProject } from "../projects/project-api.js";
+import type { ConnectedRepository, CreatedProject } from "../projects/project-api.js";
 import type { ProjectIntentApi, ProjectPlan, StoredIntent } from "../intent/intent-api.js";
 import "./plan-review.css";
 import "./canvas-theme.css";
@@ -116,11 +122,34 @@ function ProjectPlanCanvas({
   const [status, setStatus] = useState<ProjectPlan["status"] | null>(plan?.status ?? null);
   const [dirty, setDirty] = useState(false);
   const [selectedItemKey, setSelectedItemKey] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<"overview" | "workflows" | "dependencies">(
-    "workflows",
+  const [projectRepositories, setProjectRepositories] = useState<readonly ConnectedRepository[]>(
+    [],
   );
-  const [selectedWorkflow, setSelectedWorkflow] = useState<number | null>(null);
-  const [selectedStep, setSelectedStep] = useState<number | null>(null);
+  const [repositoriesLoading, setRepositoriesLoading] = useState(false);
+  const [repositoriesFailed, setRepositoriesFailed] = useState(false);
+  const isWorkItemDetailOpen = selectedItemKey !== null;
+  useEffect(() => {
+    if (!isWorkItemDetailOpen) return;
+    let active = true;
+    setProjectRepositories([]);
+    setRepositoriesLoading(true);
+    setRepositoriesFailed(false);
+    void api
+      .getRepositories(project.id)
+      .then((repositories) => {
+        if (active) setProjectRepositories(repositories);
+      })
+      .catch(() => {
+        if (active) setRepositoriesFailed(true);
+      })
+      .finally(() => {
+        if (active) setRepositoriesLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [api, project.id, isWorkItemDetailOpen]);
+
   const [editing, setEditing] = useState(false);
   const [busy, setBusy] = useState(false);
   const [planningFailure, setPlanningFailure] = useState(plan?.failure_reason ?? null);
@@ -134,13 +163,57 @@ function ProjectPlanCanvas({
   }, [plan, isLoading, dirty]);
   const selectedItem = graph?.workItems.find((item) => item.key === selectedItemKey);
   const approved = status === "APPROVED";
-  const { executionSteps, museJobs, executionError, refreshExecution } = useCanvasExecution(
+  const { tasks, executionSteps, museJobs, executionError, refreshExecution } = useCanvasExecution(
     api,
     project.id,
     approved && !isLoading,
     plan?.id ?? null,
     revision,
   );
+  const [authorizationItemKey, setAuthorizationItemKey] = useState<string | null>(null);
+  const latestExecutionOutcome = executionSteps
+    .flatMap((step) => {
+      const job = step.agent_session_id ? museJobs[step.agent_session_id] : null;
+      return job?.github_pull_number && (step.state === "COMPLETED" || isReadyForReview(step, job))
+        ? [{ step, job }]
+        : [];
+    })
+    .sort((left, right) =>
+      (right.job.activity?.at(-1)?.occurredAt ?? right.job.finished_at ?? "").localeCompare(
+        left.job.activity?.at(-1)?.occurredAt ?? left.job.finished_at ?? "",
+      ),
+    )[0];
+  const executionPending = useRef(false);
+  const [executingItemKey, setExecutingItemKey] = useState<string | null>(null);
+  const [taskExecutionError, setTaskExecutionError] = useState<string | null>(null);
+  async function executeWorkItem(workItemKey: string) {
+    if (!approved || executionPending.current) return;
+    executionPending.current = true;
+    setExecutingItemKey(workItemKey);
+    setTaskExecutionError(null);
+    try {
+      const [latestTasks, approvedAgents] = await Promise.all([
+        api.getTasks(project.id),
+        api.getApprovedAgents(project.id),
+      ]);
+      const task = latestTasks.find((candidate) => candidate.task_key === workItemKey);
+      if (!task || !canExecuteCanvasTask(task)) {
+        throw new Error("This work item is no longer ready to execute. Refresh its status.");
+      }
+      const codingAgent = approvedAgents.find((agent) => agent.provider.toLowerCase() === "meta");
+      if (!codingAgent) {
+        setAuthorizationItemKey(workItemKey);
+        return;
+      }
+      await api.executeTask(project.id, task.id, codingAgent.id);
+    } catch (cause) {
+      setTaskExecutionError(cause instanceof Error ? cause.message : "Could not start execution.");
+    } finally {
+      executionPending.current = false;
+      setExecutingItemKey(null);
+      refreshExecution();
+    }
+  }
   const canEdit = status === "READY_FOR_REVIEW" && !busy;
   const canCompose = !isLoading && !currentIntent && status === null;
   const showComposer = canCompose && (canvasSection === "composer" || canvasSection === "workflow");
@@ -159,21 +232,17 @@ function ProjectPlanCanvas({
   const openItem = (key: string) => {
     setCanvasSection("workflow");
     setSelectedItemKey(key);
-    setActiveTab("workflows");
-    setSelectedWorkflow(null);
-    setSelectedStep(null);
     setEditing(false);
   };
 
-  const currentWorkflow =
-    selectedWorkflow === null ? null : selectedItem?.workflows[selectedWorkflow];
-  const currentStep = selectedStep === null ? null : currentWorkflow?.steps[selectedStep];
-  const selectedExecutionStep = executionSteps.find(
-    (step) =>
-      step.work_item_key === selectedItemKey &&
-      step.workflow_index === selectedWorkflow &&
-      step.step_index === selectedStep,
-  );
+  const selectedTask = tasks.find((task) => task.task_key === selectedItemKey);
+  const selectedExecutionStep = selectedItemKey
+    ? selectWorkItemExecution(selectedItemKey, executionSteps, selectedTask)
+    : undefined;
+  const hasAgentExecutor =
+    selectedItem?.workflows.some((workflow) =>
+      workflow.steps.some((step) => step.executor === "agent"),
+    ) ?? false;
   const selectedJob = selectedExecutionStep?.agent_session_id
     ? museJobs[selectedExecutionStep.agent_session_id]
     : null;
@@ -429,6 +498,22 @@ function ProjectPlanCanvas({
 
   return (
     <main className="orbit-workspace">
+      {authorizationItemKey && (
+        <AgentAuthorizationModal
+          api={api}
+          projectId={project.id}
+          workItemTitle={
+            graph?.workItems.find((item) => item.key === authorizationItemKey)?.title ??
+            "this work item"
+          }
+          onClose={() => setAuthorizationItemKey(null)}
+          onAuthorized={() => {
+            const workItemKey = authorizationItemKey;
+            setAuthorizationItemKey(null);
+            void executeWorkItem(workItemKey);
+          }}
+        />
+      )}
       <CanvasSidebar
         projectName={project.name}
         selectedItemKey={selectedItemKey}
@@ -460,8 +545,6 @@ function ProjectPlanCanvas({
         onOverview={() => {
           setCanvasSection("workflow");
           setSelectedItemKey(null);
-          setSelectedWorkflow(null);
-          setSelectedStep(null);
           setEditing(false);
         }}
       />
@@ -533,358 +616,115 @@ function ProjectPlanCanvas({
         ) : selectedItem && graph ? (
           <section
             className="orbit-detail-page orbit-detail-page--canvas"
-            aria-label="Work item configuration"
+            aria-label="Work item execution"
           >
             <button
               type="button"
               className="orbit-detail-back"
               onClick={() => {
                 setSelectedItemKey(null);
-                setSelectedWorkflow(null);
-                setSelectedStep(null);
                 setEditing(false);
               }}
             >
               ← Back to workflow canvas
             </button>
+            {taskExecutionError && <p role="alert">{taskExecutionError}</p>}
             <div className="orbit-detail-heading">
               <div>
                 <span className="orbit-detail-eyebrow">WORK ITEM / {selectedItem.key}</span>
-                <h2>
-                  {selectedStep !== null && currentStep
-                    ? currentStep.title
-                    : currentWorkflow
-                      ? currentWorkflow.name
-                      : selectedItem.title}
-                </h2>
-                <p>
-                  {selectedStep !== null
-                    ? "Step details"
-                    : currentWorkflow
-                      ? "Workflow steps and checkpoints"
-                      : selectedItem.description}
-                </p>
+                <h2>{selectedItem.title}</h2>
+                <details className="orbit-detail-description" key={selectedItem.key}>
+                  <summary>Description</summary>
+                  <p>{selectedItem.description}</p>
+                </details>
               </div>
               <div className="orbit-detail-heading-actions">
-                {status === "READY_FOR_REVIEW" && graph && (
+                {canEdit && (
                   <button
                     type="button"
                     className="orbit-detail-back"
-                    onClick={() => setEditing((value) => !value)}
+                    onClick={() => setEditing((current) => !current)}
                   >
                     {editing ? "Done editing" : "✎ Edit"}
                   </button>
                 )}
-                <span className="orbit-detail-tag">{approved ? "Approved" : "Proposed"}</span>
+                <span
+                  className="step-execution-badge"
+                  data-state={workItemExecutionStatus(
+                    approved,
+                    selectedTask,
+                    selectedExecutionStep,
+                    selectedJob,
+                  )}
+                >
+                  {workItemExecutionStatus(
+                    approved,
+                    selectedTask,
+                    selectedExecutionStep,
+                    selectedJob,
+                  ).replaceAll("_", " ")}
+                </span>
               </div>
             </div>
-            {selectedWorkflow !== null && (
-              <button
-                className="orbit-detail-back"
-                type="button"
-                onClick={() => {
-                  setSelectedWorkflow(null);
-                  setSelectedStep(null);
-                  setEditing(false);
-                }}
-              >
-                ← All workflows
-              </button>
-            )}
-            {selectedWorkflow === null ? (
-              <div className="orbit-detail-content">
-                <div className="orbit-canvas-actions">
-                  <button
-                    type="button"
-                    className="orbit-detail-back"
-                    onClick={() =>
-                      setActiveTab(activeTab === "workflows" ? "dependencies" : "workflows")
-                    }
-                  >
-                    {activeTab === "workflows" ? "Dependencies & details" : "← Back to workflows"}
-                  </button>
-                </div>
-                {activeTab === "overview" && (
-                  <div className="orbit-detail-card">
-                    <h3>About this work</h3>
-                    {editing ? (
-                      <>
-                        <label htmlFor="item-title">Title</label>
-                        <input
-                          id="item-title"
-                          disabled={!canEdit}
-                          value={selectedItem.title}
-                          onChange={(event) =>
-                            editItem(selectedIndex, { title: event.target.value })
-                          }
-                        />
-                        <label htmlFor="item-description">Description</label>
-                        <textarea
-                          id="item-description"
-                          disabled={!canEdit}
-                          rows={4}
-                          value={selectedItem.description}
-                          onChange={(event) =>
-                            editItem(selectedIndex, { description: event.target.value })
-                          }
-                        />
-                      </>
-                    ) : (
-                      <p>{selectedItem.description}</p>
-                    )}
-                    <p className="orbit-detail-muted">
-                      {selectedItem.workflows.length} workflows · {selectedItem.dependsOn.length}{" "}
-                      dependencies
-                    </p>
-                  </div>
-                )}
-                {activeTab === "dependencies" && (
-                  <div className="orbit-detail-card">
-                    <h3>Depends on</h3>
-                    {graph.workItems
-                      .filter((item) => item.key !== selectedItem.key)
-                      .map((item) => (
-                        <label className="orbit-dependency-choice" key={item.key}>
-                          <input
-                            type="checkbox"
-                            disabled={!canEdit || !editing}
-                            checked={selectedItem.dependsOn.includes(item.key)}
-                            onChange={(event) =>
-                              editItem(selectedIndex, {
-                                dependsOn: event.target.checked
-                                  ? [...selectedItem.dependsOn, item.key]
-                                  : selectedItem.dependsOn.filter((key) => key !== item.key),
-                              })
-                            }
-                          />
-                          <span>
-                            <strong>{item.title}</strong>
-                            <small>{item.key}</small>
-                          </span>
-                        </label>
-                      ))}
-                    <p className="orbit-detail-muted">
-                      Dependencies determine what must finish before execution can begin. Editing
-                      the plan does not execute work.
-                    </p>
-                  </div>
-                )}
-                {activeTab === "workflows" && (
-                  <div className="orbit-detail-card orbit-detail-card--canvas">
-                    <div className="orbit-nested-stage" aria-label="Workflows in this work item">
-                      <div className="orbit-nested-stage-head">
-                        <span>WORKFLOW GRAPH</span>
-                        <strong>{selectedItem.workflows.length} workflows</strong>
-                      </div>
-                      <div className="orbit-nested-stage-legend">
-                        <span>● Workflow</span>
-                        <span>Open a node to explore its steps</span>
-                      </div>
-                      <div className="orbit-nested-graph">
-                        {selectedItem.workflows.map((workflow, index) => (
-                          <button
-                            className="orbit-nested-node"
-                            type="button"
-                            key={index}
-                            onClick={() => {
-                              setSelectedWorkflow(index);
-                              setSelectedStep(null);
-                              setEditing(false);
-                            }}
-                          >
-                            <span>WORKFLOW {index + 1}</span>
-                            <strong>{workflow.name}</strong>
-                            <small>
-                              {workflow.steps.length} steps ·{" "}
-                              {workflow.steps.filter((step) => step.requiresApproval).length}{" "}
-                              approval gates
-                            </small>
-                            <span>Explore →</span>
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                )}
+            {editing ? (
+              <div className="work-item-edit-panel orbit-detail-card">
+                <label htmlFor="work-item-title">Title</label>
+                <input
+                  id="work-item-title"
+                  disabled={!canEdit}
+                  value={selectedItem.title}
+                  onChange={(event) => editItem(selectedIndex, { title: event.target.value })}
+                />
+                <label htmlFor="work-item-description">Description</label>
+                <textarea
+                  id="work-item-description"
+                  disabled={!canEdit}
+                  rows={5}
+                  value={selectedItem.description}
+                  onChange={(event) => editItem(selectedIndex, { description: event.target.value })}
+                />
+                <h3>Depends on</h3>
+                {graph.workItems
+                  .filter((item) => item.key !== selectedItem.key)
+                  .map((item) => (
+                    <label className="orbit-dependency-choice" key={item.key}>
+                      <input
+                        type="checkbox"
+                        disabled={!canEdit}
+                        checked={selectedItem.dependsOn.includes(item.key)}
+                        onChange={(event) =>
+                          editItem(selectedIndex, {
+                            dependsOn: event.target.checked
+                              ? [...selectedItem.dependsOn, item.key]
+                              : selectedItem.dependsOn.filter((key) => key !== item.key),
+                          })
+                        }
+                      />
+                      <span>{item.title}</span>
+                    </label>
+                  ))}
               </div>
             ) : (
-              currentWorkflow && (
-                <div className="orbit-detail-content">
-                  {selectedStep !== null && currentStep ? (
-                    <div className="orbit-detail-card">
-                      <button
-                        className="orbit-detail-back"
-                        type="button"
-                        onClick={() => {
-                          setSelectedStep(null);
-                          setEditing(false);
-                        }}
-                      >
-                        ← All steps
-                      </button>
-                      <h3>{currentStep.title}</h3>
-                      {selectedExecutionStep && (
-                        <section className="canvas-step-evidence" aria-label="Execution evidence">
-                          <p>Execution: {selectedExecutionStep.state}</p>
-                          {selectedExecutionStep.blocker_reason && (
-                            <p>
-                              Blocked: {selectedExecutionStep.blocker_reason.replaceAll("_", " ")}
-                            </p>
-                          )}
-                          {selectedExecutionStep.agent_session_id && (
-                            <p>Agent session: {selectedExecutionStep.agent_session_id}</p>
-                          )}
-                          {selectedJob && <p>Muse turn: {selectedJob.status}</p>}
-                          {selectedJob?.github_repository && selectedJob.github_pull_number && (
-                            <a
-                              href={`https://github.com/${selectedJob.github_repository}/pull/${selectedJob.github_pull_number}`}
-                              target="_blank"
-                              rel="noreferrer"
-                            >
-                              Review PR #{selectedJob.github_pull_number}
-                            </a>
-                          )}
-                          {selectedJob?.github_ci_state && (
-                            <p>GitHub CI: {selectedJob.github_ci_state}</p>
-                          )}
-                          {selectedJob?.github_ci_url && (
-                            <a href={selectedJob.github_ci_url} target="_blank" rel="noreferrer">
-                              Review CI evidence
-                            </a>
-                          )}
-                          <button type="button" onClick={() => setCanvasSection("execution")}>
-                            Open execution controls
-                          </button>
-                        </section>
-                      )}
-
-                      <p>
-                        {currentStep.requiresApproval
-                          ? "Human approval required"
-                          : "No additional approval gate"}{" "}
-                        · {currentStep.executor}
-                      </p>
-                      {editing && (
-                        <>
-                          <label htmlFor="step-title">What needs to happen?</label>
-                          <input
-                            id="step-title"
-                            value={currentStep.title}
-                            disabled={!canEdit}
-                            onChange={(event) => {
-                              const next = structuredClone(graph);
-                              next.workItems[selectedIndex]!.workflows[selectedWorkflow]!.steps[
-                                selectedStep
-                              ]!.title = event.target.value;
-                              change(next);
-                            }}
-                          />
-                          <label htmlFor="step-executor">Who handles this?</label>
-                          <select
-                            id="step-executor"
-                            value={currentStep.executor}
-                            disabled={!canEdit}
-                            onChange={(event) => {
-                              const next = structuredClone(graph);
-                              next.workItems[selectedIndex]!.workflows[selectedWorkflow]!.steps[
-                                selectedStep
-                              ]!.executor = event.target.value as Executor;
-                              change(next);
-                            }}
-                          >
-                            <option value="human">Human</option>
-                            <option value="agent">Agent (proposed)</option>
-                            <option value="system">System</option>
-                          </select>
-                          <label className="orbit-approval-choice">
-                            <input
-                              type="checkbox"
-                              checked={currentStep.requiresApproval}
-                              disabled={!canEdit}
-                              onChange={(event) => {
-                                const next = structuredClone(graph);
-                                next.workItems[selectedIndex]!.workflows[selectedWorkflow]!.steps[
-                                  selectedStep
-                                ]!.requiresApproval = event.target.checked;
-                                change(next);
-                              }}
-                            />
-                            Requires human approval
-                          </label>
-                        </>
-                      )}
-                      <p className="orbit-detail-muted">
-                        Execute from the canvas Execution panel. Prerequisite completion must be
-                        verified by the execution service.
-                      </p>
-                    </div>
-                  ) : (
-                    <div className="orbit-detail-card orbit-detail-card--canvas">
-                      <h3>{currentWorkflow.name}</h3>
-                      <p>
-                        Explore the steps in this workflow. Downstream steps await verified
-                        completion of earlier steps.
-                      </p>
-                      {editing && (
-                        <>
-                          <label htmlFor="workflow-name">Workflow name</label>
-                          <input
-                            id="workflow-name"
-                            disabled={!canEdit}
-                            value={currentWorkflow.name}
-                            onChange={(event) => {
-                              const next = structuredClone(graph);
-                              next.workItems[selectedIndex]!.workflows[selectedWorkflow]!.name =
-                                event.target.value;
-                              change(next);
-                            }}
-                          />
-                        </>
-                      )}
-                      <div className="orbit-nested-stage" aria-label="Workflow steps">
-                        <div className="orbit-nested-stage-head">
-                          <span>STEP GRAPH</span>
-                          <strong>{currentWorkflow.steps.length} steps</strong>
-                        </div>
-                        <div className="orbit-nested-stage-legend">
-                          <span>● Step</span>
-                          <span>◆ Human approval</span>
-                          <span>Browse future steps without executing them</span>
-                        </div>
-                        <div className="orbit-nested-graph">
-                          {currentWorkflow.steps.map((step, index) => (
-                            <button
-                              key={index}
-                              type="button"
-                              className="orbit-nested-node"
-                              onClick={() => {
-                                setSelectedStep(index);
-                                setEditing(false);
-                              }}
-                            >
-                              <span>STEP {index + 1}</span>
-                              <strong>{step.title}</strong>
-                              <small>
-                                {step.requiresApproval ? "◆ Human review" : step.executor}
-                              </small>
-                              <span>
-                                {index === 0
-                                  ? "Awaiting authorization"
-                                  : "Waiting for previous step"}{" "}
-                                · Explore →
-                              </span>
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                      <p className="orbit-detail-muted">
-                        These are proposed steps, not actual execution statuses. Later steps are not
-                        executable until their prerequisites have completed.
-                      </p>
-                    </div>
-                  )}
-                </div>
-              )
+              <WorkItemExecutionDetails
+                key={selectedItem.key}
+                projectRepositories={projectRepositories}
+                repositoriesLoading={repositoriesLoading}
+                repositoriesFailed={repositoriesFailed}
+                workItemTitle={selectedItem.title}
+                dependencyTitles={selectedItem.dependsOn.map(
+                  (key) => graph.workItems.find((item) => item.key === key)?.title ?? key,
+                )}
+                executor={hasAgentExecutor ? "agent" : (selectedExecutionStep?.executor ?? "human")}
+                executionStep={selectedExecutionStep}
+                job={selectedJob}
+                task={selectedTask}
+                approved={approved}
+                onExecute={
+                  hasAgentExecutor ? () => void executeWorkItem(selectedItem.key) : undefined
+                }
+                isExecuting={executingItemKey !== null}
+                onOpenExecution={() => setCanvasSection("execution")}
+              />
             )}
           </section>
         ) : (
@@ -944,16 +784,28 @@ function ProjectPlanCanvas({
                 {executionError && <p role="alert">{executionError}</p>}
               </div>
             )}
+            {taskExecutionError && <p role="alert">{taskExecutionError}</p>}
+            {latestExecutionOutcome && (
+              <div className="canvas-execution-outcome">
+                <ExecutionOutcomeNotice
+                  step={latestExecutionOutcome.step}
+                  job={latestExecutionOutcome.job}
+                />
+              </div>
+            )}
             {currentIntent || graph ? (
               <WorkGraphCanvas
+                executableItemKeys={
+                  approved ? tasks.filter(canExecuteCanvasTask).map((task) => task.task_key) : []
+                }
+                executingItemKey={executingItemKey}
+                onExecute={(workItemKey) => void executeWorkItem(workItemKey)}
                 planActions={planActions}
                 items={graph?.workItems ?? []}
                 intent={currentIntent?.statement ?? "Original intent"}
                 approved={approved}
-                onSelectDetail={(workItemKey, workflowIndex, stepIndex) => {
+                onSelectDetail={(workItemKey) => {
                   openItem(workItemKey);
-                  setSelectedWorkflow(workflowIndex);
-                  setSelectedStep(stepIndex ?? null);
                 }}
                 executionSteps={executionSteps}
                 museJobs={museJobs}

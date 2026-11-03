@@ -816,3 +816,27 @@
 .orbit-detail-page--canvas .orbit-detail-heading {
   padding-bottom: 0.5rem;
 }
+
+.orbit-detail-description {
+  max-width: 72ch;
+  margin-top: 0.75rem;
+  color: #cbb8df;
+  font-size: 0.85rem;
+}
+.orbit-detail-description summary {
+  width: fit-content;
+  cursor: pointer;
+  padding: 0.3rem 0;
+}
+.orbit-detail-description summary:focus-visible {
+  outline: 2px solid #c594ff;
+  outline-offset: 3px;
+  border-radius: 3px;
+}
+.orbit-detail-heading .orbit-detail-description p {
+  margin: 0.5rem 0;
+  max-height: 240px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}

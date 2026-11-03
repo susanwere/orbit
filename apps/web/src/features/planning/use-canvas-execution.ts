@@ -1,6 +1,11 @@
 import { useCallback, useEffect, useState } from "react";
-import type { ExecutionStep, MuseJobStatus, ProjectIntentApi } from "../intent/intent-api.js";
-import { selectCurrentPlanSteps } from "./work-item-status.js";
+import type {
+  ExecutionStep,
+  MuseJobStatus,
+  ProjectIntentApi,
+  ProjectTask,
+} from "../intent/intent-api.js";
+import { canvasExecutionPollDelay, selectCurrentPlanSteps } from "./work-item-status.js";
 import { loadExecutionStatus } from "../intent/execution-status.js";
 
 /** Read-only status projection. Opening or refreshing the canvas never queues execution. */
@@ -11,12 +16,14 @@ export function useCanvasExecution(
   planId: string | null,
   planRevision: number,
 ) {
+  const [tasks, setTasks] = useState<readonly ProjectTask[]>([]);
   const [executionSteps, setExecutionSteps] = useState<readonly ExecutionStep[]>([]);
   const [museJobs, setMuseJobs] = useState<Record<string, MuseJobStatus | null>>({});
   const [executionError, setExecutionError] = useState<string | null>(null);
   const [refreshAttempt, setRefreshAttempt] = useState(0);
   const refreshExecution = useCallback(() => setRefreshAttempt((attempt) => attempt + 1), []);
   useEffect(() => {
+    setTasks([]);
     setExecutionSteps([]);
     setMuseJobs({});
     setExecutionError(null);
@@ -28,15 +35,19 @@ export function useCanvasExecution(
     if (!enabled) return;
     const refresh = async () => {
       try {
-        const status = await loadExecutionStatus(
-          {
-            getExecutionSteps: async (id) =>
-              selectCurrentPlanSteps(await api.getExecutionSteps(id), planId, planRevision),
-            getMuseJob: (id, sessionId) => api.getMuseJob(id, sessionId),
-          },
-          projectId,
-        );
+        const [status, currentTasks] = await Promise.all([
+          loadExecutionStatus(
+            {
+              getExecutionSteps: async (id) =>
+                selectCurrentPlanSteps(await api.getExecutionSteps(id), planId, planRevision),
+              getMuseJob: (id, sessionId) => api.getMuseJob(id, sessionId),
+            },
+            projectId,
+          ),
+          api.getTasks(projectId),
+        ]);
         if (!active) return;
+        setTasks(currentTasks);
         setExecutionSteps(status.steps);
         setMuseJobs(status.jobs);
         setExecutionError(
@@ -44,10 +55,16 @@ export function useCanvasExecution(
             ? "Some agent statuses could not refresh. Refresh execution status to retry."
             : null,
         );
-        if (status.steps.some((step) => step.state === "RUNNING") || status.jobRefreshFailed)
+        const pollDelay = canvasExecutionPollDelay(
+          status.steps,
+          currentTasks,
+          status.jobs,
+          status.jobRefreshFailed,
+        );
+        if (pollDelay !== null)
           timer = setTimeout(() => {
             void refresh();
-          }, 2000);
+          }, pollDelay);
       } catch {
         if (active)
           setExecutionError(
@@ -61,5 +78,5 @@ export function useCanvasExecution(
       clearTimeout(timer);
     };
   }, [api, projectId, enabled, planId, planRevision, refreshAttempt]);
-  return { executionSteps, museJobs, executionError, refreshExecution };
+  return { tasks, executionSteps, museJobs, executionError, refreshExecution };
 }

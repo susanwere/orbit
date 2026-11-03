@@ -1,3 +1,4 @@
+import { isGitHubRunForPullRequest } from "./github-ci-run-identity.js";
 import { DomainError } from "@orbit/domain";
 import type { SqlDatabase } from "@orbit/db";
 
@@ -7,6 +8,7 @@ export interface GithubCiReport {
   readonly headSha: string;
   readonly state: "WAITING" | "PENDING" | "FAILED" | "PASSED";
   readonly summary: string;
+  readonly mergedAt?: string | null;
   readonly runs: readonly {
     id: number;
     name: string;
@@ -41,6 +43,7 @@ interface GithubRun {
   status: string;
   conclusion: string | null;
   head_sha?: string;
+  head_branch?: string;
   repository?: { full_name?: string };
   event?: string;
   pull_requests?: { number?: number; head?: { sha?: string } }[];
@@ -107,7 +110,7 @@ export class GithubCiMonitor {
        JOIN execution_contracts contract ON contract.id=session.execution_contract_id AND contract.project_id=job.project_id AND contract.organization_id=job.organization_id
        JOIN plan_proposals plan ON plan.id=step.plan_id AND plan.project_id=job.project_id AND plan.organization_id=job.organization_id
        WHERE job.id=$1 AND job.project_id=$2 AND ($3::text IS NULL OR job.organization_id=$3)
-         AND job.status='TURN_FINISHED' AND step.state='RUNNING' AND session.state='RUNNING'
+         AND job.status='TURN_FINISHED' AND step.state IN ('RUNNING','WAITING') AND session.state IN ('RUNNING','WAITING')
          AND NOT EXISTS (SELECT 1 FROM human_gates gate WHERE gate.project_id=job.project_id AND gate.organization_id=job.organization_id AND gate.agent_session_id=session.id AND gate.status='OPEN')
          AND step.completion_kind='github_ci' AND plan.status='APPROVED' AND plan.revision=step.plan_revision
          AND contract.allowed_repositories @> jsonb_build_array(job.github_repository)
@@ -151,13 +154,13 @@ export class GithubCiMonitor {
     const latest = new Map<number, GithubRun>();
     for (const run of runsResponse.workflow_runs) {
       if (
-        run.event !== "pull_request" ||
-        run.repository?.full_name !== job.github_repository ||
-        !run.pull_requests?.some(
-          (candidate) =>
-            candidate.number === job.github_pull_number &&
-            candidate.head?.sha === job.github_head_sha,
-        )
+        !isGitHubRunForPullRequest(run, {
+          repository: job.github_repository,
+          number: job.github_pull_number,
+          headSha: job.github_head_sha,
+          headBranch: pull.head.ref,
+          merged: Boolean(pull.merged_at),
+        })
       )
         continue;
       if (!Number.isSafeInteger(run.id) || run.id < 1 || !Number.isSafeInteger(run.workflow_id))
@@ -228,11 +231,12 @@ export class GithubCiMonitor {
       headSha: job.github_head_sha,
       state,
       summary: summary.slice(0, 3000),
+      mergedAt: pull.merged_at ?? null,
       runs: reports,
     };
     // Head-bound compare prevents a slow read from attaching results to another delivery.
     const stored = await this.database.query<{ id: string } & Record<string, unknown>>(
-      `UPDATE muse_execution_jobs SET github_ci_state=$4,github_ci_report=$5::jsonb,github_ci_checked_at=now() WHERE id=$1 AND project_id=$2 AND organization_id=$3 AND status='TURN_FINISHED' AND github_head_sha=$6 RETURNING id`,
+      `UPDATE muse_execution_jobs SET github_ci_state=$4,github_ci_report=$5::jsonb,github_ci_checked_at=now() WHERE id=$1 AND project_id=$2 AND organization_id=$3 AND status='TURN_FINISHED' AND github_head_sha=$6 AND EXISTS (SELECT 1 FROM workflow_step_executions current_step WHERE current_step.id=muse_execution_jobs.workflow_step_id AND current_step.project_id=muse_execution_jobs.project_id AND current_step.organization_id=muse_execution_jobs.organization_id AND current_step.agent_session_id=muse_execution_jobs.agent_session_id AND current_step.state IN ('RUNNING','WAITING')) RETURNING id`,
       [
         job.id,
         job.project_id,

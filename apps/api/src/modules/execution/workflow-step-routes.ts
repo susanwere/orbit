@@ -278,6 +278,7 @@ export async function registerWorkflowStepRoutes(
              WHEN s.state='FAILED' THEN 'failed'
              WHEN s.state='CANCELED' THEN 'canceled'
              WHEN s.state='RUNNING' THEN 'running'
+             WHEN s.state='WAITING' AND EXISTS (SELECT 1 FROM muse_execution_jobs review_job WHERE review_job.workflow_step_id=s.id AND review_job.project_id=s.project_id AND review_job.organization_id=s.organization_id AND review_job.agent_session_id=s.agent_session_id AND review_job.status='TURN_FINISHED' AND review_job.github_ci_state='PASSED' AND review_job.github_pull_number IS NOT NULL) THEN 'pull_request_review'
              WHEN s.state='WAITING' THEN 'waiting'
              WHEN p.status IS DISTINCT FROM 'APPROVED'
                   OR p.revision IS DISTINCT FROM s.plan_revision THEN 'plan_not_approved'
