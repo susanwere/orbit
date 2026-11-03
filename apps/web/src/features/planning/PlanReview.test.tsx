@@ -29,6 +29,7 @@ describe("canvas composer visibility", () => {
     );
     expect(markup).toContain('aria-label="Attach supporting documents"');
     expect(markup).toContain('accept=".pdf,.docx,.md,.txt"');
+    expect(markup).toMatch(/>Composer<\/button>/);
     expect(markup).toContain("Generate plan");
     expect(markup).not.toContain("Approve plan");
     expect(sendRequest).not.toHaveBeenCalled();
@@ -68,6 +69,7 @@ describe("canvas composer visibility", () => {
       />,
     );
     expect(markup).not.toContain('id="canvas-project-idea"');
+    expect(markup).not.toMatch(/>Composer<\/button>/);
     expect(markup).toContain("Approve plan");
     expect(markup).toContain("Connected plan graph");
     expect(sendRequest).not.toHaveBeenCalled();
@@ -108,6 +110,7 @@ describe("saved intent lifecycle", () => {
         />,
       );
       expect(markup).not.toContain('id="canvas-project-idea"');
+      expect(markup).not.toMatch(/>Composer<\/button>/);
       expect(markup).toContain("Original intent");
       expect(markup).toContain("Connected plan graph");
       expect(markup).not.toContain("Approve plan");
@@ -132,5 +135,6 @@ describe("saved intent lifecycle", () => {
     );
     expect(markup).toContain("Loading workflow");
     expect(markup).not.toContain('id="canvas-project-idea"');
+    expect(markup).not.toMatch(/>Composer<\/button>/);
   });
 });

@@ -6,6 +6,7 @@ interface CanvasSidebarProps {
   readonly selectedItemKey: string | null;
   readonly approved: boolean;
   readonly hasPlan: boolean;
+  readonly canCompose: boolean;
   readonly isComposerOpen: boolean;
   readonly activeSection: PlanSectionKey | null;
   readonly hasGraph: boolean;
@@ -25,6 +26,7 @@ export function CanvasSidebar({
   selectedItemKey,
   approved,
   hasPlan,
+  canCompose,
   isComposerOpen,
   activeSection,
   hasGraph,
@@ -54,14 +56,16 @@ export function CanvasSidebar({
         </strong>
       </div>
       <nav aria-label="Canvas sections">
-        <button
-          type="button"
-          aria-current={isComposerOpen ? "page" : undefined}
-          onClick={onOpenComposer}
-        >
-          <SidebarIcon kind="composer" />
-          Composer
-        </button>
+        {canCompose && (
+          <button
+            type="button"
+            aria-current={isComposerOpen ? "page" : undefined}
+            onClick={onOpenComposer}
+          >
+            <SidebarIcon kind="composer" />
+            Composer
+          </button>
+        )}
         <button
           type="button"
           aria-current={isContextOpen ? "page" : undefined}
