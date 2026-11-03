@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import type { ProjectIntentApi, ProjectKnowledgeSnapshot } from "../intent/intent-api.js";
 import { compareKnowledgeVersions } from "./compare-knowledge.js";
+import { ProjectContextEmptyState } from "./ProjectContextEmptyState.js";
+import type { ConnectedRepository } from "../projects/project-api.js";
 
 interface DocumentMetadata {
   id: string;
@@ -25,6 +27,7 @@ export function ProjectContextDocuments({
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [reviewNote, setReviewNote] = useState("");
   const [documents, setDocuments] = useState<readonly DocumentMetadata[]>([]);
+  const [repositories, setRepositories] = useState<readonly ConnectedRepository[] | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [refreshCount, setRefreshCount] = useState(0);
@@ -33,11 +36,16 @@ export function ProjectContextDocuments({
     let active = true;
     setLoading(true);
     setError(null);
-    void Promise.all([api.getProjectDocuments(projectId), api.getProjectKnowledge(projectId)])
-      .then(([items, history]) => {
+    void Promise.all([
+      api.getProjectDocuments(projectId),
+      api.getProjectKnowledge(projectId),
+      api.getRepositories(projectId).catch(() => null),
+    ])
+      .then(([items, history, connectedRepositories]) => {
         if (active) {
           setDocuments(items);
           setSnapshots(history);
+          setRepositories(connectedRepositories);
         }
       })
       .catch((cause: unknown) => {
@@ -103,16 +111,16 @@ export function ProjectContextDocuments({
             Versioned understanding of your project, grounded in documents and repository evidence.
           </p>
         </div>
-        <button
-          type="button"
-          className="orbit-detail-back"
-          onClick={() => {
-            void generateSummary();
-          }}
-          disabled={loading || generating}
-        >
-          {generating ? "Summarizing…" : "✦ Generate context summary"}
-        </button>
+        {snapshots.length > 0 && (
+          <button
+            type="button"
+            className="orbit-detail-back"
+            onClick={() => { void generateSummary(); }}
+            disabled={loading || generating}
+          >
+            {generating ? "Summarizing…" : "✦ Generate context summary"}
+          </button>
+        )}
         <button
           type="button"
           className="orbit-detail-back"
@@ -287,8 +295,13 @@ export function ProjectContextDocuments({
           ))}
         </div>
       )}
-      {!latest && !loading && (
-        <p>Generate the first snapshot to see what Muse understands about your project.</p>
+      {!latest && !loading && !error && (
+        <ProjectContextEmptyState
+          repositories={repositories}
+          documentCount={documents.length}
+          generating={generating}
+          onGenerate={() => { void generateSummary(); }}
+        />
       )}
       {snapshots.length > 1 && (
         <p>
@@ -299,13 +312,13 @@ export function ProjectContextDocuments({
             .join(", ")}
         </p>
       )}
-      {!loading && !error && documents.length === 0 && (
+      {latest && !loading && !error && documents.length === 0 && (
         <div className="orbit-detail-card">
           <h3>No supporting documents yet</h3>
           <p>Add documents when submitting your original Intent. They will appear here.</p>
         </div>
       )}
-      {!loading && !error && documents.length > 0 && (
+      {latest && !loading && !error && documents.length > 0 && (
         <div className="orbit-detail-card">
           <h3>Supporting documents ({documents.length})</h3>
           <div className="orbit-nested-stage">
@@ -325,11 +338,12 @@ export function ProjectContextDocuments({
           </div>
         </div>
       )}
-      <p className="orbit-detail-muted">
-        Document excerpts are used for Muse planning. Knowledge snapshots are generated on demand;
-        repository analysis samples accessible manifests and README files, not the entire source
-        tree.
-      </p>
+      {latest && (
+        <p className="orbit-detail-muted">
+          Repository analysis samples representative accessible source files; it is not a
+          complete code audit. Knowledge snapshots are generated on demand.
+        </p>
+      )}
     </section>
   );
 }
