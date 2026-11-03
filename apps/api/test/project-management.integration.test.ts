@@ -79,6 +79,25 @@ describe.skipIf(!databaseUrl)("Project and GitHub repository API (PostgreSQL)", 
     });
     expect(created.statusCode).toBe(201);
     const projectId = created.json().id as string;
+    const byNameUrl = "/projects/by-name/Example";
+    expect((await app.inject({ method: "GET", url: byNameUrl })).statusCode).toBe(401);
+    expect(
+      (await app.inject({ method: "GET", url: byNameUrl, headers: token(outsider) })).statusCode,
+    ).toBe(404);
+    const byName = await app.inject({ method: "GET", url: byNameUrl, headers: token(viewer) });
+    expect(byName.statusCode).toBe(200);
+    expect(byName.json().id).toBe(projectId);
+    const otherProject = await app.inject({
+      method: "POST",
+      url: "/projects",
+      headers: token(outsider),
+      payload: { name: "Example" },
+    });
+    expect(otherProject.statusCode).toBe(201);
+    expect(
+      (await app.inject({ method: "GET", url: byNameUrl, headers: token(outsider) })).json().id,
+    ).toBe(otherProject.json().id);
+
     expect(
       (
         await app.inject({
@@ -96,7 +115,7 @@ describe.skipIf(!databaseUrl)("Project and GitHub repository API (PostgreSQL)", 
     expect(
       (await app.inject({ method: "GET", url: "/projects", headers: token(outsider) })).json()
         .projects,
-    ).toHaveLength(0);
+    ).toHaveLength(1);
     expect(
       (await app.inject({ method: "GET", url: "/projects?limit=101", headers: token(admin) }))
         .statusCode,
