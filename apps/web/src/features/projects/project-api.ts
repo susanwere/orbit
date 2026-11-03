@@ -28,6 +28,7 @@ export class ProjectApiError extends Error {
   }
 }
 export interface ProjectCreationApi {
+  getProjectByName(projectName: string): Promise<CreatedProject>;
   createProject(name: string): Promise<CreatedProject>;
   listProjects(limit?: number, before?: string): Promise<ProjectPage>;
   connectRepository(projectId: string, repository: string): Promise<ConnectedRepository>;
@@ -42,15 +43,15 @@ export function createProjectApi(
   fetchImpl: typeof fetch = fetch,
   options: ProjectApiOptions = {},
 ): ProjectCreationApi {
-  const send = async <T>(path: string, body: Record<string, string>): Promise<T> => {
+  const send = async <T>(path: string, body?: Record<string, string>): Promise<T> => {
     const authorization = getAuthorization();
     if (!authorization) throw new ProjectApiError(401, "Sign in to create or connect a project.");
     let response: Response;
     try {
       response = await fetchImpl(new URL(path, baseUrl).toString(), {
-        method: "POST",
+        method: body ? "POST" : "GET",
         headers: { "Content-Type": "application/json", Authorization: authorization },
-        body: JSON.stringify(body),
+        ...(body ? { body: JSON.stringify(body) } : {}),
       });
     } catch {
       throw new ProjectApiError(0, "Connection unavailable. Your changes have been preserved.");
@@ -114,6 +115,8 @@ export function createProjectApi(
   };
   return {
     listProjects,
+    getProjectByName: (projectName) =>
+      send<CreatedProject>(`/projects/by-name/${encodeURIComponent(projectName)}`),
     createProject: (name) => send<CreatedProject>("/projects", { name }),
     connectRepository: (id, repository) =>
       send<ConnectedRepository>(`/projects/${encodeURIComponent(id)}/repositories`, { repository }),

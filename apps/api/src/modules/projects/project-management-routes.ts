@@ -135,6 +135,22 @@ export async function registerProjectManagementRoutes(
       nextCursor: rows.rows.length > limit ? rows.rows[limit - 1]?.id : null,
     };
   });
+  app.get<{ Params: { projectName: string } }>(
+    "/projects/by-name/:projectName",
+    async (request) => {
+      const actor = principal(request.headers.authorization);
+      await membership(actor, "read");
+      if (!validName(request.params.projectName)) return fail("Invalid project name.");
+      const projects = await db.query<ProjectRow>(
+        "SELECT id,organization_id,name,created_at FROM projects WHERE organization_id=$1 AND name=$2",
+        [actor.organizationId, request.params.projectName],
+      );
+      const project = projects.rows[0];
+      if (!project) throw new DomainError("not_found", "Project not found.");
+      await authorization.authorize(actor.id, project.id, "read");
+      return project;
+    },
+  );
   app.get<{ Params: { projectId: string } }>("/projects/:projectId", async (req) => {
     const actor = principal(req.headers.authorization);
     await authorization.authorize(actor.id, req.params.projectId, "read");

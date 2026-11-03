@@ -97,3 +97,26 @@ describe("listing existing projects", () => {
     expect(sendRequest).not.toHaveBeenCalled();
   });
 });
+
+describe("project name lookup", () => {
+  it("encodes the name and uses an authenticated GET", async () => {
+    const project = {
+      id: "project-id",
+      organization_id: "org",
+      name: "My / Project",
+      created_at: "2026-11-03",
+    };
+    const sendRequest = vi
+      .fn<typeof fetch>()
+      .mockResolvedValue(new Response(JSON.stringify(project)));
+    const api = createProjectApi("http://localhost:4000", () => "Bearer session", sendRequest);
+    expect(await api.getProjectByName(project.name)).toEqual(project);
+    expect(sendRequest).toHaveBeenCalledWith(
+      "http://localhost:4000/projects/by-name/My%20%2F%20Project",
+      expect.objectContaining({
+        method: "GET",
+        headers: expect.objectContaining({ Authorization: "Bearer session" }),
+      }),
+    );
+  });
+});
