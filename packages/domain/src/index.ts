@@ -6,3 +6,5 @@ export * from "./events.js";
 export * from "./execution-context.js";
 export * from "./policy.js";
 export * from "./governance.js";
+export * from "./knowledge-activity.js";
+export * from "./knowledge-architecture.js";

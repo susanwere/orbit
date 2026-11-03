@@ -56,9 +56,11 @@ describe("initial project context", () => {
     const markup = renderToStaticMarkup(
       <ProjectContextEmptyState generating disabled={false} onGenerate={vi.fn()} />,
     );
-    expect(markup).toContain('disabled=""');
+    expect(markup).not.toContain('class="context-generate-button"');
     expect(markup).toContain('role="status"');
-    expect(markup).toContain("Generating context summary…");
+    expect(markup).toContain('role="progressbar"');
+    expect(markup).toContain("Muse is understanding your project");
+    expect(markup).toContain("Nothing is approved automatically");
   });
   it("distinguishes available evidence from a missing source", () => {
     const connected = renderToStaticMarkup(

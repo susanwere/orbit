@@ -100,7 +100,6 @@ export interface AppOptions {
 
 export async function buildApp(options: AppOptions = {}) {
   const app = Fastify({ logger: false });
-  if (options.knowledge) await registerProjectKnowledgeRoutes(app, options.knowledge);
   if (options.museVoice) await registerMuseVoiceRoutes(app, options.museVoice);
 
   await app.register(cors, {
@@ -139,6 +138,8 @@ export async function buildApp(options: AppOptions = {}) {
     status: "ok",
     service: "orbit-api",
   }));
+
+  if (options.knowledge) await registerProjectKnowledgeRoutes(app, options.knowledge);
 
   if (options.authExchange) await app.register(registerAuthExchangeRoutes, options.authExchange);
   if (options.emailPassword) await app.register(registerEmailPasswordRoutes, options.emailPassword);

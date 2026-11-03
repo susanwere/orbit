@@ -375,3 +375,211 @@
   clip-path: inset(50%);
   white-space: nowrap;
 }
+
+.context-initial-state--generating .context-understanding-art {
+  width: 240px;
+  height: 160px;
+  transform: scale(0.7);
+  transform-origin: center bottom;
+}
+.context-initial-state--generating .context-art-layer {
+  left: 49px;
+}
+.context-initial-state--generating .context-art-brain {
+  left: 88px;
+}
+.context-initial-state--generating .context-art-orbit {
+  left: -50px;
+}
+.context-initial-state--generating h3 {
+  font-size: clamp(23px, 2.4vw, 30px);
+}
+.context-initial-state--generating > p {
+  max-width: 660px;
+  font-size: 14px;
+}
+.context-generation-card {
+  width: min(100%, 660px);
+  margin-top: 30px;
+  padding: 25px 28px;
+  border: 1px solid #9a62d266;
+  border-radius: 15px;
+  background: linear-gradient(130deg, #2a133a66, #3a1d5126);
+  text-align: left;
+}
+.context-generation-steps {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 24px;
+}
+.context-generation-steps li {
+  position: relative;
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr) auto;
+  gap: 16px;
+  align-items: start;
+  padding-bottom: 20px;
+}
+.context-generation-steps li:last-child {
+  padding-bottom: 0;
+}
+.context-generation-steps li:not(:last-child)::after {
+  content: "";
+  position: absolute;
+  top: 24px;
+  bottom: 0;
+  left: 11px;
+  width: 1px;
+  background: linear-gradient(#9b5be4aa, #805a9f44);
+}
+.context-generation-marker {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border: 1px solid #a06cca80;
+  border-radius: 50%;
+  color: #d8c3ec;
+  font-size: 13px;
+}
+.context-generation-steps [data-state="ready"] .context-generation-marker {
+  background: linear-gradient(#b262ff, #782de3);
+  color: white;
+  border-color: #c38bff;
+}
+.context-generation-steps [data-state="active"] .context-generation-marker {
+  border: 2px solid #e0b3ff;
+  box-shadow: 0 0 12px #b65dff88;
+}
+.context-generation-marker i {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #c38aff;
+}
+.context-generation-steps strong {
+  display: block;
+  margin-top: 3px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #eee5f9;
+}
+.context-generation-steps p {
+  margin: 5px 0 0;
+  font-size: 11px;
+  line-height: 1.5;
+  color: #baabcb;
+}
+.context-generation-badge {
+  padding: 5px 8px;
+  border-radius: 8px;
+  background: #6f458e38;
+  color: #c5b6d5;
+  font-size: 10px;
+  white-space: nowrap;
+}
+.context-generation-steps [data-state="ready"] .context-generation-badge {
+  color: #b5dccd;
+  background: #43836b33;
+}
+.context-generation-steps [data-state="active"] .context-generation-badge {
+  color: #e1c5ff;
+  background: #8c3ddb38;
+}
+.context-generation-progress {
+  height: 10px;
+  overflow: hidden;
+  border: 1px solid #9f5edf44;
+  border-radius: 20px;
+  background: #8b50ad22;
+}
+.context-generation-progress > span {
+  display: block;
+  width: 40%;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #8c31f2, #d89dff, #f2d7ff);
+  box-shadow: 0 0 14px #bd6bff66;
+  animation: context-generation-travel 1.8s ease-in-out infinite alternate;
+}
+.context-generation-live {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+.context-initial-state > .context-generation-reassurance {
+  margin-top: 24px;
+  font-size: 11px;
+  color: #ded0ec;
+}
+.context-generation-reassurance > span {
+  color: #bf85ef;
+  margin-right: 6px;
+}
+@keyframes context-generation-travel {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(250%);
+  }
+}
+@media (max-width: 640px) {
+  .context-generation-card {
+    padding: 20px 16px;
+  }
+  .context-generation-steps li {
+    gap: 10px;
+  }
+  .context-generation-badge {
+    font-size: 9px;
+    padding: 5px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .context-generation-progress > span {
+    animation: none;
+    width: 100%;
+    background: linear-gradient(90deg, #783b9f, #b783da, #783b9f);
+  }
+}
+
+.context-activity-log {
+  margin-top: 20px;
+  border-top: 1px solid #9a62d233;
+  padding-top: 14px;
+  color: #d6c7e7;
+  font-size: 12px;
+}
+.context-activity-log summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+.context-activity-log .context-activity-sources {
+  color: #ab99bd;
+  font-size: 11px;
+  margin: 10px 0;
+}
+.context-activity-log ol {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  max-height: 160px;
+  overflow-y: auto;
+}
+.context-activity-log li {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  padding: 5px 0;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+.context-activity-log time {
+  flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+  color: #a98cc6;
+  font-size: 10px;
+}

@@ -30,12 +30,14 @@ const sectionProps = {
 };
 
 describe("focused plan sections", () => {
-  it("renders the actual proposed outcome and related section counts", () => {
+  it("renders the proposed outcome with horizontal section tabs", () => {
     const markup = renderToStaticMarkup(<PlanSection {...sectionProps} section="outcome" />);
     expect(markup).toContain(graph.summary);
-    expect(markup).toContain("1 rules");
-    expect(markup).toContain("1 decisions");
-    expect(markup).toContain("0 assumptions");
+    expect(markup).toContain('role="tablist"');
+    expect(markup).toContain('id="plan-details-tab-outcome" aria-selected="true"');
+    expect(markup).toContain("Decisions to Review");
+    expect(markup).not.toContain("Related sections");
+    expect(markup).not.toContain("canvas-plan-section-heading");
     expect(markup).toContain(">Edit</button>");
     expect(markup).not.toContain("<textarea");
     expect(markup).not.toContain("Plan details and work item management");
@@ -45,6 +47,8 @@ describe("focused plan sections", () => {
       <PlanSection {...sectionProps} section="original-intent" />,
     );
     expect(markup).toContain(sectionProps.originalIntent.statement);
+    expect(markup.match(/Original Intent/g)).toHaveLength(1);
+    expect(markup.match(/Saved · immutable/g)).toHaveLength(1);
     expect(markup).not.toContain("<textarea");
     expect(markup).not.toContain("Save changes");
   });

@@ -1,4 +1,4 @@
-import { planSections, PlanSectionIcon, type PlanSectionKey } from "./PlanSection.js";
+import { type PlanSectionKey } from "./PlanSection.js";
 import { AccountMenuHost } from "../auth/AccountMenuHost.js";
 
 interface CanvasSidebarProps {
@@ -9,7 +9,6 @@ interface CanvasSidebarProps {
   readonly canCompose: boolean;
   readonly isComposerOpen: boolean;
   readonly activeSection: PlanSectionKey | null;
-  readonly hasGraph: boolean;
   readonly isContextOpen: boolean;
   readonly isExecutionOpen: boolean;
   readonly onOpenExecution: () => void;
@@ -29,7 +28,6 @@ export function CanvasSidebar({
   canCompose,
   isComposerOpen,
   activeSection,
-  hasGraph,
   isContextOpen,
   isExecutionOpen,
   onOpenExecution,
@@ -82,28 +80,14 @@ export function CanvasSidebar({
           <SidebarIcon kind="plan" />
           Execute workflows
         </button>
-        <details className="canvas-sidebar-items">
-          <summary>
-            <SidebarIcon kind="plan" />
-            Plan details
-          </summary>
-          <div className="canvas-plan-links">
-            {planSections.map(({ key, title }) => (
-              <button
-                key={key}
-                type="button"
-                disabled={key !== "original-intent" && !hasGraph}
-                aria-current={activeSection === key ? "page" : undefined}
-                onClick={() => onOpenSection(key)}
-              >
-                <span className="canvas-section-nav-icon" aria-hidden="true">
-                  <PlanSectionIcon section={key} />
-                </span>
-                {title}
-              </button>
-            ))}
-          </div>
-        </details>
+        <button
+          type="button"
+          aria-current={activeSection ? "page" : undefined}
+          onClick={() => onOpenSection(activeSection ?? "original-intent")}
+        >
+          <SidebarIcon kind="plan" />
+          Plan details
+        </button>
         <button
           type="button"
           className="canvas-sidebar-workflow"

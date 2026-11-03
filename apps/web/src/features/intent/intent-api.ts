@@ -1,3 +1,6 @@
+import type { KnowledgeArchitecture } from "@orbit/domain";
+import type { KnowledgeGenerationActivity } from "@orbit/domain";
+import { readKnowledgeStream } from "../planning/read-knowledge-stream.js";
 import { ProjectApiError, type ConnectedRepository } from "../projects/project-api.js";
 
 export interface StoredIntent {
@@ -125,6 +128,7 @@ export interface ProjectTask {
 }
 
 export interface ProjectKnowledgeSummary {
+  architectureDetails?: KnowledgeArchitecture | null;
   summary: string;
   architecture: string;
   features: string[];
@@ -161,7 +165,10 @@ export interface ProjectKnowledgeSnapshot {
 export interface ProjectIntentApi {
   transcribeVoice(projectId: string, audioBase64: string): Promise<string>;
   getProjectKnowledge(projectId: string): Promise<readonly ProjectKnowledgeSnapshot[]>;
-  refreshProjectKnowledge(projectId: string): Promise<ProjectKnowledgeSnapshot>;
+  refreshProjectKnowledge(
+    projectId: string,
+    onActivity?: (activity: KnowledgeGenerationActivity) => void,
+  ): Promise<ProjectKnowledgeSnapshot>;
   reviewProjectKnowledge(
     projectId: string,
     snapshotId: string,
@@ -269,7 +276,12 @@ export function createIntentApi(
   fetchImpl: typeof fetch = fetch,
   options: ProjectIntentApiOptions = {},
 ): ProjectIntentApi {
-  async function request<T>(path: string, method = "GET", payload?: unknown): Promise<T> {
+  async function request<T>(
+    path: string,
+    method = "GET",
+    payload?: unknown,
+    readResponse?: (response: Response) => Promise<T>,
+  ): Promise<T> {
     const authorization = getAuthorization();
     if (!authorization) throw new ProjectApiError(401, "Sign in to manage your project.");
     let response: Response;
@@ -300,7 +312,7 @@ export function createIntentApi(
           : "Request failed. Try again.";
       throw new ProjectApiError(response.status, message);
     }
-    return (await response.json()) as T;
+    return readResponse ? readResponse(response) : ((await response.json()) as T);
   }
 
   const path = (id: string) => `/projects/${encodeURIComponent(id)}`;
@@ -317,13 +329,20 @@ export function createIntentApi(
       request<{ id: string; original_filename: string }>(`${path(id)}/documents`, "POST", file),
     getProjectKnowledge: async (id) =>
       (await request<{ snapshots: ProjectKnowledgeSnapshot[] }>(`${path(id)}/knowledge`)).snapshots,
-    refreshProjectKnowledge: async (id) =>
-      (
-        await request<{ snapshot: ProjectKnowledgeSnapshot }>(
-          `${path(id)}/knowledge/refresh`,
-          "POST",
-        )
-      ).snapshot,
+    refreshProjectKnowledge: async (id, onActivity) =>
+      onActivity
+        ? request<ProjectKnowledgeSnapshot>(
+            `${path(id)}/knowledge/refresh?stream=1`,
+            "POST",
+            undefined,
+            (response) => readKnowledgeStream(response, onActivity),
+          )
+        : (
+            await request<{ snapshot: ProjectKnowledgeSnapshot }>(
+              `${path(id)}/knowledge/refresh`,
+              "POST",
+            )
+          ).snapshot,
     reviewProjectKnowledge: async (id, snapshotId, expectedRevision, decision, note) =>
       (
         await request<{ snapshot: ProjectKnowledgeSnapshot }>(
