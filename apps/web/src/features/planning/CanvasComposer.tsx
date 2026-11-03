@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { VoiceRecordingPanel } from "./VoiceRecordingPanel.js";
 import { encodeVoice, recordIntentVoice } from "./intent-voice-recorder.js";
 
 interface CanvasComposerProps {
@@ -19,6 +20,7 @@ export function CanvasComposer({
   onTranscribeVoice,
 }: CanvasComposerProps) {
   const [attachments, setAttachments] = useState<File[]>([]);
+  const [showAllAttachments, setShowAllAttachments] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [submissionError, setSubmissionError] = useState<string | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
@@ -26,16 +28,36 @@ export function CanvasComposer({
   const [voiceState, setVoiceState] = useState<"idle" | "starting" | "recording" | "transcribing">(
     "idle",
   );
+  const voiceOperation = useRef(0);
+  const [isVoicePaused, setIsVoicePaused] = useState(false);
+  const [recordingSeconds, setRecordingSeconds] = useState(0);
+  const [audioLevels, setAudioLevels] = useState<readonly number[]>([]);
   const [voiceError, setVoiceError] = useState<string | null>(null);
+  const draftInput = useRef<HTMLTextAreaElement>(null);
+  const previousVoiceState = useRef(voiceState);
+  useEffect(() => {
+    if (voiceState === "idle" && previousVoiceState.current !== "idle") draftInput.current?.focus();
+    previousVoiceState.current = voiceState;
+  }, [voiceState]);
   useEffect(
     () => () => {
+      voiceOperation.current += 1;
       voiceSession.current?.cancel();
       voiceSession.current = null;
     },
     [],
   );
+  function cancelVoice() {
+    voiceOperation.current += 1;
+    voiceSession.current?.cancel();
+    voiceSession.current = null;
+    setAudioLevels([]);
+    setVoiceState("idle");
+    setVoiceError(null);
+  }
   async function toggleVoice() {
     if (voiceState === "recording") {
+      const operation = voiceOperation.current;
       const session = voiceSession.current;
       if (!session) return;
       voiceSession.current = null;
@@ -44,23 +66,43 @@ export function CanvasComposer({
         const blob = await session.stop();
         if (!onTranscribeVoice) throw new Error("Muse Voice is not configured.");
         const transcript = await onTranscribeVoice(await encodeVoice(blob));
+        if (operation !== voiceOperation.current) return;
         if (!transcript) throw new Error("No speech was detected. Try recording again.");
-        onDraftChange([draftIdea.trim(), transcript].filter(Boolean).join("\\n").slice(0, 10000));
+        onDraftChange([draftIdea.trim(), transcript].filter(Boolean).join("\n").slice(0, 10000));
       } catch (cause) {
-        setVoiceError(cause instanceof Error ? cause.message : "Transcription failed.");
+        if (operation === voiceOperation.current)
+          setVoiceError(cause instanceof Error ? cause.message : "Transcription failed.");
       } finally {
-        setVoiceState("idle");
+        if (operation === voiceOperation.current) setVoiceState("idle");
       }
       return;
     }
     if (voiceState !== "idle" || !onTranscribeVoice) return;
+    const operation = ++voiceOperation.current;
+    setAudioLevels([]);
+    setIsVoicePaused(false);
+    setRecordingSeconds(0);
     setVoiceState("starting");
     setVoiceError(null);
     try {
-      voiceSession.current = await recordIntentVoice(() => setVoiceState("recording"));
+      const session = await recordIntentVoice(
+        () => {
+          if (operation === voiceOperation.current) setVoiceState("recording");
+        },
+        (level, elapsedSeconds) => {
+          if (operation === voiceOperation.current) {
+            setAudioLevels((levels) => [...levels.slice(-55), level]);
+            setRecordingSeconds(Math.floor(elapsedSeconds));
+          }
+        },
+      );
+      if (operation !== voiceOperation.current) session.cancel();
+      else voiceSession.current = session;
     } catch (cause) {
-      setVoiceError(cause instanceof Error ? cause.message : "Microphone unavailable.");
-      setVoiceState("idle");
+      if (operation === voiceOperation.current) {
+        setVoiceError(cause instanceof Error ? cause.message : "Microphone unavailable.");
+        setVoiceState("idle");
+      }
     }
   }
   const ready =
@@ -86,45 +128,6 @@ export function CanvasComposer({
 
   return (
     <section className="canvas-empty-state" aria-labelledby="canvas-empty-heading">
-      <div
-        className="canvas-view-controls canvas-composer-view-controls"
-        role="toolbar"
-        aria-label="Composer preview controls"
-        title="Pan, fit and zoom are available in the Workflow graph"
-      >
-        <div>
-          <button type="button" disabled aria-label="Pan preview" aria-pressed="true">
-            <svg
-              width="20"
-              height="20"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              aria-hidden="true"
-            >
-              <path d="M8 13V5a1.5 1.5 0 0 1 3 0v6-8a1.5 1.5 0 0 1 3 0v8-6a1.5 1.5 0 0 1 3 0v7-4a1.5 1.5 0 0 1 3 0v7c0 5-3 7-7 7-3 0-5-2-6-4l-3-5a1.5 1.5 0 0 1 2-2l2 2Z" />
-            </svg>
-          </button>
-          <button type="button" disabled aria-label="Fit preview">
-            <span aria-hidden="true">⌗</span>
-          </button>
-          <button type="button" disabled aria-label="Expand preview">
-            <span aria-hidden="true">⛶</span>
-          </button>
-        </div>
-        <div>
-          <button type="button" disabled aria-label="Zoom preview out">
-            −
-          </button>
-          <output aria-label="Preview zoom">100%</output>
-          <button type="button" disabled aria-label="Zoom preview in">
-            ＋
-          </button>
-        </div>
-      </div>
       <span className="canvas-empty-spark" aria-hidden="true">
         <svg width="42" height="42" viewBox="0 0 40 40" fill="currentColor">
           <path d="m18 6 4 10 10 4-10 4-4 10-4-10-10-4 10-4ZM32 3l2 5 5 2-5 2-2 5-2-5-5-2 5-2Z" />
@@ -138,68 +141,183 @@ export function CanvasComposer({
       <label className="canvas-empty-label" htmlFor="canvas-project-idea">
         Canvas project idea
       </label>
-      <div className="canvas-composer-input">
-        <textarea
-          id="canvas-project-idea"
-          value={draftIdea}
-          onChange={(event) => onDraftChange(event.target.value)}
-          maxLength={10000}
-          rows={1}
-          placeholder={"e.g. Build a landing page that shows “Hello World”"}
-          aria-describedby="canvas-draft-help"
-        />
-      </div>
-      {!isPreview && (
-        <div className="canvas-composer-attachments">
-          <input
-            ref={fileInput}
-            type="file"
-            accept=".pdf,.docx,.md,.txt"
-            multiple
-            disabled={submitting}
-            aria-label="Attach supporting documents"
-            onChange={(event) => {
-              const incoming = Array.from(event.target.files ?? []);
-              const combined = [...attachments, ...incoming].filter(
-                (file, index, all) =>
-                  all.findIndex(
-                    (item) =>
-                      item.name === file.name &&
-                      item.size === file.size &&
-                      item.lastModified === file.lastModified,
-                  ) === index,
-              );
-              const validExtension = /\.(pdf|docx|md|txt)$/i;
-              if (
-                combined.length > 10 ||
-                combined.some(
-                  (file) =>
-                    !validExtension.test(file.name) || file.size < 1 || file.size > 5 * 1024 * 1024,
-                )
-              ) {
-                setSubmissionError("Choose up to 10 PDF, DOCX, Markdown or TXT files, 5 MB each.");
-              } else {
-                setAttachments(combined);
-                setSubmissionError(null);
-              }
-              event.target.value = "";
+      <div className="canvas-composer-input" data-voice-active={voiceState !== "idle"}>
+        {voiceState !== "idle" && (
+          <VoiceRecordingPanel
+            phase={voiceState}
+            levels={audioLevels}
+            elapsedSeconds={recordingSeconds}
+            isPaused={isVoicePaused}
+            onTogglePause={() => {
+              voiceSession.current?.setPaused(!isVoicePaused);
+              setIsVoicePaused(!isVoicePaused);
+            }}
+            onCancel={cancelVoice}
+            onStop={() => {
+              void toggleVoice();
             }}
           />
-          {attachments.map((file, index) => (
-            <span key={file.name + file.lastModified + index} className="canvas-attachment-chip">
-              {file.name}
-              <button
-                type="button"
-                disabled={submitting}
-                aria-label={`Remove ${file.name}`}
-                onClick={() => setAttachments((items) => items.filter((_, i) => i !== index))}
-              >
-                ×
-              </button>
-            </span>
-          ))}
+        )}
+        <div className="canvas-composer-text-panel" hidden={voiceState !== "idle"}>
+          <textarea
+            ref={draftInput}
+            id="canvas-project-idea"
+            disabled={voiceState !== "idle" || submitting}
+            value={draftIdea}
+            onChange={(event) => onDraftChange(event.target.value)}
+            maxLength={10000}
+            rows={3}
+            placeholder={"e.g. Build a landing page that shows “Hello World”"}
+            aria-describedby="canvas-draft-help"
+          />
         </div>
-      )}
+        <div className="canvas-composer-toolbar">
+          <div className="canvas-composer-attachments">
+            <input
+              hidden
+              ref={fileInput}
+              type="file"
+              accept=".pdf,.docx,.md,.txt"
+              multiple
+              disabled={submitting || isPreview || voiceState !== "idle"}
+              aria-label="Attach supporting documents"
+              onChange={(event) => {
+                const incoming = Array.from(event.target.files ?? []);
+                const combined = [...attachments, ...incoming].filter(
+                  (file, index, all) =>
+                    all.findIndex(
+                      (item) =>
+                        item.name === file.name &&
+                        item.size === file.size &&
+                        item.lastModified === file.lastModified,
+                    ) === index,
+                );
+                const validExtension = /\.(pdf|docx|md|txt)$/i;
+                if (
+                  combined.length > 10 ||
+                  combined.some(
+                    (file) =>
+                      !validExtension.test(file.name) ||
+                      file.size < 1 ||
+                      file.size > 5 * 1024 * 1024,
+                  )
+                ) {
+                  setSubmissionError(
+                    "Choose up to 10 PDF, DOCX, Markdown or TXT files, 5 MB each.",
+                  );
+                } else {
+                  setAttachments(combined);
+                  setSubmissionError(null);
+                }
+                event.target.value = "";
+              }}
+            />
+            <button
+              type="button"
+              className="canvas-composer-attach"
+              disabled={submitting || isPreview || voiceState !== "idle"}
+              onClick={() => fileInput.current?.click()}
+            >
+              <svg
+                width="18"
+                height="18"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.7"
+                aria-hidden="true"
+              >
+                <path d="M8 12V6a4 4 0 0 1 8 0v11a6 6 0 0 1-12 0V7m8 0v10a2 2 0 0 1-4 0V6" />
+              </svg>
+              Attach files
+            </button>
+            <div className="canvas-composer-file-list" aria-label="Selected attachments">
+              {(showAllAttachments ? attachments : attachments.slice(0, 2)).map((file, index) => (
+                <span
+                  key={file.name + file.lastModified + index}
+                  className="canvas-attachment-chip"
+                >
+                  <svg
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                    aria-hidden="true"
+                  >
+                    <path d="M14 2H5v20h14V7Zm0 0v6h5M8 13h8M8 17h5" />
+                  </svg>
+                  <span title={file.name}>{file.name}</span>
+                  <button
+                    type="button"
+                    disabled={submitting || voiceState !== "idle"}
+                    aria-label={`Remove ${file.name}`}
+                    onClick={() => setAttachments((items) => items.filter((_, i) => i !== index))}
+                  >
+                    ×
+                  </button>
+                </span>
+              ))}
+              {attachments.length > 2 && (
+                <button
+                  type="button"
+                  className="canvas-composer-more"
+                  disabled={submitting || voiceState !== "idle"}
+                  aria-expanded={showAllAttachments}
+                  onClick={() => setShowAllAttachments(!showAllAttachments)}
+                >
+                  {showAllAttachments ? "Show less" : `+${attachments.length - 2} more`}
+                </button>
+              )}
+            </div>
+          </div>
+          <div className="canvas-composer-actions">
+            <button
+              type="button"
+              className="canvas-composer-voice"
+              disabled={isPreview || submitting || !onTranscribeVoice || voiceState !== "idle"}
+              onClick={() => {
+                void toggleVoice();
+              }}
+              aria-label={
+                voiceState === "recording"
+                  ? "Stop voice recording and transcribe"
+                  : "Record an Intent with Muse Voice"
+              }
+              aria-pressed={voiceState === "recording"}
+              title={
+                voiceState === "recording" ? "Stop recording" : "Record an Intent with Muse Voice"
+              }
+            >
+              <svg
+                width="20"
+                height="20"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.7"
+                strokeLinecap="round"
+                aria-hidden="true"
+              >
+                <rect x="9" y="2" width="6" height="13" rx="3" />
+                <path d="M5 10v2a7 7 0 0 0 14 0v-2M12 19v3m-4 0h8" />
+              </svg>
+            </button>
+            <button
+              type="button"
+              className="canvas-composer-generate"
+              onClick={() => {
+                void submit();
+              }}
+              disabled={!ready}
+              aria-describedby="canvas-draft-help"
+            >
+              <span aria-hidden="true">✦</span> {submitting ? "Submitting…" : "Generate plan"}
+            </button>
+          </div>
+        </div>
+      </div>
       {submissionError && (
         <p className="intent-error" role="alert">
           {submissionError}
@@ -210,68 +328,11 @@ export function CanvasComposer({
           {voiceError}
         </p>
       )}
-      {voiceState !== "idle" && (
-        <p role="status">
-          {voiceState === "recording"
-            ? "Recording. Press the microphone again to transcribe."
-            : voiceState === "transcribing"
-              ? "Muse Voice is transcribing…"
-              : "Requesting microphone access…"}
-        </p>
-      )}
-      <div className="canvas-composer-actions">
-        <button
-          type="button"
-          className="canvas-composer-voice"
-          disabled={
-            isPreview ||
-            submitting ||
-            !onTranscribeVoice ||
-            voiceState === "transcribing" ||
-            voiceState === "starting"
-          }
-          onClick={() => {
-            void toggleVoice();
-          }}
-          aria-label={
-            voiceState === "recording"
-              ? "Stop voice recording and transcribe"
-              : "Record an Intent with Muse Voice"
-          }
-          aria-pressed={voiceState === "recording"}
-          title={voiceState === "recording" ? "Stop recording" : "Record an Intent with Muse Voice"}
-        >
-          <svg
-            width="20"
-            height="20"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.7"
-            strokeLinecap="round"
-            aria-hidden="true"
-          >
-            <rect x="9" y="2" width="6" height="13" rx="3" />
-            <path d="M5 10v2a7 7 0 0 0 14 0v-2M12 19v3m-4 0h8" />
-          </svg>
-        </button>
-        <button
-          type="button"
-          className="canvas-composer-generate"
-          onClick={() => {
-            void submit();
-          }}
-          disabled={!ready}
-          aria-describedby="canvas-draft-help"
-        >
-          <span aria-hidden="true">✦</span> {submitting ? "Submitting…" : "Generate plan"}
-        </button>
-      </div>
       <p id="canvas-draft-help" className="canvas-empty-help">
         {isPreview ? (
           "Preview only. Your saved intent and plan are unchanged."
         ) : (
-          <>Attach supporting documents and generate your plan here.</>
+          <>Add docs, specs, or context to help Muse Spark create a better plan.</>
         )}
       </p>
       <ul className="canvas-composer-benefits" aria-label="Workflow capabilities">
@@ -294,17 +355,6 @@ export function CanvasComposer({
           Execute with agents
         </li>
       </ul>
-      {!isPreview && (
-        <div className="canvas-composer-minimap" aria-label="Workflow minimap placeholder">
-          <svg width="130" height="50" viewBox="0 0 130 50" fill="none" aria-hidden="true">
-            <path d="M37 25h13v-14h18M50 25v14h18" stroke="#8b5cc2" />
-            <rect x="3" y="17" width="34" height="16" rx="3" fill="#5d2c8a33" stroke="#a46ee3" />
-            <rect x="68" y="3" width="34" height="16" rx="3" fill="#5d2c8a33" stroke="#a46ee3" />
-            <rect x="68" y="31" width="34" height="16" rx="3" fill="#5d2c8a33" stroke="#a46ee3" />
-          </svg>
-          <small>No workflow nodes yet</small>
-        </div>
-      )}
     </section>
   );
 }

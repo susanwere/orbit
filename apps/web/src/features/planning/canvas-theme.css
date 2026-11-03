@@ -406,7 +406,7 @@
 }
 
 .canvas-empty-state {
-  width: min(100% - 80px, 870px);
+  width: min(100% - 80px, 1040px);
   min-height: 100svh;
   margin: 0 auto;
   padding: 130px 0 100px;
@@ -452,10 +452,11 @@
 }
 .canvas-composer-input {
   width: 100%;
-  min-height: 74px;
+  min-height: 190px;
   display: flex;
-  align-items: center;
-  gap: 16px;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0;
   padding: 12px 16px;
   border: 1px solid #a16cdf;
   border-radius: 15px;
@@ -471,9 +472,9 @@
   flex: 1;
   width: 100%;
   min-width: 0;
-  height: 44px;
-  min-height: 44px;
-  max-height: 180px;
+  height: 100px;
+  min-height: 100px;
+  max-height: 300px;
   padding: 10px 4px;
   border: 0;
   background: transparent;
@@ -495,8 +496,9 @@
   align-items: center;
   justify-content: flex-end;
   gap: 12px;
-  width: 100%;
-  margin-top: 14px;
+  width: auto;
+  flex-shrink: 0;
+  margin-top: 0;
 }
 .canvas-composer-voice {
   display: grid;
@@ -533,10 +535,10 @@
   opacity: 0.65;
 }
 .canvas-empty-state .canvas-empty-help {
-  align-self: flex-start;
-  margin: 12px 0 0;
-  text-align: left;
-  font-size: 11px;
+  align-self: center;
+  margin: 24px 0 0;
+  text-align: center;
+  font-size: 13px;
   color: #bcb0ce;
 }
 .canvas-empty-help button {
@@ -1249,48 +1251,275 @@
   height: auto;
 }
 
-/* Intent document attachments sit beneath the canvas composer, not in a sidebar. */
+/* The composer shares one surface for the draft, attachments and submission controls. */
+.canvas-composer-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  width: 100%;
+  padding-top: 14px;
+  border-top: 1px solid #8d69b54d;
+}
 .canvas-composer-attachments {
   display: flex;
-  flex-wrap: wrap;
+  flex: 1;
+  align-items: center;
+  gap: 16px;
+  min-width: 0;
+}
+.canvas-composer-attach,
+.canvas-composer-more {
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 0.5rem;
-  width: min(100%, 680px);
-  margin: 0.25rem auto 0.6rem;
-}
-.canvas-composer-attachments input[type="file"] {
-  color: #bfb1d7;
+  gap: 10px;
+  flex-shrink: 0;
+  min-height: 42px;
+  padding: 8px 12px;
+  border: 1px solid #a67be34d;
+  border-radius: 12px;
+  background: #7048ae2e;
+  color: #f2eaff;
   font: inherit;
-  font-size: 0.8rem;
-  max-width: 100%;
-}
-.canvas-composer-attachments input[type="file"]::file-selector-button {
-  color: #e7d9ff;
-  background: rgba(112, 72, 174, 0.18);
-  border: 1px solid rgba(175, 138, 226, 0.4);
-  border-radius: 0.65rem;
-  padding: 0.45rem 0.7rem;
-  margin-right: 0.65rem;
+  font-size: 13px;
   cursor: pointer;
+}
+.canvas-composer-file-list {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-width: 0;
+  padding-left: 16px;
+  border-left: 1px solid #a67be34d;
+}
+.canvas-composer-file-list:empty {
+  display: none;
 }
 .canvas-attachment-chip {
   color: #e8ddf7;
   display: inline-flex;
   align-items: center;
-  gap: 0.5rem;
-  border: 1px solid rgba(175, 138, 226, 0.4);
-  background: rgba(100, 58, 152, 0.22);
-  border-radius: 0.65rem;
-  padding: 0.3rem 0.55rem;
-  font-size: 0.8rem;
-  overflow-wrap: anywhere;
+  gap: 8px;
+  min-width: 0;
+  max-width: 185px;
+  min-height: 38px;
+  border: 1px solid #af8ae266;
+  background: #643a982e;
+  border-radius: 11px;
+  padding: 6px 10px;
+  font-size: 12px;
+}
+.canvas-attachment-chip > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.canvas-attachment-chip svg,
+.canvas-attachment-chip button {
+  flex-shrink: 0;
 }
 .canvas-attachment-chip button {
   background: transparent;
   border: 0;
   color: inherit;
   cursor: pointer;
-  font-size: 1rem;
-  padding: 0 0.15rem;
+  font-size: 18px;
+  padding: 0 2px;
+}
+.canvas-composer-benefits li + li {
+  border-left: 1px solid #a67be34d;
+  padding-left: 28px;
+}
+@media (max-width: 1100px) {
+  .canvas-composer-toolbar {
+    flex-wrap: wrap;
+  }
+  .canvas-composer-attachments {
+    flex-basis: 100%;
+  }
+  .canvas-composer-actions {
+    margin-left: auto;
+  }
+  .canvas-composer-benefits li + li {
+    padding-left: 16px;
+  }
+}
+@media (max-width: 760px) {
+  .canvas-composer-input {
+    gap: 0;
+  }
+  .canvas-composer-input textarea {
+    flex-basis: auto;
+    min-height: 100px;
+    height: 100px;
+  }
+  .canvas-composer-attachments {
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  .canvas-composer-file-list {
+    padding-left: 0;
+    border: 0;
+  }
+  .canvas-composer-benefits li + li {
+    border: 0;
+    padding-left: 0;
+  }
+}
+
+.canvas-composer-text-panel {
+  width: 100%;
+}
+.canvas-composer-text-panel[hidden] {
+  display: none;
+}
+.canvas-composer-input[data-voice-active="true"] {
+  justify-content: center;
+}
+.composer-recording-panel {
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr) 40px;
+  align-items: center;
+  gap: 16px;
+  width: 100%;
+  padding: 24px 4px 10px;
+}
+.composer-recording-panel button {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border: 1px solid #af84e65c;
+  border-radius: 50%;
+  background: #7048ae26;
+  color: #ebdcff;
+  cursor: pointer;
+}
+.composer-recording-panel .composer-recording-stop {
+  background: #8043db;
+}
+.composer-recording-panel button:disabled {
+  opacity: 0.5;
+  cursor: wait;
+}
+.composer-recording-wave {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
+  height: 44px;
+  overflow: hidden;
+}
+.composer-recording-wave span {
+  display: block;
+  width: 3px;
+  min-width: 2px;
+  border-radius: 3px;
+  background: #c79bff;
+  transition: height 100ms ease;
+}
+.composer-recording-panel p {
+  grid-column: 1 / -1;
+  margin: 0;
+  text-align: center;
+  font-size: 13px;
+  color: #c9b5df;
+}
+@media (prefers-reduced-motion: reduce) {
+  .composer-recording-wave span {
+    transition: none;
+  }
+}
+
+.composer-recording-panel {
+  grid-template-columns: minmax(90px, auto) minmax(0, 1fr) auto;
+  min-height: 100px;
+  padding: 16px 4px;
+}
+.composer-recording-indicator {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  color: #e8dcfa;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+.composer-recording-dot {
+  width: 9px;
+  height: 9px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: #f4497b;
+  box-shadow: 0 0 12px #f4497b44;
+}
+.composer-recording-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.composer-recording-panel button {
+  border-radius: 11px;
+  background: #7048ae26;
+}
+.composer-recording-panel button[hidden] {
+  display: none;
+}
+.composer-recording-panel .composer-recording-stop {
+  background: #7048ae40;
+}
+.composer-recording-panel .composer-recording-cancel {
+  width: 28px;
+  height: 28px;
+  border: 0;
+  background: transparent;
+  color: #bfa8d8;
+}
+.composer-recording-wave {
+  justify-content: space-between;
+  width: 100%;
+}
+.composer-recording-wave span {
+  background: linear-gradient(#b965ff, #7425d6);
+}
+.composer-transcribing-spinner {
+  width: 20px;
+  height: 20px;
+  border: 2px solid #8756b966;
+  border-top-color: #c891ff;
+  border-radius: 50%;
+  animation: composer-transcribing 1s linear infinite;
+}
+@keyframes composer-transcribing {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@media (max-width: 640px) {
+  .composer-recording-panel {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 8px;
+  }
+  .composer-recording-indicator {
+    grid-column: 1;
+  }
+  .composer-recording-wave {
+    grid-row: 2;
+    grid-column: 1 / -1;
+  }
+  .composer-recording-controls {
+    grid-row: 1;
+    grid-column: 2;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .composer-transcribing-spinner {
+    animation: none;
+  }
+}
+
+.canvas-composer-toolbar button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  box-shadow: none;
 }
