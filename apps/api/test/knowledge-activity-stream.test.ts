@@ -104,7 +104,7 @@ describe("authenticated knowledge activity stream", () => {
       });
       expect(complete).toHaveBeenCalledWith(
         expect.objectContaining({
-          timeoutMs: 90_000,
+          timeoutMs: 120_000,
           systemPrompt: expect.stringContaining("You are Muse Spark, a senior software architect"),
         }),
       );
