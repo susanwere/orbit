@@ -10,6 +10,7 @@ export interface EngineeringExecutionRequest {
   readonly workspace: string;
   readonly modelSteps: number;
   readonly timeoutMs: number;
+  readonly onEvent?: (event: unknown) => Promise<void>;
 }
 export interface EngineeringExecutionResult {
   readonly provider: string;
@@ -30,6 +31,7 @@ export interface MuseProcessRunner {
       cwd: string;
       timeoutMs: number;
       maxOutputBytes: number;
+      onEvent?: (event: unknown) => Promise<void>;
     },
   ): Promise<{ exitCode: number | null; stdout: string; changedPaths?: readonly string[] }>;
 }
@@ -97,7 +99,12 @@ export class MuseCodeCliExecutor implements EngineeringExecutor {
           "--workspace",
           request.workspace,
         ],
-        { cwd: request.workspace, timeoutMs: request.timeoutMs, maxOutputBytes: 2_000_000 },
+        {
+          cwd: request.workspace,
+          timeoutMs: request.timeoutMs,
+          maxOutputBytes: 2_000_000,
+          onEvent: request.onEvent,
+        },
       );
       const events: unknown[] = [];
       for (const line of run.stdout.split("\n")) {
@@ -132,6 +139,7 @@ export class LocalMuseProcessRunner implements MuseProcessRunner {
       cwd: string;
       timeoutMs: number;
       maxOutputBytes: number;
+      onEvent?: (event: unknown) => Promise<void>;
     },
   ) {
     return new Promise<{
@@ -150,6 +158,18 @@ export class LocalMuseProcessRunner implements MuseProcessRunner {
         shell: false,
       });
       let stdout = "";
+      const decoder = new MuseJsonLineDecoder();
+      let pendingEvents = Promise.resolve();
+      const captureEvents = (events: readonly unknown[]) => {
+        const onEvent = options.onEvent;
+        if (!onEvent) return;
+        for (const event of events) {
+          pendingEvents = pendingEvents.then(() => onEvent(event));
+        }
+        void pendingEvents.catch(() =>
+          fail(new Error("Could not record Muse execution activity.")),
+        );
+      };
       let size = 0;
       let settled = false;
       const fail = (error: Error) => {
@@ -160,14 +180,24 @@ export class LocalMuseProcessRunner implements MuseProcessRunner {
         reject(error);
       };
       const timer = setTimeout(() => fail(new Error("Muse Code timed out.")), options.timeoutMs);
-      child.stdout.on("data", (chunk: Buffer) => {
-        size += chunk.length;
+      child.stdout.setEncoding("utf8");
+      child.stdout.on("data", (chunk: string) => {
+        size += Buffer.byteLength(chunk, "utf8");
         if (size > options.maxOutputBytes)
           return fail(new Error("Muse Code output limit exceeded."));
-        stdout += chunk.toString("utf8");
+        stdout += chunk;
+        captureEvents(decoder.push(chunk));
       });
       child.on("error", fail);
       child.on("close", async (code) => {
+        if (settled) return;
+        captureEvents(decoder.finish());
+        try {
+          await pendingEvents;
+        } catch {
+          fail(new Error("Could not record Muse execution activity."));
+          return;
+        }
         if (settled) return;
         clearTimeout(timer);
         if (!this.collectRepositoryChanges) {
@@ -210,5 +240,32 @@ export class LocalMuseProcessRunner implements MuseProcessRunner {
         }
       });
     });
+  }
+}
+
+/** JSONL framing survives arbitrary stdout chunk boundaries; diagnostics are never forwarded. */
+export class MuseJsonLineDecoder {
+  private remaining = "";
+  push(chunk: string): unknown[] {
+    const lines = (this.remaining + chunk).split("\n");
+    this.remaining = lines.pop() ?? "";
+    return this.parse(lines);
+  }
+  finish(): unknown[] {
+    const events = this.parse([this.remaining]);
+    this.remaining = "";
+    return events;
+  }
+  private parse(lines: readonly string[]): unknown[] {
+    const events: unknown[] = [];
+    for (const line of lines) {
+      if (!line.trim()) continue;
+      try {
+        events.push(JSON.parse(line) as unknown);
+      } catch {
+        /* Ignore non-JSON diagnostics. */
+      }
+    }
+    return events;
   }
 }

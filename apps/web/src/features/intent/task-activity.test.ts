@@ -99,3 +99,15 @@ describe("friendly task activity", () => {
     expect(noChanges.headline).toContain("made no code changes");
   });
 });
+
+it("reports a merged task as finished instead of continuing to request review", () => {
+  const activity = describeTaskActivity(
+    task({
+      state: "DONE",
+      displayState: "DONE",
+      job: job({ status: "TURN_FINISHED", github_pull_number: 11, github_ci_state: "PASSED" }),
+    }),
+  );
+  expect(activity.headline).toBe("Pull request merged and verified");
+  expect(activity.isWorking).toBe(false);
+});

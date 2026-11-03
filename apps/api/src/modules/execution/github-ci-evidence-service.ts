@@ -1,3 +1,4 @@
+import { isGitHubRunForPullRequest } from "./github-ci-run-identity.js";
 import { randomUUID } from "node:crypto";
 import { DomainError } from "@orbit/domain";
 import type { SqlDatabase } from "@orbit/db";
@@ -9,12 +10,13 @@ interface GithubRun {
   event?: string;
   name?: string;
   head_sha?: string;
+  head_branch?: string;
   repository?: { full_name?: string };
   pull_requests?: { number?: number; head?: { sha?: string } }[];
 }
 interface GithubPull {
   number?: number;
-  head?: { sha?: string };
+  head?: { sha?: string; ref?: string; repo?: { full_name?: string } };
   base?: { repo?: { full_name?: string } };
   merged_at?: string | null;
 }
@@ -81,14 +83,18 @@ export class GithubCiEvidenceService {
       pull.base?.repo?.full_name !== input.repository ||
       !pull.merged_at ||
       !pull.head?.sha ||
-      !run.pull_requests?.some(
-        (candidate) =>
-          candidate.number === input.pullNumber && candidate.head?.sha === pull.head?.sha,
-      )
+      !isGitHubRunForPullRequest(run, {
+        repository: input.repository,
+        number: input.pullNumber,
+        headSha: pull.head.sha,
+        headBranch: pull.head.repo?.full_name === input.repository ? pull.head.ref : undefined,
+        merged: Boolean(pull.merged_at),
+      })
     ) {
       throw new DomainError("invalid_state", "GitHub PR and successful CI evidence do not match.");
     }
 
+    const deliveredHeadSha = pull.head.sha;
     return this.db.transaction(async (tx) => {
       await tx.query("SELECT pg_advisory_xact_lock(hashtextextended($1, 0))", [
         `orbit:steps:${actor.organizationId}:${input.projectId}`,
@@ -109,7 +115,7 @@ export class GithubCiEvidenceService {
            AND job.project_id=step.project_id AND job.organization_id=step.organization_id
            AND job.workflow_step_id=step.id
          WHERE step.id=$1 AND step.project_id=$2 AND step.organization_id=$3
-           AND step.state='RUNNING' AND session.state='RUNNING'
+           AND step.state IN ('RUNNING','WAITING') AND session.state IN ('RUNNING','WAITING')
            AND plan.status='APPROVED' AND plan.revision=step.plan_revision
            AND job.status='TURN_FINISHED'
            AND job.github_repository=$5
@@ -129,7 +135,7 @@ export class GithubCiEvidenceService {
           JSON.stringify([input.repository]),
           input.repository,
           input.pullNumber,
-          run.head_sha,
+          deliveredHeadSha,
         ],
       );
       const ready = eligible.rows[0];
@@ -158,24 +164,63 @@ export class GithubCiEvidenceService {
             repository: input.repository,
             runId: input.runId,
             pullNumber: input.pullNumber,
-            headSha: run.head_sha,
+            headSha: deliveredHeadSha,
+            runHeadSha: run.head_sha,
           }),
+        ],
+      );
+      const verifiedReport = {
+        repository: input.repository,
+        pullNumber: input.pullNumber,
+        headSha: deliveredHeadSha,
+        state: "PASSED",
+        summary: "Merged pull request with independently verified passing CI.",
+        runs: [
+          {
+            id: input.runId,
+            name: "CI",
+            conclusion: "success",
+            url: `https://github.com/${input.repository}/actions/runs/${input.runId}`,
+            failures: [],
+          },
+        ],
+      };
+      await tx.query(
+        `UPDATE muse_execution_jobs SET github_ci_state='PASSED',github_ci_report=$5::jsonb,github_ci_checked_at=now()
+         WHERE id=$1 AND project_id=$2 AND organization_id=$3 AND github_head_sha=$4`,
+        [
+          ready.job_id,
+          input.projectId,
+          actor.organizationId,
+          deliveredHeadSha,
+          JSON.stringify(verifiedReport),
         ],
       );
       await tx.query(
         `UPDATE agent_sessions SET state='COMPLETED',ended_at=now()
-         WHERE id=$1 AND project_id=$2 AND organization_id=$3 AND state='RUNNING'`,
+         WHERE id=$1 AND project_id=$2 AND organization_id=$3 AND state IN ('RUNNING','WAITING')`,
         [ready.agent_session_id, input.projectId, actor.organizationId],
       );
       const completed = await tx.query<Record<string, unknown>>(
         `UPDATE workflow_step_executions SET state='COMPLETED',completed_at=now()
-         WHERE id=$1 AND project_id=$2 AND organization_id=$3 AND state='RUNNING'
+         WHERE id=$1 AND project_id=$2 AND organization_id=$3 AND state IN ('RUNNING','WAITING')
          RETURNING id,state`,
         [input.stepId, input.projectId, actor.organizationId],
       );
       if (!completed.rows[0]) {
         throw new DomainError("invalid_state", "Workflow step completion conflicted.");
       }
+      await tx.query(
+        `UPDATE project_tasks SET state='DONE',last_error=NULL,updated_at=now()
+         WHERE project_id=$1 AND organization_id=$2 AND step_id=$3 AND session_id=$4
+           AND state IN ('ACTIVE','IN_REVIEW')`,
+        [input.projectId, actor.organizationId, input.stepId, ready.agent_session_id],
+      );
+      await tx.query(
+        `INSERT INTO muse_execution_activity(job_id,organization_id,project_id,stage,status,message)
+         VALUES($1,$2,$3,'output','completed','Pull request merged and CI evidence verified. Workflow step completed.')`,
+        [ready.job_id, actor.organizationId, input.projectId],
+      );
       return completed.rows[0];
     });
   }

@@ -290,7 +290,8 @@ export class TaskExecutionService {
       "\n\nInternal execution instructions (always follow, do not create separate tasks):\n" +
       "- First, discover current implementation related to this task (read files, locate existing pattern, check whether feature exists). This is internal — do not produce a separate discovery output.\n" +
       "- Then implement the required change fully, in allowed paths only.\n" +
-      "- Finally, verify locally (npm ci && npm run build if JS/TS project). Summarize clearly: What was implemented, Where, Verification result, and files changed. This summary becomes the PR description and completion message.";
+      "- Finally, verify locally (npm ci && npm run build if JS/TS project). Summarize clearly: What was implemented, Where, Verification result, and files changed. This summary becomes the PR description and completion message.\n" +
+      "- Format the final summary as concise Markdown with headings for What changed, Files changed, Verification, and Notes when needed. Use bullet lists and inline code for paths and identifiers. Include fenced code blocks with a language label for short, exact code changes or relevant commands when useful. Clearly label commands that were actually run versus suggested commands; never imply a check passed if it was not run.";
     const contextPrefix = dependencyOutputs.length
       ? `Previous tasks completed and their findings (use this context for your work):\n${dependencyOutputs
           .map((dep) => `--- ${dep.taskKey}: ${dep.title} ---\n${dep.output}`)

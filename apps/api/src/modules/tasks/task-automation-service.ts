@@ -1,3 +1,5 @@
+import { GithubCiEvidenceService } from "../execution/github-ci-evidence-service.js";
+import type { GithubCiReport } from "../execution/github-ci-monitor.js";
 import { DomainError } from "@orbit/domain";
 import type { SqlDatabase } from "@orbit/db";
 import type { ProjectAuthorizationService } from "../projects/project-authorization.js";
@@ -10,6 +12,7 @@ import { MuseExecutionJobService } from "../execution/muse-execution-worker.js";
 
 interface AutomatedTaskRow extends Record<string, unknown> {
   id: string;
+  organization_id: string;
   plan_id: string;
   task_key: string;
   prompt: string;
@@ -27,8 +30,8 @@ interface AutomatedTaskRow extends Record<string, unknown> {
 /**
  * Continues a task that a human already authorized with Execute: waits for
  * CI, and on a verified failure keeps starting fresh Muse repair sessions
- * until CI is green. It never merges and never widens permissions; it stops
- * only at human gates, missing input, or a check that cannot be inspected.
+ * until CI is green, then observes the human merge and verifies completion.
+ * It never merges or widens permissions; execution pauses for review after CI.
  */
 export class TaskAutomationService {
   constructor(
@@ -40,18 +43,23 @@ export class TaskAutomationService {
     private readonly sessions: AgentSessionService,
     private readonly binding: StepSessionBindingService,
     private readonly museJobs: MuseExecutionJobService,
+    private readonly githubEvidence: GithubCiEvidenceService,
   ) {}
 
   /** Returns a short action label for logging, or null when there is nothing to advance. */
   async advanceNext(projectId: string): Promise<string | null> {
     const candidates = await this.database.query<AutomatedTaskRow>(
-      `SELECT task.id,task.plan_id,task.task_key,task.prompt,task.step_id,task.session_id,
+      `SELECT task.id,task.organization_id,task.plan_id,task.task_key,task.prompt,task.step_id,task.session_id,
               task.approved_by_principal_id,task.automatic_repairs,
               job.id AS job_id,job.status AS job_status,job.github_ci_state,job.github_pull_number,job.delivery_state
        FROM project_tasks task
        JOIN muse_execution_jobs job ON job.agent_session_id=task.session_id
          AND job.project_id=task.project_id AND job.organization_id=task.organization_id
-       WHERE task.project_id=$1 AND task.github_authorized=true AND task.state='ACTIVE'
+       JOIN workflow_step_executions step ON step.id=task.step_id
+         AND step.project_id=task.project_id AND step.organization_id=task.organization_id
+         AND step.agent_session_id=task.session_id AND job.workflow_step_id=step.id
+       WHERE task.project_id=$1 AND task.github_authorized=true AND task.state IN ('ACTIVE','IN_REVIEW')
+         AND step.state IN ('RUNNING','WAITING')
          AND task.step_id IS NOT NULL AND task.session_id IS NOT NULL
        ORDER BY job.created_at DESC LIMIT 20`,
       [projectId],
@@ -63,8 +71,8 @@ export class TaskAutomationService {
       } catch (error) {
         if (error instanceof DomainError) {
           await this.database.query(
-            `UPDATE project_tasks SET last_error=$3,updated_at=now() WHERE id=$1 AND project_id=$2`,
-            [task.id, projectId, error.message.slice(0, 500)],
+            `UPDATE project_tasks SET last_error=$4,updated_at=now() WHERE id=$1 AND project_id=$2 AND organization_id=$3 AND state IN ('ACTIVE','IN_REVIEW')`,
+            [task.id, projectId, task.organization_id, error.message.slice(0, 500)],
           );
           return `blocked:${task.id}`;
         }
@@ -72,6 +80,63 @@ export class TaskAutomationService {
       }
     }
     return null;
+  }
+
+  private async markAwaitingReview(
+    projectId: string,
+    task: AutomatedTaskRow,
+    report: GithubCiReport,
+  ): Promise<boolean> {
+    const actor = await this.authorization.authorize(
+      task.approved_by_principal_id,
+      projectId,
+      "review",
+    );
+    if (actor.organizationId !== task.organization_id)
+      throw new DomainError("forbidden", "Task belongs to another organization.");
+    return this.database.transaction(async (transaction) => {
+      const eligible = await transaction.query<{ state: string } & Record<string, unknown>>(
+        `SELECT step.state FROM workflow_step_executions step
+         JOIN agent_sessions session ON session.id=step.agent_session_id AND session.project_id=step.project_id AND session.organization_id=step.organization_id
+         JOIN muse_execution_jobs job ON job.agent_session_id=session.id AND job.project_id=step.project_id AND job.organization_id=step.organization_id AND job.workflow_step_id=step.id
+         JOIN plan_proposals plan ON plan.id=step.plan_id AND plan.project_id=step.project_id AND plan.organization_id=step.organization_id
+         JOIN project_tasks task ON task.id=$4 AND task.project_id=step.project_id AND task.organization_id=step.organization_id AND task.step_id=step.id AND task.session_id=session.id
+         WHERE step.id=$1 AND step.project_id=$2 AND step.organization_id=$3 AND job.id=$5
+           AND step.state IN ('RUNNING','WAITING') AND session.state IN ('RUNNING','WAITING')
+           AND plan.status='APPROVED' AND plan.revision=step.plan_revision
+           AND job.status='TURN_FINISHED' AND job.github_ci_state='PASSED' AND job.github_head_sha=$6
+           AND task.state IN ('ACTIVE','IN_REVIEW') AND task.github_authorized=true
+           AND NOT EXISTS (SELECT 1 FROM human_gates gate WHERE gate.project_id=step.project_id AND gate.organization_id=step.organization_id AND gate.agent_session_id=session.id AND gate.status='OPEN')
+         FOR UPDATE OF step,session,job,task`,
+        [task.step_id, projectId, actor.organizationId, task.id, task.job_id, report.headSha],
+      );
+      const step = eligible.rows[0];
+      if (!step)
+        throw new DomainError(
+          "invalid_state",
+          "Execution changed before review readiness could be recorded.",
+        );
+      await transaction.query(
+        "UPDATE workflow_step_executions SET state='WAITING' WHERE id=$1 AND project_id=$2 AND organization_id=$3",
+        [task.step_id, projectId, actor.organizationId],
+      );
+      await transaction.query(
+        "UPDATE agent_sessions SET state='WAITING' WHERE id=$1 AND project_id=$2 AND organization_id=$3",
+        [task.session_id, projectId, actor.organizationId],
+      );
+      await transaction.query(
+        "UPDATE project_tasks SET state='IN_REVIEW',last_error=NULL,updated_at=now() WHERE id=$1 AND project_id=$2 AND organization_id=$3",
+        [task.id, projectId, actor.organizationId],
+      );
+      if (step.state === "RUNNING") {
+        await transaction.query(
+          `INSERT INTO muse_execution_activity(job_id,organization_id,project_id,stage,status,message)
+          VALUES($1,$2,$3,'output','completed','CI passed. The pull request is ready for your review and merge.')`,
+          [task.job_id, actor.organizationId, projectId],
+        );
+      }
+      return step.state === "RUNNING";
+    });
   }
 
   private async advanceTask(projectId: string, task: AutomatedTaskRow): Promise<string | null> {
@@ -108,11 +173,25 @@ export class TaskAutomationService {
     });
     if (report.state === "WAITING" || report.state === "PENDING") return null;
     if (report.state === "PASSED") {
-      await this.database.query(
-        `UPDATE project_tasks SET state='IN_REVIEW',last_error=NULL,updated_at=now() WHERE id=$1 AND project_id=$2 AND state='ACTIVE'`,
-        [task.id, projectId],
-      );
-      return `ci-passed:${task.id}`;
+      if (report.mergedAt) {
+        const ciRun = report.runs.find((run) => run.name === "CI" && run.conclusion === "success");
+        if (!ciRun)
+          throw new DomainError(
+            "invalid_state",
+            "No passing CI run is available for merge verification.",
+          );
+        await this.githubEvidence.verify({
+          projectId,
+          principalId,
+          stepId: task.step_id,
+          repository: report.repository,
+          pullNumber: report.pullNumber,
+          runId: ciRun.id,
+        });
+        return `pr-merged:${task.id}`;
+      }
+      const changed = await this.markAwaitingReview(projectId, task, report);
+      return changed ? `ci-passed:${task.id}` : null;
     }
     if (report.state === "FAILED") {
       // Store CI failure summary as last_error so UI can show what failed,
@@ -124,7 +203,7 @@ export class TaskAutomationService {
         ? failedRuns.map((r) => `${r.name}: ${r.failures.join(", ")}`).join("; ")
         : report.summary.slice(0, 400);
       await this.database.query(
-        `UPDATE project_tasks SET last_error=$3,updated_at=now() WHERE id=$1 AND project_id=$2 AND state='ACTIVE'`,
+        `UPDATE project_tasks SET state='ACTIVE',last_error=$3,updated_at=now() WHERE id=$1 AND project_id=$2 AND state IN ('ACTIVE','IN_REVIEW')`,
         [
           task.id,
           projectId,
@@ -168,7 +247,7 @@ export class TaskAutomationService {
       principalId,
     });
     await this.database.query(
-      `UPDATE project_tasks SET session_id=$3,automatic_repairs=automatic_repairs+1,source_job_id=$4,last_error=NULL,updated_at=now() WHERE id=$1 AND project_id=$2`,
+      `UPDATE project_tasks SET state='ACTIVE',session_id=$3,automatic_repairs=automatic_repairs+1,source_job_id=$4,last_error=NULL,updated_at=now() WHERE id=$1 AND project_id=$2`,
       [task.id, projectId, repairSessionId, prepared.repairSourceJobId],
     );
     await this.sessions.start(projectId, principalId, repairSessionId);

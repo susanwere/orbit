@@ -21,7 +21,7 @@ async function main() {
   const database = new PgDatabase(process.env.DATABASE_URL);
   try {
     const jobs = await database.query<{ id: string } & Record<string, unknown>>(
-      `SELECT job.id FROM muse_execution_jobs job JOIN workflow_step_executions step ON step.id=job.workflow_step_id AND step.project_id=job.project_id AND step.organization_id=job.organization_id AND step.agent_session_id=job.agent_session_id WHERE job.project_id=$1 AND job.status='TURN_FINISHED' AND job.github_repository='susanwere/private-test' AND step.state='RUNNING' AND (job.github_ci_checked_at IS NULL OR job.github_ci_checked_at < now()-interval '30 seconds') ORDER BY job.github_ci_checked_at NULLS FIRST LIMIT 1`,
+      `SELECT job.id FROM muse_execution_jobs job JOIN workflow_step_executions step ON step.id=job.workflow_step_id AND step.project_id=job.project_id AND step.organization_id=job.organization_id AND step.agent_session_id=job.agent_session_id WHERE job.project_id=$1 AND job.status='TURN_FINISHED' AND job.github_repository='susanwere/private-test' AND step.state IN ('RUNNING','WAITING') AND (job.github_ci_checked_at IS NULL OR job.github_ci_checked_at < now()-interval '30 seconds') ORDER BY job.github_ci_checked_at NULLS FIRST LIMIT 1`,
       [projectId],
     );
     const job = jobs.rows[0];

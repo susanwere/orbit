@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 import type { ExecutionStep } from "../intent/intent-api.js";
-import { selectCurrentPlanSteps, overallWorkflowStatus } from "./work-item-status.js";
+import {
+  isReadyForReview,
+  executionDisplayState,
+  canvasExecutionPollDelay,
+  selectCurrentPlanSteps,
+  overallWorkflowStatus,
+} from "./work-item-status.js";
 
 const currentStep: ExecutionStep = {
   id: "current-step",
@@ -48,7 +54,7 @@ describe("overall workflow status", () => {
     [["WAITING", "READY"], "WAITING"],
     [["READY", "BLOCKED"], "READY"],
     [["COMPLETED", "BLOCKED"], "BLOCKED"],
-    [["COMPLETED", "CANCELED"], "CANCELED"],
+    [["COMPLETED", "CANCELED"], "COMPLETED"],
     [["CANCELED", "CANCELED"], "CANCELED"],
     [["COMPLETED", "COMPLETED"], "COMPLETED"],
   ] as const)("summarizes current steps %j as %s", (states, expected) => {
@@ -60,5 +66,24 @@ describe("overall workflow status", () => {
   it("does not claim completion for no evidence or an unrecognized state", () => {
     expect(overallWorkflowStatus([])).toBeUndefined();
     expect(overallWorkflowStatus([{ state: "UNKNOWN" }, { state: "COMPLETED" }])).toBeUndefined();
+  });
+});
+
+describe("review handoff", () => {
+  const waitingStep = { ...currentStep, state: "WAITING", blocker_reason: "pull_request_review" };
+  it("projects review readiness without mutating the persisted waiting state", () => {
+    expect(isReadyForReview(waitingStep)).toBe(true);
+    expect(executionDisplayState(waitingStep)).toBe("READY_FOR_REVIEW");
+    expect(overallWorkflowStatus([waitingStep, { state: "CANCELED" }])).toBe("READY_FOR_REVIEW");
+    expect(waitingStep.state).toBe("WAITING");
+    expect(isReadyForReview({ ...waitingStep, state: "COMPLETED" })).toBe(false);
+  });
+  it("uses slower merge observation after CI and stops polling completed executions", () => {
+    expect(canvasExecutionPollDelay([currentStep], [], {}, false)).toBe(2000);
+    expect(canvasExecutionPollDelay([waitingStep], [], {}, false)).toBe(15000);
+    expect(
+      canvasExecutionPollDelay([{ ...waitingStep, state: "COMPLETED" }], [], {}, false),
+    ).toBeNull();
+    expect(canvasExecutionPollDelay([waitingStep], [], {}, true)).toBe(2000);
   });
 });

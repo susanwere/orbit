@@ -35,7 +35,7 @@ export class MuseCiRepairService {
            AND job.status='TURN_FINISHED' AND (
              (job.github_ci_state='FAILED' AND job.github_head_sha=job.github_ci_report->>'headSha' AND job.github_repository='susanwere/private-test' AND job.github_pull_number IS NOT NULL)
              OR (job.github_pull_number IS NULL AND output.source='execution' AND output.changed_paths='[]'::jsonb AND source.github_repository='susanwere/private-test' AND source.github_pull_number IS NOT NULL AND source.github_head_sha=source.github_ci_report->>'headSha'))
-           AND session.state='RUNNING' AND step.state='RUNNING' AND step.completion_kind='github_ci'
+           AND session.state IN ('RUNNING','WAITING') AND step.state IN ('RUNNING','WAITING') AND step.completion_kind='github_ci'
            AND plan.status='APPROVED' AND plan.revision=step.plan_revision
            AND (session.requested_by_principal_id=$5 OR session.human_owner_principal_id=$5 OR $6='admin')
            AND NOT EXISTS (SELECT 1 FROM human_gates gate WHERE gate.project_id=job.project_id AND gate.organization_id=job.organization_id AND gate.agent_session_id=session.id AND gate.status='OPEN')

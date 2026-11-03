@@ -66,6 +66,14 @@ describe("Muse execution queue", () => {
     expect(recorded.args).toEqual(["project", "org", "session"]);
     expect(recorded.sql).toContain("job.organization_id=$2");
     expect(recorded.sql).toContain("session.organization_id=job.organization_id");
+    expect(recorded.sql).toContain(
+      "job_id=job.id AND project_id=job.project_id AND organization_id=job.organization_id",
+    );
+    expect(recorded.sql).toContain("ORDER BY id DESC LIMIT 200");
+    expect(recorded.sql).toContain(
+      "CASE WHEN step.state='COMPLETED' AND ci.artifact_ref IS NOT NULL THEN 'PASSED'",
+    );
+    expect(recorded.sql).toContain("evidence.metadata->>'headSha'=job.github_head_sha");
   });
 
   it("fails closed on duplicates or unauthorized dispatch", async () => {
@@ -87,6 +95,7 @@ describe("isolated Muse execution worker", () => {
     agent_session_id: "session",
     workflow_step_id: "step",
     status: "QUEUED",
+    attempts: 0,
     mission: "Implement a React component",
     allowed_repositories: ["org/repo"],
     allowed_paths: ["src/**"],
@@ -98,6 +107,10 @@ describe("isolated Muse execution worker", () => {
     let invoked = 0;
     const worker = new MuseExecutionWorker(
       {
+        query: async (sql: string) => {
+          statements.push(sql);
+          return { rows: [], rowCount: 0 };
+        },
         transaction: async (fn: (tx: unknown) => Promise<unknown>) =>
           fn({
             query: async (sql: string) => {

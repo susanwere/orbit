@@ -1,0 +1,117 @@
+.agent-authorization-modal {
+  width: min(480px, calc(100vw - 2rem));
+  max-height: calc(100dvh - 3rem);
+  box-sizing: border-box;
+  overflow-y: auto;
+  padding: 1.6rem;
+  color: #f4edff;
+  background: linear-gradient(140deg, #281636, #130d22);
+  border: 1px solid #a56dd1;
+  border-radius: 20px;
+  box-shadow: 0 24px 100px #000b;
+  font: inherit;
+}
+.agent-authorization-modal::backdrop {
+  background: #06030bbd;
+  backdrop-filter: blur(5px);
+}
+.agent-authorization-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.agent-authorization-heading > span {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border: 1px solid #9b61cd;
+  border-radius: 13px;
+  background: #8734b733;
+  color: #c695ff;
+  font-size: 1.5rem;
+}
+.agent-authorization-modal h2 {
+  margin: 1rem 0 0.6rem;
+  font-size: 1.35rem;
+}
+.agent-authorization-modal p {
+  color: #cbb8dd;
+  font-size: 0.83rem;
+  line-height: 1.6;
+}
+.agent-authorization-modal label {
+  display: block;
+  margin: 1rem 0 0.5rem;
+  font-size: 0.8rem;
+}
+.agent-authorization-modal :is(input:not([type="checkbox"]), select) {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  padding: 0.7rem;
+  background: #140e24;
+  color: #f0e3ff;
+  border: 1px solid #795492;
+  border-radius: 9px;
+  font: inherit;
+  font-size: 0.82rem;
+}
+.agent-authorization-modal button {
+  border: 1px solid #8d61ad;
+  border-radius: 9px;
+  padding: 0.6rem 0.8rem;
+  color: #eddefa;
+  background: #352044;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.8rem;
+}
+.agent-authorization-modal .workflow-execute {
+  background: linear-gradient(135deg, #a344ff, #6022ef);
+}
+.agent-authorization-modal button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.agent-authorization-modal .agent-authorization-heading button {
+  padding: 0.25rem 0.55rem;
+  font-size: 1.3rem;
+}
+.agent-authorization-modal :is(button, input, select, summary):focus-visible {
+  outline: 2px solid #d6a4ff;
+  outline-offset: 3px;
+}
+.agent-connect-repository {
+  margin-top: 1rem;
+  font-size: 0.8rem;
+}
+.agent-connect-repository summary {
+  cursor: pointer;
+  color: #d5b6f3;
+}
+.agent-connect-repository > div {
+  display: flex;
+  gap: 0.5rem;
+}
+.agent-authorization-modal .agent-authorization-consent {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.65rem;
+  line-height: 1.5;
+}
+.agent-authorization-consent input {
+  accent-color: #a45aff;
+  margin-top: 0.2rem;
+  flex-shrink: 0;
+}
+.agent-authorization-modal .agent-authorization-note {
+  font-size: 0.72rem;
+}
+.agent-authorization-actions {
+  display: flex;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  margin-top: 1.4rem;
+}

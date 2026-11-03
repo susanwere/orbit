@@ -156,3 +156,25 @@ describe("main workflow canvas", () => {
     expect(markup).not.toContain("Human approval required · gate");
   });
 });
+
+describe("canvas execution controls", () => {
+  it.each([false, true])("requires approval for executable cards (approved=%s)", (approved) => {
+    const markup = renderToStaticMarkup(
+      createElement(WorkGraphCanvas, {
+        items: [
+          { key: "ready", title: "Ready work", dependsOn: [], workflows: [] },
+          { key: "blocked", title: "Blocked work", dependsOn: ["ready"], workflows: [] },
+        ],
+        intent: "Intent",
+        approved,
+        selectedItemKey: null,
+        onSelect: () => undefined,
+        executableItemKeys: ["ready"],
+        onExecute: () => undefined,
+      }),
+    );
+    expect(markup.includes("Execute Ready work")).toBe(approved);
+    expect(markup).not.toContain("Execute Blocked work");
+    expect(markup).not.toContain("Execute Original intent");
+  });
+});

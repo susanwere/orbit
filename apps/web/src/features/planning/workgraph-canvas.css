@@ -155,3 +155,79 @@
 .workgraph-node {
   pointer-events: auto;
 }
+
+.workgraph-node-shell {
+  position: relative;
+}
+.workgraph-execute {
+  position: absolute;
+  right: 15px;
+  bottom: 14px;
+  left: 15px;
+  height: 34px;
+  border: 1px solid #c49aff;
+  border-radius: 8px;
+  color: white;
+  background: linear-gradient(135deg, #a050ff, #6420ea);
+  cursor: pointer;
+  pointer-events: auto;
+  font: inherit;
+  font-size: 12px;
+}
+.workgraph-execute:focus-visible {
+  outline: 2px solid #ead5ff;
+  outline-offset: 3px;
+}
+.workgraph-execute:disabled {
+  opacity: 0.5;
+  cursor: wait;
+}
+.orbit-workspace .workgraph-node-shell.is-ready .workgraph-node {
+  width: 300px;
+  min-height: 200px;
+  padding: 18px 18px 72px;
+  gap: 12px;
+  border-radius: 17px;
+  background: linear-gradient(135deg, #31213fee, #20192fee);
+  border-color: #d393ff;
+  box-shadow:
+    0 0 0 1px #b777e0,
+    0 0 22px #a043dd30,
+    inset 0 1px 10px #a45bdd30;
+}
+.orbit-workspace .workgraph-node-shell.is-ready .workgraph-status {
+  height: auto;
+  min-height: 0;
+  align-self: flex-start;
+  padding: 3px 9px;
+  border: 1px solid #5ce7af;
+  border-radius: 999px;
+  color: #b1ffdc;
+  background: #164a3433;
+  font-size: 10px;
+}
+.orbit-workspace .workgraph-node-shell.is-ready .workgraph-node > span:first-child {
+  padding-right: 76px;
+}
+.orbit-workspace .workgraph-node-shell.is-ready .workgraph-status {
+  position: absolute;
+  top: 14px;
+  right: 18px;
+}
+
+.orbit-workspace .workgraph-node-shell.is-ready .workgraph-node strong {
+  font-size: 16px;
+  line-height: 1.4;
+}
+.orbit-workspace .workgraph-node-shell.is-ready .workgraph-node small {
+  font-size: 12px;
+  height: auto;
+  min-height: 0;
+}
+.orbit-workspace .workgraph-node-shell.is-ready .workgraph-execute {
+  left: 18px;
+  right: 18px;
+  bottom: 18px;
+  height: 38px;
+  font-size: 13px;
+}

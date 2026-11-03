@@ -19,6 +19,7 @@ import { AgentContextSnapshotService } from "./modules/context/agent-context-sna
 import { StepSessionBindingService } from "./modules/execution/step-session-binding-service.js";
 import { WorkflowStepExecutionService } from "./modules/execution/workflow-step-execution-service.js";
 import { MuseExecutionJobService } from "./modules/execution/muse-execution-worker.js";
+import { GithubCiEvidenceService } from "./modules/execution/github-ci-evidence-service.js";
 import { GithubCiMonitor } from "./modules/execution/github-ci-monitor.js";
 import { MuseCiRepairService } from "./modules/execution/muse-ci-repair-service.js";
 
@@ -112,6 +113,11 @@ async function main() {
         ),
         new StepSessionBindingService(database, authorization),
         new MuseExecutionJobService(database, authorization),
+        new GithubCiEvidenceService(
+          database,
+          authorization,
+          process.env.ORBIT_GITHUB_EVIDENCE_TOKEN,
+        ),
       )
     : undefined;
   const ciTargets = async (): Promise<string[]> => {
@@ -121,10 +127,10 @@ async function main() {
         : `SELECT DISTINCT t.project_id FROM project_tasks t
          JOIN project_repositories repo ON repo.project_id=t.project_id AND repo.full_name='susanwere/private-test'
          WHERE t.state IN ('ACTIVE','IN_REVIEW')
-           AND EXISTS (SELECT 1 FROM muse_execution_jobs j WHERE j.project_id=t.project_id AND j.agent_session_id=t.session_id AND j.status='TURN_FINISHED' AND j.github_pull_number IS NOT NULL AND j.github_ci_state IN ('PENDING','WAITING','FAILED'))
+           AND EXISTS (SELECT 1 FROM muse_execution_jobs j WHERE j.project_id=t.project_id AND j.agent_session_id=t.session_id AND j.status='TURN_FINISHED' AND j.github_pull_number IS NOT NULL AND j.github_ci_state IN ('PENDING','WAITING','FAILED','PASSED'))
          UNION SELECT DISTINCT j.project_id FROM muse_execution_jobs j
          JOIN project_repositories repo ON repo.project_id=j.project_id AND repo.full_name='susanwere/private-test'
-         WHERE j.status='TURN_FINISHED' AND j.github_pull_number IS NOT NULL AND j.github_ci_state IN ('PENDING','WAITING','FAILED')
+         WHERE j.status='TURN_FINISHED' AND EXISTS (SELECT 1 FROM workflow_step_executions step WHERE step.id=j.workflow_step_id AND step.project_id=j.project_id AND step.organization_id=j.organization_id AND step.agent_session_id=j.agent_session_id AND step.state IN ('RUNNING','WAITING')) AND j.github_pull_number IS NOT NULL AND j.github_ci_state IN ('PENDING','WAITING','FAILED','PASSED')
          LIMIT 20`,
       scopeProjectId ? [scopeProjectId] : [],
     );

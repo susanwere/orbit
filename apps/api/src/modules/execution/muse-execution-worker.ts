@@ -1,3 +1,4 @@
+import { createExecutionActivityRecorder, summarizeMuseEvent } from "./muse-execution-activity.js";
 import { randomUUID } from "node:crypto";
 import { DomainError } from "@orbit/domain";
 import type { SqlDatabase } from "@orbit/db";
@@ -14,6 +15,7 @@ interface JobRow extends Record<string, unknown> {
   agent_session_id: string;
   workflow_step_id: string;
   status: string;
+  attempts: number;
   mission: string;
   allowed_repositories: unknown;
   allowed_paths: unknown;
@@ -33,7 +35,12 @@ export class MuseExecutionJobService {
     const actor = await this.authorization.authorize(input.principalId, input.projectId, "read");
     const result = await this.db.query<Record<string, unknown>>(
       `SELECT job.id,job.status,job.workflow_step_id,job.attempts,job.started_at,session.context_snapshot_id,
-         job.finished_at,job.failure_reason,job.local_execution_state,job.local_execution_error,job.github_ci_state,job.github_ci_report,job.github_review_state,job.github_review_error,job.delivery_state,job.delivery_error,job.github_head_sha,job.github_repository,job.github_pull_number,output.content AS review_output,
+         COALESCE(activity.entries,'[]'::jsonb) AS activity,
+         job.finished_at,job.failure_reason,job.local_execution_state,job.local_execution_error,
+         CASE WHEN step.state='COMPLETED' AND ci.artifact_ref IS NOT NULL THEN 'PASSED' ELSE job.github_ci_state END AS github_ci_state,
+         CASE WHEN step.state='COMPLETED' AND ci.artifact_ref IS NOT NULL THEN jsonb_build_object(
+           'summary',ci.summary,'runs',jsonb_build_array(jsonb_build_object('id',ci.metadata->'runId','name','CI','conclusion','success','url',ci.artifact_ref,'failures','[]'::jsonb))) ELSE job.github_ci_report END AS github_ci_report,
+         job.github_review_state,job.github_review_error,job.delivery_state,job.delivery_error,job.github_head_sha,job.github_repository,job.github_pull_number,output.content AS review_output,
          output.content_hash AS output_hash,output.source AS output_source,output.changed_paths,
          source.github_repository AS repair_repository,source.github_pull_number AS repair_pull_number,source.github_head_sha AS repair_base_sha,job.repair_source_job_id,(job.status='TURN_FINISHED' AND job.github_pull_number IS NULL AND output.changed_paths='[]'::jsonb AND source.github_ci_state='FAILED') AS needs_ci_repair_retry,source.github_ci_report AS repair_ci_report,
          ci.artifact_ref AS github_ci_url,ci.metadata->>'runId' AS github_ci_run_id,
@@ -45,13 +52,19 @@ export class MuseExecutionJobService {
        LEFT JOIN muse_job_outputs output ON output.job_id=job.id AND output.project_id=job.project_id AND output.organization_id=job.organization_id
        LEFT JOIN muse_execution_jobs source ON source.id=job.repair_source_job_id AND source.project_id=job.project_id AND source.organization_id=job.organization_id AND source.workflow_step_id=job.workflow_step_id AND source.status='FAILED'
        LEFT JOIN LATERAL (
-         SELECT evidence.artifact_ref,evidence.metadata FROM evidence
+         SELECT evidence.artifact_ref,evidence.metadata,evidence.summary FROM evidence
          WHERE evidence.project_id=job.project_id AND evidence.organization_id=job.organization_id
            AND evidence.scope_type='workflow_step' AND evidence.scope_id=step.id AND evidence.category='ci' AND evidence.result='PASSED'
            AND evidence.metadata->>'provider'='github' AND evidence.metadata->>'repository'=job.github_repository
            AND evidence.metadata->>'pullNumber'=job.github_pull_number::text AND evidence.metadata->>'headSha'=job.github_head_sha
          ORDER BY evidence.created_at DESC,evidence.id DESC LIMIT 1
        ) ci ON true
+       LEFT JOIN LATERAL (
+         SELECT jsonb_agg(jsonb_build_object('id',entry.id::text,'stage',entry.stage,'status',entry.status,'message',entry.message,'occurredAt',entry.occurred_at) ORDER BY entry.id) AS entries
+         FROM (SELECT id,stage,status,message,occurred_at FROM muse_execution_activity
+           WHERE job_id=job.id AND project_id=job.project_id AND organization_id=job.organization_id
+           ORDER BY id DESC LIMIT 200) entry
+       ) activity ON true
        WHERE job.project_id=$1 AND job.organization_id=$2
          AND job.agent_session_id=$3
        ORDER BY job.created_at DESC LIMIT 1`,
@@ -158,7 +171,7 @@ export class MuseExecutionWorker {
     }
     const job = await this.db.transaction(async (tx) => {
       const claim = await tx.query<JobRow>(
-        `SELECT job.id,job.organization_id,job.project_id,job.agent_session_id,
+        `SELECT job.id,job.organization_id,job.project_id,job.agent_session_id,job.attempts,
             job.workflow_step_id,job.status,s.mission,c.allowed_repositories,
             c.allowed_paths,c.network_policy,c.network_allowlist
          FROM muse_execution_jobs job
@@ -209,6 +222,12 @@ export class MuseExecutionWorker {
     });
     if (!job) return null;
 
+    const recordActivity = createExecutionActivityRecorder(this.db, {
+      jobId: job.id,
+      projectId: job.project_id,
+      organizationId: job.organization_id,
+      attempt: job.attempts + 1,
+    });
     let result: EngineeringExecutionResult | null = null;
     let failure = "";
     // This is a fail-closed policy check, NOT an OS sandbox. A production
@@ -230,7 +249,16 @@ export class MuseExecutionWorker {
     }
     try {
       if (failure) throw new Error(failure);
+      await recordActivity({
+        stage: "preparing",
+        status: "completed",
+        message: "Worker claimed the job and checked its execution contract.",
+      });
       result = await this.executor.execute({
+        onEvent: async (event) => {
+          const activity = summarizeMuseEvent(event);
+          if (activity) await recordActivity(activity);
+        },
         mission: job.mission,
         workspace,
         modelSteps: 20,
@@ -242,6 +270,13 @@ export class MuseExecutionWorker {
       // Never persist provider stderr or secrets into user-visible error fields.
       failure ||= "Muse Code process failed or timed out.";
     }
+    await recordActivity({
+      stage: "execution",
+      status: failure ? "failed" : "completed",
+      message: failure
+        ? "Execution failed. Review the job status for details."
+        : "Muse process finished. Delivery and independent verification remain separate.",
+    });
     const state = failure ? "FAILED" : "TURN_FINISHED";
     const leaseFinalized = await this.db.transaction(async (tx) => {
       const finalized = await tx.query<{ id: string } & Record<string, unknown>>(

@@ -1,0 +1,49 @@
+.execution-activity-card {
+  min-width: 0;
+}
+.execution-activity-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+.execution-activity-heading h4 {
+  margin: 0;
+}
+.execution-activity-card .context-generation-steps {
+  margin-bottom: 1rem;
+}
+.execution-activity-card .context-generation-steps p {
+  margin: 0.3rem 0 0;
+  font-size: 0.72rem;
+}
+.execution-activity-card .context-generation-progress {
+  margin: 1rem 0;
+}
+.execution-activity-card .context-activity-log {
+  margin-top: 1rem;
+}
+.execution-activity-card .context-activity-log ol {
+  max-height: 280px;
+}
+.execution-activity-card
+  .context-generation-steps
+  [data-state="failed"]
+  .context-generation-marker {
+  color: #ffb6d0;
+  border-color: #df76a1;
+}
+.execution-activity-card .context-generation-steps [data-state="failed"] .context-generation-badge {
+  color: #ffc3d6;
+  background: #ab2f5a33;
+}
+@media (max-width: 600px) {
+  .execution-activity-heading {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .execution-activity-card .context-generation-steps li {
+    gap: 0.6rem;
+  }
+}
