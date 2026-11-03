@@ -206,6 +206,8 @@ function ProjectPlanCanvas({
         return;
       }
       await api.executeTask(project.id, task.id, codingAgent.id);
+      setCanvasSection("workflow");
+      setSelectedItemKey(null);
     } catch (cause) {
       setTaskExecutionError(cause instanceof Error ? cause.message : "Could not start execution.");
     } finally {
@@ -795,6 +797,7 @@ function ProjectPlanCanvas({
             )}
             {currentIntent || graph ? (
               <WorkGraphCanvas
+                tasks={tasks}
                 executableItemKeys={
                   approved ? tasks.filter(canExecuteCanvasTask).map((task) => task.task_key) : []
                 }

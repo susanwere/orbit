@@ -40,6 +40,22 @@ describe("work item detail projection", () => {
     ).toEqual(current);
     expect(selectWorkItemExecution("another-item", [current], task)).toBeUndefined();
   });
+  it("waits for dependencies and becomes ready when they complete", () => {
+    const pendingTask: ProjectTask = {
+      ...task,
+      state: "DRAFT",
+      session_id: null,
+      blocked_by: ["API foundation"],
+    };
+    const pendingStep: ExecutionStep = { ...current, state: "BLOCKED", agent_session_id: null };
+    expect(workItemExecutionStatus(true, pendingTask, pendingStep)).toBe("WAITING");
+    expect(workItemExecutionStatus(true, pendingTask)).toBe("WAITING");
+    expect(workItemExecutionStatus(true, { ...pendingTask, blocked_by: [] }, pendingStep)).toBe(
+      "READY",
+    );
+    expect(workItemExecutionStatus(false, pendingTask)).toBe("Proposed");
+    expect(workItemExecutionStatus(true, pendingTask, current)).toBe("RUNNING");
+  });
   it("shows a ready work item even when its internal execution record awaits session setup", () => {
     expect(
       workItemExecutionStatus(

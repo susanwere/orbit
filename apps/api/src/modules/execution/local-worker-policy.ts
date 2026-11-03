@@ -6,6 +6,7 @@ import type { MuseJobSelection } from "./muse-execution-worker.js";
 export interface LocalWorkerPolicy extends MuseJobSelection {
   readonly baseSha: string;
   readonly readOnly?: boolean;
+  readonly preparedFiles?: readonly string[];
   readonly writablePaths: readonly { path: string; directory: boolean }[];
 }
 
@@ -51,7 +52,18 @@ export function parseLocalWorkerPolicy(input: unknown): LocalWorkerPolicy {
       throw new Error("Writable mount exceeds the Execution Contract.");
     return { path, directory: entry.directory };
   });
+  const preparedFiles = policy.preparedFiles;
+  if (
+    preparedFiles !== undefined &&
+    (!Array.isArray(preparedFiles) ||
+      preparedFiles.length > 250 ||
+      !preparedFiles.every(
+        (path: unknown) => typeof path === "string" && permittedRepositoryPath(path, patterns),
+      ))
+  )
+    throw new Error("Prepared files exceed the Execution Contract.");
   return {
+    ...(preparedFiles === undefined ? {} : { preparedFiles: preparedFiles as string[] }),
     ...(policy.readOnly === true ? { readOnly: true } : {}),
     jobId: policy.jobId,
     projectId: policy.projectId,

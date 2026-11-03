@@ -13,6 +13,8 @@ import {
   validRepositoryPattern,
 } from "./modules/execution/repository-path-policy.js";
 
+import { prepareTaskFiles } from "./modules/execution/prepare-task-directories.js";
+
 const runCommand = promisify(execFile);
 const repository = "susanwere/private-test";
 const repositoryRoot = resolve(import.meta.dirname, "../../..");
@@ -45,6 +47,7 @@ async function main() {
     const records = await database.query<
       {
         project_id: string;
+        approved_task_prompt: string | null;
         repair_source_job_id: string | null;
         repair_head_sha: string | null;
         repair_pull_number: number | null;
@@ -54,10 +57,11 @@ async function main() {
         network_allowlist: string[];
       } & Record<string, unknown>
     >(
-      `SELECT job.project_id,job.repair_source_job_id,source.github_head_sha AS repair_head_sha,source.github_pull_number AS repair_pull_number,contract.allowed_repositories,contract.allowed_paths,contract.network_policy,contract.network_allowlist
+      `SELECT task.prompt AS approved_task_prompt,job.project_id,job.repair_source_job_id,source.github_head_sha AS repair_head_sha,source.github_pull_number AS repair_pull_number,contract.allowed_repositories,contract.allowed_paths,contract.network_policy,contract.network_allowlist
        FROM muse_execution_jobs job
        JOIN agent_sessions session ON session.id=job.agent_session_id AND session.project_id=job.project_id AND session.organization_id=job.organization_id
        JOIN execution_contracts contract ON contract.id=session.execution_contract_id AND contract.project_id=session.project_id AND contract.organization_id=session.organization_id
+       LEFT JOIN project_tasks task ON task.session_id=job.agent_session_id AND task.step_id=job.workflow_step_id AND task.project_id=job.project_id AND task.organization_id=job.organization_id AND task.approved_revision=task.revision
        LEFT JOIN muse_execution_jobs source ON source.id=job.repair_source_job_id AND source.project_id=job.project_id AND source.organization_id=job.organization_id AND source.workflow_step_id=job.workflow_step_id AND source.status='FAILED' AND source.github_ci_state='FAILED'
        JOIN project_repositories repository ON repository.project_id=job.project_id AND repository.organization_id=job.organization_id AND repository.full_name=$2
        WHERE job.id=$1 AND job.status=ANY($3::text[])`,
@@ -214,6 +218,10 @@ async function main() {
             writablePaths.push({ path, directory: false });
         }
       }
+      if (job.approved_task_prompt)
+        placeholders.push(
+          ...(await prepareTaskFiles(checkout, job.approved_task_prompt, job.allowed_paths)),
+        );
       const baseSha = (
         await runCommand("git", ["-C", checkout, "rev-parse", "HEAD"], { env: gitEnvironment })
       ).stdout.trim();
@@ -228,6 +236,7 @@ async function main() {
         baseSha,
         allowedPaths: job.allowed_paths,
         writablePaths,
+        preparedFiles: placeholders,
       });
       const mounts = policy.writablePaths.filter(
         (mount) =>
@@ -440,8 +449,13 @@ async function main() {
       process.stdout.write(executed.stdout);
     } finally {
       for (const path of placeholders) {
-        const info = await lstat(join(checkout, path));
-        if (info.isFile() && info.size === 0) await unlink(join(checkout, path));
+        try {
+          const info = await lstat(join(checkout, path));
+          if (info.isFile() && info.size === 0) await unlink(join(checkout, path));
+        } catch (error) {
+          if (!(error && typeof error === "object" && "code" in error && error.code === "ENOENT"))
+            throw error;
+        }
       }
     }
     process.stdout.write(

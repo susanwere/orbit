@@ -236,7 +236,7 @@ export class TaskAutomationService {
       humanOwner: principalId,
       agentDefinitionId: museAgent.id,
       workItemId: `work:${task.plan_id}:${task.task_key}`,
-      mission: task.prompt.slice(0, 2000),
+      mission: task.prompt,
       repairSourceJobId: prepared.repairSourceJobId,
     });
     const repairSessionId = (created.session as { id: string }).id;

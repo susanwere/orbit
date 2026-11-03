@@ -1,7 +1,12 @@
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import { projectPlanGraph, WorkGraphCanvas } from "./WorkGraphCanvas.js";
+import {
+  GraphNodeCard,
+  projectExecutionGraph,
+  projectPlanGraph,
+  WorkGraphCanvas,
+} from "./WorkGraphCanvas.js";
 
 describe("projectPlanGraph", () => {
   it("creates intent, dependency edges, workflow nodes and real approval gates", () => {
@@ -51,6 +56,59 @@ describe("projectPlanGraph", () => {
 });
 
 describe("execution graph evidence", () => {
+  it("projects waiting dependencies and readiness onto the main work item nodes", () => {
+    const items = [{ key: "ui", title: "Build UI", dependsOn: ["api"], workflows: [] }];
+    const task = {
+      id: "task-ui",
+      task_key: "ui",
+      title: "Build UI",
+      prompt: "Build UI",
+      revision: 1,
+      state: "DRAFT" as const,
+      has_agent_executor: true,
+      blocked_by: ["Build API"],
+    };
+    const waiting = projectExecutionGraph(items, "Intent", [], {}, [task]);
+    expect(waiting.nodes.find((node) => node.id === "work:ui")?.executionStatus).toBe("WAITING");
+    const ready = projectExecutionGraph(items, "Intent", [], {}, [{ ...task, blocked_by: [] }]);
+    expect(ready.nodes.find((node) => node.id === "work:ui")?.executionStatus).toBe("READY");
+  });
+  it.each([
+    { delivery_state: "REQUESTED" },
+    { delivery_state: "RUNNING" },
+    { delivery_state: "FINISHED", github_ci_state: "WAITING" },
+    { delivery_state: "FINISHED", github_ci_state: "PENDING" },
+  ])("keeps active canvas nodes running through delivery and verification (%j)", (phase) => {
+    const task = {
+      id: "task",
+      task_key: "build",
+      title: "Build",
+      prompt: "Build",
+      revision: 1,
+      state: "ACTIVE" as const,
+      ...phase,
+    };
+    const graph = projectExecutionGraph(
+      [{ key: "build", title: "Build", dependsOn: [], workflows: [] }],
+      "Intent",
+      [
+        {
+          id: "step",
+          work_item_key: "build",
+          workflow_index: 0,
+          step_index: 0,
+          state: "WAITING",
+          blocker_reason: null,
+          approval_required: false,
+          approved_at: null,
+          agent_session_id: "session",
+        },
+      ],
+      {},
+      [task],
+    );
+    expect(graph.nodes.find((node) => node.id === "work:build")?.executionStatus).toBe("RUNNING");
+  });
   it("keeps a finished Muse turn separate from the authoritative workflow state", async () => {
     const { projectExecutionGraph } = await import("./WorkGraphCanvas.js");
     const graph = projectExecutionGraph(
@@ -177,4 +235,69 @@ describe("canvas execution controls", () => {
     expect(markup).not.toContain("Execute Blocked work");
     expect(markup).not.toContain("Execute Original intent");
   });
+});
+
+describe("active execution node", () => {
+  it.each(["RUNNING", "STARTING", "WAITING", "READY_FOR_REVIEW", "COMPLETED", "FAILED"])(
+    "animates only active execution and marks finished nodes as settled (%s)",
+    (status) => {
+      const markup = renderToStaticMarkup(
+        createElement(GraphNodeCard, {
+          node: {
+            id: "work:build",
+            title: "Build",
+            subtitle: "build",
+            kind: "work",
+            executionStatus: status,
+          },
+          selected: false,
+          onChoose: () => undefined,
+          onMeasure: () => undefined,
+          onFocus: () => undefined,
+        }),
+      );
+      expect(markup.includes("is-executing")).toBe(["RUNNING", "STARTING"].includes(status));
+      expect(markup.includes("is-settled")).toBe(
+        ["COMPLETED", "READY_FOR_REVIEW"].includes(status),
+      );
+      expect(markup).toContain(`Status: ${status.replaceAll("_", " ")}`);
+    },
+  );
+});
+
+it("gives the original intent a static green border without marking it as executing", () => {
+  const markup = renderToStaticMarkup(
+    createElement(GraphNodeCard, {
+      node: { id: "intent", title: "Original intent", subtitle: "Build it", kind: "intent" },
+      selected: false,
+      onChoose: () => undefined,
+      onMeasure: () => undefined,
+      onFocus: () => undefined,
+    }),
+  );
+  expect(markup).toContain("is-settled");
+  expect(markup).not.toContain("is-executing");
+  expect(markup).toContain('aria-busy="false"');
+});
+
+it("does not allow a stale Execute action to overwrite an active node's status", () => {
+  const markup = renderToStaticMarkup(
+    createElement(GraphNodeCard, {
+      node: {
+        id: "work:build",
+        title: "Build",
+        subtitle: "build",
+        kind: "work",
+        executionStatus: "RUNNING",
+      },
+      selected: false,
+      onChoose: () => undefined,
+      onMeasure: () => undefined,
+      onFocus: () => undefined,
+      onExecute: () => undefined,
+    }),
+  );
+  expect(markup).toContain("Status: RUNNING");
+  expect(markup).toContain("is-executing");
+  expect(markup).not.toContain('aria-label="Execute Build"');
 });

@@ -129,9 +129,11 @@
   overflow-wrap: anywhere;
 }
 .workgraph-node .workgraph-status {
-  height: 28px;
-  min-height: 28px;
-  overflow: auto;
+  align-self: flex-start;
+  padding: 3px 9px;
+  border: 1px solid #9874b6;
+  border-radius: 999px;
+  background: #39234b;
   letter-spacing: normal;
   line-height: 14px;
 }
@@ -206,13 +208,21 @@
   background: #164a3433;
   font-size: 10px;
 }
-.orbit-workspace .workgraph-node-shell.is-ready .workgraph-node > span:first-child {
-  padding-right: 76px;
+.workgraph-node-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
 }
-.orbit-workspace .workgraph-node-shell.is-ready .workgraph-status {
-  position: absolute;
-  top: 14px;
-  right: 18px;
+.workgraph-node-heading > span:first-child {
+  padding-top: 3px;
+}
+.workgraph-node-heading .workgraph-status {
+  margin-left: auto;
+  flex-shrink: 0;
+  max-width: 65%;
+  text-align: center;
 }
 
 .orbit-workspace .workgraph-node-shell.is-ready .workgraph-node strong {
@@ -230,4 +240,81 @@
   bottom: 18px;
   height: 38px;
   font-size: 13px;
+}
+
+.orbit-workspace .workgraph-node .workgraph-status[data-state="WAITING"] {
+  color: #ead4ff;
+  border-color: #9471b3;
+  background: #48305e;
+}
+.orbit-workspace .workgraph-node .workgraph-status[data-state="RUNNING"],
+.orbit-workspace .workgraph-node .workgraph-status[data-state="STARTING"] {
+  color: #ffffff;
+  border-color: #50e8ab;
+  background: #146340;
+}
+.orbit-workspace .workgraph-node .workgraph-status[data-state="COMPLETED"] {
+  color: #ffddb7;
+  border-color: #f0a65a;
+  background: #633b18;
+}
+.orbit-workspace .workgraph-node .workgraph-status[data-state="READY_FOR_REVIEW"] {
+  color: #b1ffdc;
+  border-color: #5ce7af;
+  background: #164a34;
+}
+.orbit-workspace .workgraph-node .workgraph-status[data-state="FAILED"] {
+  color: #ffd1dc;
+  border-color: #ed809d;
+  background: #592638;
+}
+
+@property --execution-border-angle {
+  syntax: "<angle>";
+  initial-value: 0deg;
+  inherits: false;
+}
+.workgraph-node-shell.is-executing::after {
+  content: "";
+  position: absolute;
+  inset: -3px;
+  border-radius: 15px;
+  padding: 2px;
+  background: conic-gradient(
+    from var(--execution-border-angle),
+    #24b77944 0deg,
+    #24b77944 220deg,
+    #44eaaa 285deg,
+    #c0ffe4 325deg,
+    #24b77944 360deg
+  );
+  mask:
+    linear-gradient(#fff 0 0) content-box exclude,
+    linear-gradient(#fff 0 0);
+  pointer-events: none;
+  filter: drop-shadow(0 0 5px #3de8a8);
+  animation: execution-border-stream 2.5s linear infinite;
+}
+.workgraph-node-shell.is-executing.is-ready::after {
+  border-radius: 20px;
+}
+.orbit-workspace .workgraph-node-shell.is-settled .workgraph-node {
+  border: 2px solid #f0a65a;
+  box-shadow: 0 8px 22px #0009;
+}
+
+.orbit-workspace .workgraph-node-shell.is-executing .workgraph-node {
+  border-color: #50e8ab;
+  box-shadow: 0 0 20px #33dc8f38;
+}
+@keyframes execution-border-stream {
+  to {
+    --execution-border-angle: 360deg;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .workgraph-node-shell.is-executing::after {
+    animation: none;
+    background: #50e8ab;
+  }
 }

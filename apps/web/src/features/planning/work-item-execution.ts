@@ -28,6 +28,7 @@ export function workItemExecutionStatus(
   const executionStatus = executionDisplayState(executionStep, job);
   if (executionStep && !["READY", "BLOCKED"].includes(executionStep.state))
     return executionStatus ?? executionStep.state;
+  if (approved && task?.blocked_by?.length) return "WAITING";
   if (approved && task && canExecuteCanvasTask(task)) return "READY";
   return executionStatus ?? (approved ? "Awaiting execution" : "Proposed");
 }

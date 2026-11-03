@@ -98,7 +98,7 @@ async function main() {
       const worker = new MuseExecutionWorker(
         db,
         new MuseCodeCliExecutor(
-          new LocalMuseProcessRunner(true),
+          new LocalMuseProcessRunner(true, policy.preparedFiles),
           shellAllowed ? false : true,
           mode === "recover",
         ),

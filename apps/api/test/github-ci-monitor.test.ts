@@ -17,6 +17,8 @@ afterEach(() => {
 function fixture(
   options: {
     failure?: boolean;
+    priorRun?: boolean;
+    rerun?: boolean;
     merged?: boolean;
     emptyAssociations?: boolean;
     wrongBranch?: boolean;
@@ -106,13 +108,14 @@ function fixture(
       );
     return new Response(
       JSON.stringify({
-        total_count: 1,
+        total_count: options.priorRun || options.rerun ? 2 : 1,
         workflow_runs: [
           {
             id: 123,
             name: options.missingCi ? "Other workflow" : "CI",
             workflow_id: 10,
-            run_number: 1,
+            run_number: 2,
+            run_attempt: options.rerun ? 2 : 1,
             status: options.pending ? "in_progress" : "completed",
             conclusion: options.pending ? null : options.failure ? "failure" : "success",
             repository: { full_name: "owner/repo" },
@@ -123,6 +126,24 @@ function fixture(
               ? []
               : [{ number: options.unrelated ? 20 : 5, head: { sha } }],
           },
+          ...(options.priorRun || options.rerun
+            ? [
+                {
+                  id: 122,
+                  name: "CI",
+                  workflow_id: 10,
+                  run_number: options.rerun ? 2 : 1,
+                  run_attempt: 1,
+                  status: "completed",
+                  conclusion: "failure",
+                  repository: { full_name: "owner/repo" },
+                  event: "pull_request",
+                  head_sha: sha,
+                  head_branch: "orbit/muse-job",
+                  pull_requests: [{ number: 5, head: { sha } }],
+                },
+              ]
+            : []),
         ],
       }),
     );
@@ -224,4 +245,18 @@ it("does not grant readiness to mismatched unassociated merged CI runs", async (
     const test = fixture({ merged: true, emptyAssociations: true, ...options });
     expect((await test.monitor.inspect(input)).state).toBe("WAITING");
   }
+});
+
+it.each([{ priorRun: true }, { rerun: true }])(
+  "uses the latest CI run or attempt instead of an older failure (%j)",
+  async (options) => {
+    const report = await fixture(options).monitor.inspect(input);
+    expect(report.state).toBe("PASSED");
+    expect(report.runs.map((run) => run.id)).toEqual([123]);
+  },
+);
+it("waits for a newer rerun rather than accepting an older completed result", async () => {
+  const report = await fixture({ rerun: true, pending: true }).monitor.inspect(input);
+  expect(report.state).toBe("PENDING");
+  expect(report.runs.map((run) => run.id)).toEqual([123]);
 });

@@ -42,19 +42,18 @@ export class ProjectKnowledgeRefreshWorker {
         return row;
       });
       if (!job) break;
-      // A refresh can span several model calls. Renew the claim so another worker
-      // never reclaims an actively running job after the ten-minute lease expires.
+      const attempt = job.attempts + 1;
+      let heartbeatFailure: unknown;
       const heartbeat = setInterval(() => {
         void this.db
           .query(
-            "UPDATE project_knowledge_refresh_jobs SET claimed_at=now() WHERE id=$1 AND status='RUNNING'",
-            [job.id],
+            "UPDATE project_knowledge_refresh_jobs SET claimed_at=now() WHERE id=$1 AND status='RUNNING' AND attempts=$2",
+            [job.id, attempt],
           )
           .catch((error: unknown) => {
-            console.error("Project knowledge refresh heartbeat failed", error);
+            heartbeatFailure = error;
           });
       }, 60_000);
-      heartbeat.unref();
       try {
         const snapshot = await generateProjectKnowledgeSnapshot(
           { db: this.db, storage: this.storage, model: this.model, githubToken: this.githubToken },
@@ -69,17 +68,21 @@ export class ProjectKnowledgeRefreshWorker {
             pullNumber: job.pull_number,
           },
         );
+        if (heartbeatFailure)
+          throw new Error(
+            "Context refresh lease could not be renewed. Retry to reconcile the saved proposal.",
+          );
         await this.db.query(
-          "UPDATE project_knowledge_refresh_jobs SET status='COMPLETED',generated_snapshot_id=$2,last_error=NULL WHERE id=$1",
-          [job.id, snapshot.id],
+          "UPDATE project_knowledge_refresh_jobs SET status='COMPLETED',generated_snapshot_id=$2,last_error=NULL WHERE id=$1 AND status='RUNNING' AND attempts=$3",
+          [job.id, snapshot.id, attempt],
         );
       } catch (error) {
         const message = error instanceof Error ? error.message : "Unknown knowledge refresh error";
         await this.db.query(
           `UPDATE project_knowledge_refresh_jobs
            SET status='FAILED',last_error=$2,next_attempt_at=now()+($3 * interval '1 second')
-           WHERE id=$1`,
-          [job.id, message.slice(0, 500), Math.min(300, 2 ** job.attempts)],
+           WHERE id=$1 AND status='RUNNING' AND attempts=$4`,
+          [job.id, message.slice(0, 500), Math.min(300, 2 ** job.attempts), attempt],
         );
       } finally {
         clearInterval(heartbeat);
