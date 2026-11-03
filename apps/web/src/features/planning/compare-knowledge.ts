@@ -26,7 +26,10 @@ export function compareKnowledgeVersions(
   const documents = new Map((previous?.documents ?? []).map((doc) => [doc.id, doc]));
   return {
     summaryChanged: current.summary.summary !== (old?.summary ?? ""),
-    architectureChanged: current.summary.architecture !== (old?.architecture ?? ""),
+    architectureChanged:
+      current.summary.architecture !== (old?.architecture ?? "") ||
+      JSON.stringify(current.summary.architectureDetails ?? null) !==
+        JSON.stringify(old?.architectureDetails ?? null),
     addedFeatures: added(current.summary.features, old?.features ?? []),
     removedFeatures: added(old?.features ?? [], current.summary.features),
     addedConstraints: added(current.summary.constraints, old?.constraints ?? []),

@@ -437,7 +437,6 @@ function ProjectPlanCanvas({
         canCompose={canCompose}
         isComposerOpen={showComposer}
         activeSection={projectSection}
-        hasGraph={Boolean(graph)}
         isContextOpen={isContextOpen}
         isExecutionOpen={isExecutionOpen}
         onOpenExecution={() => {
@@ -507,13 +506,13 @@ function ProjectPlanCanvas({
           <ProjectContextDocuments
             api={api}
             projectId={project.id}
+            projectName={project.name}
             onOpenIntent={() => setCanvasSection("original-intent")}
           />
         ) : isExecutionOpen ? (
           <CanvasExecution api={api} projectId={project.id} />
         ) : projectSection ? (
           <PlanSection
-            key={projectSection}
             section={projectSection}
             graph={graph}
             originalIntent={currentIntent}

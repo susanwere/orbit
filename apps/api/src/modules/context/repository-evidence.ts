@@ -69,6 +69,7 @@ export async function collectRepositoryEvidence(
   repository: string,
   token?: string,
   fetchImpl: typeof fetch = fetch,
+  onFileRead?: (path: string) => void,
 ): Promise<RepositoryEvidence> {
   const empty = (): RepositoryEvidence => ({
     commitSha: null,
@@ -119,6 +120,7 @@ export async function collectRepositoryEvidence(
     const excerpt = (await response.text()).slice(0, Math.min(MAX_FILE_EXCERPT, remaining));
     if (!excerpt || excerpt.includes("\u0000")) continue;
     files.push({ path: item.path, text: excerpt });
+    onFileRead?.(item.path);
     remaining -= excerpt.length;
   }
   return {

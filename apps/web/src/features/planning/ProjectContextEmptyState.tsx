@@ -1,3 +1,5 @@
+import type { KnowledgeGenerationActivity } from "@orbit/domain";
+import { ContextGenerationProgress } from "./ContextGenerationProgress.js";
 import type { ConnectedRepository } from "../projects/project-api.js";
 import type { ReactNode } from "react";
 
@@ -104,13 +106,17 @@ function ContextBenefit({
 }
 
 export function ProjectContextEmptyState({
+  activity = [],
   generating,
   disabled,
   repositories = [],
   documentCount = 0,
+  hasIntent = false,
   onOpenIntent,
   onGenerate,
 }: {
+  readonly activity?: readonly KnowledgeGenerationActivity[];
+  readonly hasIntent?: boolean;
   readonly documentCount?: number;
   readonly onOpenIntent?: () => void;
   readonly repositories?: readonly Pick<ConnectedRepository, "id" | "full_name" | "html_url">[];
@@ -119,7 +125,9 @@ export function ProjectContextEmptyState({
   readonly onGenerate: () => void;
 }) {
   return (
-    <div className="context-initial-state">
+    <div
+      className={`context-initial-state${generating ? " context-initial-state--generating" : ""}`}
+    >
       <div className="context-understanding-art" aria-hidden="true">
         <span className="context-art-orbit">
           <i />
@@ -143,24 +151,31 @@ export function ProjectContextEmptyState({
           <path d="m53 3 2 5 5 2-5 2-2 5-2-5-5-2 5-2" />
         </svg>
       </div>
-      <h3>Let Muse understand your project</h3>
+      <h3>
+        {generating ? "Muse is understanding your project" : "Let Muse understand your project"}
+      </h3>
       <p>
-        Generate a project context summary from your intent, connected repository and any supporting
-        documents. This becomes a versioned understanding that you can review and refine over time.
+        {generating
+          ? "Orbit is reading the available repository evidence, original intent, and supporting documents to generate a reviewable Project Context summary."
+          : "Generate a project context summary from your intent, connected repository and any supporting documents. This becomes a versioned understanding that you can review and refine over time."}
       </p>
-      <button
-        type="button"
-        className="context-generate-button"
-        disabled={disabled || generating}
-        onClick={onGenerate}
-      >
-        <ContextIcon kind="spark" />
-        {generating ? "Generating context summary…" : "Generate context summary"}
-      </button>
-      {generating && (
-        <p className="context-generation-status" role="status">
-          Muse is gathering evidence and preparing a proposal for your review.
-        </p>
+      {generating ? (
+        <ContextGenerationProgress
+          activity={activity}
+          repositoryCount={repositories.length}
+          documentCount={documentCount}
+          hasIntent={hasIntent}
+        />
+      ) : (
+        <button
+          type="button"
+          className="context-generate-button"
+          disabled={disabled}
+          onClick={onGenerate}
+        >
+          <ContextIcon kind="spark" />
+          Generate context summary
+        </button>
       )}
       <ul className="context-initial-benefits" aria-label="Project context sources">
         <ContextBenefit
