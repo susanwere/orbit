@@ -1,6 +1,7 @@
 import { DomainError } from "@orbit/domain";
 
 export interface StructuredJsonRequest {
+  readonly timeoutMs?: number;
   readonly model: string;
   readonly systemPrompt: string;
   readonly userPrompt: string;
@@ -58,7 +59,7 @@ export class MetaModelApiClient implements StructuredJsonClient {
           },
         },
       }),
-      signal: AbortSignal.timeout(this.timeoutMs),
+      signal: AbortSignal.timeout(request.timeoutMs ?? this.timeoutMs),
     });
 
     if (!response.ok) {

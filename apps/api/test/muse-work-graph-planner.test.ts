@@ -79,6 +79,7 @@ describe("Muse work graph planning", () => {
     });
     expect(result.summary).toBe(valid.summary);
     expect(complete).toHaveBeenCalledOnce();
+    expect(complete).toHaveBeenCalledWith(expect.objectContaining({ timeoutMs: 90_000 }));
     const request = complete.mock.calls[0]![0];
     expect(request.model).toBe("muse-spark-1.3");
     expect(JSON.parse(request.userPrompt)).toEqual({
