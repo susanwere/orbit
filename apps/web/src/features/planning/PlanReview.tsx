@@ -504,7 +504,11 @@ function ProjectPlanCanvas({
             onTranscribeVoice={(audioBase64) => api.transcribeVoice(project.id, audioBase64)}
           />
         ) : isContextOpen ? (
-          <ProjectContextDocuments api={api} projectId={project.id} />
+          <ProjectContextDocuments
+            api={api}
+            projectId={project.id}
+            onOpenIntent={() => setCanvasSection("original-intent")}
+          />
         ) : isExecutionOpen ? (
           <CanvasExecution api={api} projectId={project.id} />
         ) : projectSection ? (

@@ -1,5 +1,8 @@
 import { useEffect, useState } from "react";
 import type { ProjectIntentApi, ProjectKnowledgeSnapshot } from "../intent/intent-api.js";
+import "./project-context.css";
+import type { ConnectedRepository } from "../projects/project-api.js";
+import { ContextSourceCard, ProjectContextEmptyState } from "./ProjectContextEmptyState.js";
 import { compareKnowledgeVersions } from "./compare-knowledge.js";
 
 interface DocumentMetadata {
@@ -15,16 +18,22 @@ interface DocumentMetadata {
 export function ProjectContextDocuments({
   api,
   projectId,
+  onOpenIntent,
 }: {
   readonly api: ProjectIntentApi;
   readonly projectId: string;
+  readonly onOpenIntent: () => void;
 }) {
+  const [repositories, setRepositories] = useState<readonly ConnectedRepository[]>([]);
+  const [hasIntent, setHasIntent] = useState(false);
+  const [selectedSource, setSelectedSource] = useState<"repositories" | "documents" | null>(null);
   const [snapshots, setSnapshots] = useState<readonly ProjectKnowledgeSnapshot[]>([]);
   const [generating, setGenerating] = useState(false);
   const [reviewing, setReviewing] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [reviewNote, setReviewNote] = useState("");
   const [documents, setDocuments] = useState<readonly DocumentMetadata[]>([]);
+  const [hasLoaded, setHasLoaded] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [refreshCount, setRefreshCount] = useState(0);
@@ -33,11 +42,19 @@ export function ProjectContextDocuments({
     let active = true;
     setLoading(true);
     setError(null);
-    void Promise.all([api.getProjectDocuments(projectId), api.getProjectKnowledge(projectId)])
-      .then(([items, history]) => {
+    void Promise.all([
+      api.getProjectDocuments(projectId),
+      api.getProjectKnowledge(projectId),
+      api.getRepositories(projectId),
+      api.getIntent(projectId),
+    ])
+      .then(([items, history, connectedRepositories, intent]) => {
         if (active) {
           setDocuments(items);
           setSnapshots(history);
+          setRepositories(connectedRepositories);
+          setHasIntent(Boolean(intent));
+          setHasLoaded(true);
         }
       })
       .catch((cause: unknown) => {
@@ -57,6 +74,7 @@ export function ProjectContextDocuments({
     try {
       const next = await api.refreshProjectKnowledge(projectId);
       setSnapshots((items) => [next, ...items]);
+      setSelectedId(next.id);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Could not summarize project.");
     } finally {
@@ -92,41 +110,111 @@ export function ProjectContextDocuments({
   }
   return (
     <section
-      className="orbit-detail-page orbit-detail-page--canvas"
+      className={`orbit-detail-page orbit-detail-page--canvas project-context-page${!latest ? " project-context-page--initial" : ""}`}
       aria-labelledby="project-context-heading"
     >
       <div className="orbit-detail-heading">
         <div>
           <span className="orbit-detail-eyebrow">PROJECT / KNOWLEDGE</span>
-          <h2 id="project-context-heading">Project Context</h2>
+          <h2 id="project-context-heading" className="context-accessible-heading">
+            Project Context
+          </h2>
           <p>
-            Versioned understanding of your project, grounded in documents and repository evidence.
+            Orbit’s evolving understanding of your project, grounded in your intent, documents and
+            repository evidence.
           </p>
         </div>
-        <button
-          type="button"
-          className="orbit-detail-back"
-          onClick={() => {
-            void generateSummary();
-          }}
-          disabled={loading || generating}
-        >
-          {generating ? "Summarizing…" : "✦ Generate context summary"}
-        </button>
-        <button
-          type="button"
-          className="orbit-detail-back"
-          onClick={() => setRefreshCount((count) => count + 1)}
-          disabled={loading}
-        >
-          Refresh
-        </button>
+        {latest && (
+          <button
+            type="button"
+            className="orbit-detail-back"
+            onClick={() => {
+              void generateSummary();
+            }}
+            disabled={loading || generating}
+          >
+            {generating ? "Summarizing…" : "✦ Generate context summary"}
+          </button>
+        )}
+        {(latest || error) && (
+          <button
+            type="button"
+            className="orbit-detail-back"
+            onClick={() => setRefreshCount((count) => count + 1)}
+            disabled={loading || generating}
+          >
+            <span aria-hidden="true">⟳</span> Refresh
+          </button>
+        )}
       </div>
       {loading && <p role="status">Loading project documents…</p>}
       {error && (
         <p className="intent-error" role="alert">
           {error}
         </p>
+      )}
+      {latest && !loading && hasLoaded && (
+        <div className="context-source-grid">
+          <ContextSourceCard
+            icon="repository"
+            title={repositories.length ? "Repository (connected)" : "Repository"}
+            description={
+              repositories.length
+                ? repositories.map((repository) => repository.full_name).join(", ")
+                : "No repository connected"
+            }
+            available={repositories.length > 0}
+            expanded={selectedSource === "repositories"}
+            onClick={() =>
+              setSelectedSource(selectedSource === "repositories" ? null : "repositories")
+            }
+          />
+          <ContextSourceCard
+            icon="documents"
+            title="Documents"
+            description={`${documents.length} ${documents.length === 1 ? "file" : "files"}`}
+            expanded={selectedSource === "documents"}
+            onClick={() => setSelectedSource(selectedSource === "documents" ? null : "documents")}
+          />
+          <ContextSourceCard
+            icon="intent"
+            title="Original Intent"
+            description={hasIntent ? "Defined" : "Not saved yet"}
+            available={hasIntent}
+            onClick={onOpenIntent}
+          />
+        </div>
+      )}
+      {!loading && selectedSource === "repositories" && (
+        <div className="orbit-detail-card context-source-details">
+          <h3>Connected repositories</h3>
+          {repositories.length ? (
+            repositories.map((repository) => (
+              <p key={repository.id}>
+                <a href={repository.html_url} target="_blank" rel="noreferrer">
+                  {repository.full_name} ↗
+                </a>
+              </p>
+            ))
+          ) : (
+            <p>
+              No repository is connected. You can generate a proposal from the available intent and
+              documents.
+            </p>
+          )}
+        </div>
+      )}
+      {!latest && !loading && (
+        <ProjectContextEmptyState
+          repositories={repositories}
+          documentCount={documents.length}
+          onOpenIntent={onOpenIntent}
+          generating={generating}
+          disabled={!hasLoaded}
+          onGenerate={() => {
+            void generateSummary();
+          }}
+        />
       )}
       {snapshots.length > 0 && (
         <div className="orbit-detail-card">
@@ -287,9 +375,6 @@ export function ProjectContextDocuments({
           ))}
         </div>
       )}
-      {!latest && !loading && (
-        <p>Generate the first snapshot to see what Muse understands about your project.</p>
-      )}
       {snapshots.length > 1 && (
         <p>
           Earlier context versions:{" "}
@@ -299,37 +384,45 @@ export function ProjectContextDocuments({
             .join(", ")}
         </p>
       )}
-      {!loading && !error && documents.length === 0 && (
-        <div className="orbit-detail-card">
-          <h3>No supporting documents yet</h3>
-          <p>Add documents when submitting your original Intent. They will appear here.</p>
-        </div>
-      )}
-      {!loading && !error && documents.length > 0 && (
-        <div className="orbit-detail-card">
-          <h3>Supporting documents ({documents.length})</h3>
-          <div className="orbit-nested-stage">
-            {documents.map((document) => (
-              <div className="orbit-detail-card" key={document.id}>
-                <strong>{document.original_filename}</strong>
-                <p className="orbit-detail-muted">
-                  {document.media_type} · {Math.ceil(document.size_bytes / 1024)} KB · Version{" "}
-                  {document.version}
-                </p>
-                <p className="orbit-detail-muted">
-                  Processing: {document.processing_status} · Uploaded{" "}
-                  {new Date(document.created_at).toLocaleDateString()}
-                </p>
-              </div>
-            ))}
+      {!loading &&
+        !error &&
+        (Boolean(latest) || selectedSource === "documents") &&
+        documents.length === 0 && (
+          <div className="orbit-detail-card">
+            <h3>No supporting documents yet</h3>
+            <p>Add documents when submitting your original Intent. They will appear here.</p>
           </div>
-        </div>
+        )}
+      {!loading &&
+        !error &&
+        (Boolean(latest) || selectedSource === "documents") &&
+        documents.length > 0 && (
+          <div className="orbit-detail-card">
+            <h3>Supporting documents ({documents.length})</h3>
+            <div className="orbit-nested-stage">
+              {documents.map((document) => (
+                <div className="orbit-detail-card" key={document.id}>
+                  <strong>{document.original_filename}</strong>
+                  <p className="orbit-detail-muted">
+                    {document.media_type} · {Math.ceil(document.size_bytes / 1024)} KB · Version{" "}
+                    {document.version}
+                  </p>
+                  <p className="orbit-detail-muted">
+                    Processing: {document.processing_status} · Uploaded{" "}
+                    {new Date(document.created_at).toLocaleDateString()}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      {latest && (
+        <p className="orbit-detail-muted">
+          Document excerpts are used for Muse planning. Knowledge snapshots are generated on demand;
+          repository analysis samples accessible manifests and README files, not the entire source
+          tree.
+        </p>
       )}
-      <p className="orbit-detail-muted">
-        Document excerpts are used for Muse planning. Knowledge snapshots are generated on demand;
-        repository analysis samples accessible manifests and README files, not the entire source
-        tree.
-      </p>
     </section>
   );
 }

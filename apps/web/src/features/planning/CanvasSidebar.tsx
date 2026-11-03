@@ -107,7 +107,15 @@ export function CanvasSidebar({
         <button
           type="button"
           className="canvas-sidebar-workflow"
-          aria-current={!selectedItemKey && !isComposerOpen && !activeSection ? "page" : undefined}
+          aria-current={
+            !selectedItemKey &&
+            !isComposerOpen &&
+            !activeSection &&
+            !isContextOpen &&
+            !isExecutionOpen
+              ? "page"
+              : undefined
+          }
           onClick={onOverview}
         >
           <SidebarIcon kind="workflow" />
