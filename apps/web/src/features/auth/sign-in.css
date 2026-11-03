@@ -3,76 +3,139 @@
   position: relative;
   overflow: hidden;
   isolation: isolate;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 100px 32px 40px;
-  color: #f5f7ff;
-  background: var(--orbit-page-background);
+  display: grid;
+  place-items: center;
+  grid-template-columns: minmax(0, 1fr);
+  padding: 64px 32px;
+  color: #f6f4ff;
+  background:
+    radial-gradient(ellipse at 9% 48%, #5220a85c, transparent 37%),
+    radial-gradient(ellipse at 92% 65%, #184da54d, transparent 28%), #090819;
 }
-.orbit-sign-in::before {
-  content: "";
-  position: absolute;
-  inset: 30px 5%;
-  z-index: -2;
-  background-image: radial-gradient(#547ca74d 1px, transparent 1px);
-  background-size: 29px 29px;
-  mask-image: linear-gradient(#000, #0009 80%, transparent);
-}
-.sign-in-card {
-  width: min(100%, 610px);
-  padding: 62px 52px 60px;
-  border: 1px solid #33588999;
+.sign-in-shell {
+  width: min(100%, 1180px);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.03fr);
+  border: 1px solid #8060c5;
   border-radius: 22px;
-  background: linear-gradient(145deg, #0a1528e6, #070e1be6);
-  box-shadow: 0 20px 70px #0004;
-  text-align: center;
+  overflow: hidden;
+  background: #0b0a20e8;
+  box-shadow: 0 25px 90px #0005;
+}
+.sign-in-story {
+  position: relative;
+  overflow: hidden;
+  padding: 44px 60px 100px;
+  background:
+    radial-gradient(ellipse at 100% 0%, #6731e078, transparent 56%),
+    radial-gradient(ellipse at 85% 100%, #5a3bb270, transparent 45%);
 }
 .sign-in-brand {
   display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 14px;
-  font-size: 40px;
+  gap: 12px;
+  font-size: 36px;
   font-weight: 650;
-  margin-bottom: 34px;
+  margin-bottom: 44px;
 }
 .sign-in-mark {
-  width: 58px;
-  height: 58px;
+  width: 48px;
+  height: 48px;
+  flex-shrink: 0;
   border-radius: 50%;
-  border: 14px solid var(--orbit-brand-color);
-  background: #0c0819;
-  box-shadow:
-    inset 3px 3px 8px #0009,
-    0 0 20px var(--orbit-brand-glow);
-  border-right-color: var(--orbit-brand-highlight);
-  border-bottom-color: var(--orbit-brand-depth);
+  border: 12px solid var(--orbit-brand-color, #8545f5);
+  border-right-color: var(--orbit-brand-highlight, #b171ff);
+  border-bottom-color: var(--orbit-brand-depth, #5920e7);
+  box-shadow: 0 0 24px #7130ee40;
 }
-.sign-in-card h1 {
-  font-size: clamp(26px, 3vw, 32px);
+.sign-in-story > h2 {
+  font-size: clamp(25px, 2.3vw, 34px);
+  line-height: 1.2;
+  letter-spacing: -1px;
   margin: 0 0 16px;
-  letter-spacing: -0.8px;
 }
 .sign-in-subtitle {
-  font-size: 18px;
+  color: #bfbdd8;
+  font-size: 16px;
   line-height: 1.5;
-  color: #b0bdd5;
-  margin: 0 0 40px;
+  margin: 0 0 30px;
+}
+.sign-in-benefits {
+  padding: 0;
+  list-style: none;
+  margin: 34px 0 0;
+  display: grid;
+  gap: 24px;
+}
+.sign-in-benefits li {
+  display: flex;
+  align-items: flex-start;
+  gap: 20px;
+}
+.sign-in-benefits h2 {
+  font-size: 16px;
+  margin: 4px 0 4px;
+}
+.sign-in-benefits p {
+  font-size: 14px;
+  color: #c0bdd8;
+  line-height: 1.5;
+  margin: 0;
+}
+.sign-in-benefit-icon {
+  display: grid;
+  place-items: center;
+  flex: 0 0 58px;
+  height: 58px;
+  color: #b77aff;
+  border-radius: 13px;
+  background: #8e6cda29;
+}
+.sign-in-planet {
+  position: absolute;
+  width: 670px;
+  height: 260px;
+  left: -210px;
+  bottom: -223px;
+  transform: rotate(9deg);
+  border-radius: 50%;
+  border-top: 5px solid #e7deff;
+  background: radial-gradient(ellipse at 45% 0%, #665aff, #241478 45%, #110c37 70%);
+  box-shadow:
+    0 -3px 12px #fff,
+    0 -10px 28px #986bff,
+    0 -30px 70px #6546ef;
+}
+.sign-in-card {
+  min-width: 0;
+  text-align: left;
+  padding: 46px clamp(28px, 5vw, 80px) 42px;
+  border-left: 1px solid #67509666;
+  border-radius: 20px;
+  background: #09091bdd;
+}
+.sign-in-card-content {
+  width: 100%;
+  max-width: 400px;
+  margin-inline: auto;
+  box-sizing: border-box;
+}
+.sign-in-card h1 {
+  font-size: 28px;
+  letter-spacing: -0.6px;
+  margin: 0 0 6px;
+}
+.sign-in-card-content > .sign-in-subtitle {
+  font-size: 15px;
+  margin-bottom: 28px;
 }
 .sign-in-action {
-  width: min(100%, 400px);
-  min-height: 44px;
-  margin-inline: auto;
-  display: flex;
-  justify-content: center;
-  border-radius: 4px;
-}
-.sign-in-action > div {
   width: 100%;
+}
+.sign-in-action > div[aria-label="Google sign-in"] {
   display: flex;
   justify-content: center;
+  min-height: 44px;
 }
 .sign-in-action[aria-busy="true"] {
   opacity: 0.6;
@@ -80,168 +143,252 @@
 .sign-in-divider {
   display: flex;
   align-items: center;
-  gap: 24px;
-  color: #aab8d2;
-  margin: 34px 0;
+  gap: 16px;
+  color: #c3bdd6;
+  margin: 20px 0;
+  font-size: 14px;
 }
 .sign-in-divider span {
   flex: 1;
   height: 1px;
-  background: #29425f;
+  background: #786b944d;
 }
-.sign-in-explanation {
-  color: #aab8d2;
-  font-size: 16px;
-  line-height: 1.6;
-  margin: 0;
+form.sign-in-action {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.sign-in-action label {
+  font-size: 14px;
+  font-weight: 600;
+  margin-top: 6px;
+}
+.sign-in-action input {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  height: 44px;
+  padding: 0 14px;
+  border: 1px solid #77709480;
+  border-radius: 10px;
+  background: #ffffff04;
+  color: #f6f4ff;
+  font: inherit;
+  font-size: 14px;
+}
+.sign-in-action input::placeholder {
+  color: #b8b3ca;
+}
+.sign-in-password-field {
+  position: relative;
+}
+.sign-in-password-field input {
+  padding-right: 46px;
+}
+.sign-in-action button {
+  font: inherit;
+  font-size: 14px;
+  cursor: pointer;
+}
+.sign-in-action > button:not(.cta-primary) {
+  color: #bc86ff;
+  border: 0;
+  background: transparent;
+  padding: 4px 0;
+  font-size: 13px;
+}
+.sign-in-action .cta-primary {
+  margin-top: 18px;
+  width: 100%;
+  min-height: 46px;
+  border: 1px solid #a26afb;
+  border-radius: 11px;
+  background: linear-gradient(115deg, #9045f6, #6c32d4);
+  color: #fff;
+  font-weight: 650;
+  box-shadow: 0 4px 14px #702ac62e;
+}
+.sign-in-password-toggle {
+  position: absolute;
+  right: 5px;
+  top: 4px;
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  background: transparent;
+  color: #c5bddb;
+}
+.orbit-sign-in button:disabled {
+  opacity: 0.55;
+  cursor: wait;
+}
+.orbit-sign-in :is(button, input):focus-visible {
+  outline: 2px solid #c59aff;
+  outline-offset: 3px;
 }
 .sign-in-error {
   color: #ffb7bd;
   line-height: 1.5;
 }
-.sign-in-benefits {
-  display: flex;
-  justify-content: space-between;
-  gap: 48px;
-  padding: 0;
-  list-style: none;
-  width: min(100%, 1290px);
-  margin: 70px 0 0;
-}
-.sign-in-benefits li {
-  display: flex;
-  gap: 30px;
-  flex: 1;
-}
-.sign-in-benefits li + li {
-  border-left: 1px solid #263951;
-  padding-left: 48px;
-}
-.sign-in-benefits h2 {
-  font-size: 16px;
-  margin: 6px 0 10px;
-}
-.sign-in-benefits p {
-  font-size: 16px;
-  color: #aab8d2;
+.sign-in-card-content > p[role="status"] {
+  color: #cfc1f0;
   line-height: 1.5;
-  margin: 0;
-}
-.sign-in-benefit-icon {
-  display: grid;
-  place-items: center;
-  flex: 0 0 65px;
-  height: 65px;
-  font-size: 36px;
-  color: #54acff;
-  border: 1px solid #0788ff;
-  border-radius: 13px;
-  background: #09244366;
 }
 .sign-in-orbit {
   position: absolute;
   z-index: -1;
-  width: 660px;
-  height: 660px;
-  border: 1px solid var(--orbit-track-color);
+  width: 530px;
+  height: 530px;
+  border: 1px solid #8752e480;
   border-radius: 50%;
 }
 .sign-in-orbit-left {
-  left: -335px;
-  top: -95px;
-  box-shadow: 0 25px 35px -30px #1761ff;
+  width: 340px;
+  height: 340px;
+  left: calc(50% - 780px);
+  top: calc(50% - 55px);
+  transform: rotate(-20deg);
 }
 .sign-in-orbit-right {
-  right: -395px;
-  bottom: -55px;
+  right: calc(50% - 780px);
+  top: calc(50% - 540px);
+  transform: rotate(-15deg);
 }
 .sign-in-orbit i {
   position: absolute;
-  width: 48px;
-  height: 48px;
+  width: 16px;
+  height: 16px;
   border-radius: 50%;
-  background: var(--orbit-sphere-background);
-  box-shadow: 0 0 30px var(--orbit-sphere-glow);
-  left: 0;
-  top: 0;
-  offset-path: circle(330px at 330px 330px);
+  background: radial-gradient(circle at 30% 25%, #d1afff, #8243e9 60%, #3a1681);
+  box-shadow: 0 0 20px #9f60ff;
+  offset-path: circle(265px at 265px 265px);
   offset-rotate: 0deg;
-  offset-distance: var(--orbit-start, 94%);
-  animation: sign-in-orbit-travel var(--orbit-duration, 100s) linear infinite;
+  offset-distance: var(--orbit-start, 85%);
+  animation: sign-in-orbit-travel 120s linear infinite;
+}
+.sign-in-orbit-left i {
+  offset-path: circle(170px at 170px 170px);
 }
 .sign-in-orbit i + i {
-  width: 12px;
-  height: 12px;
-  --orbit-start: 5%;
-  --orbit-duration: 150s;
-}
-.sign-in-orbit-right i {
-  width: 18px;
-  height: 18px;
-  --orbit-start: 55%;
-  --orbit-duration: 120s;
-  animation-direction: reverse;
+  --orbit-start: 30%;
+  width: 9px;
+  height: 9px;
+  animation-duration: 160s;
 }
 @keyframes sign-in-orbit-travel {
   from {
-    offset-distance: var(--orbit-start, 94%);
+    offset-distance: var(--orbit-start, 85%);
   }
   to {
-    offset-distance: calc(var(--orbit-start, 94%) + 100%);
+    offset-distance: calc(var(--orbit-start, 85%) + 100%);
   }
 }
 @media (max-width: 1000px) {
-  .sign-in-benefits {
-    gap: 24px;
+  .sign-in-story {
+    padding: 36px 32px 90px;
   }
-  .sign-in-benefits li {
-    gap: 16px;
-  }
-  .sign-in-benefits li + li {
-    padding-left: 24px;
-  }
-  .sign-in-benefit-icon {
-    flex-basis: 44px;
-    height: 44px;
+  .sign-in-card {
+    padding: 36px 32px;
   }
 }
 @media (max-width: 720px) {
   .orbit-sign-in {
-    padding: 40px 20px;
+    padding: 24px 16px;
   }
-  .sign-in-card {
-    padding: 36px 22px;
+  .sign-in-shell {
+    grid-template-columns: minmax(0, 1fr);
+    max-width: 500px;
+  }
+  .sign-in-story {
+    padding: 28px;
   }
   .sign-in-brand {
-    font-size: 32px;
+    font-size: 30px;
+    margin-bottom: 24px;
   }
-  .sign-in-subtitle {
+  .sign-in-story > h2 {
+    font-size: 25px;
+  }
+  .sign-in-story > .sign-in-subtitle {
     font-size: 16px;
+    margin-bottom: 0;
   }
-  .sign-in-desktop-break {
+  .sign-in-benefits,
+  .sign-in-planet {
     display: none;
   }
-  .sign-in-benefits {
-    flex-direction: column;
-    width: min(100%, 400px);
-    margin-top: 40px;
-    gap: 26px;
+  .sign-in-card {
+    padding: 28px;
+    border-left: 0;
+    border-top: 1px solid #67509666;
   }
-  .sign-in-benefits li + li {
-    border: 0;
-    padding: 0;
-  }
-  .sign-in-benefits p {
-    font-size: 15px;
-  }
-  .sign-in-benefits h2 {
-    margin-top: 0;
+  .sign-in-card h1 {
+    font-size: 25px;
   }
 }
 @media (prefers-reduced-motion: reduce) {
-  .orbit-sign-in *,
-  .orbit-sign-in *::before {
+  .orbit-sign-in * {
     animation: none !important;
     transition: none !important;
   }
+}
+
+.sign-in-help {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  min-height: 28px;
+}
+.sign-in-confirm-field {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.sign-in-help button {
+  border: 0;
+  background: transparent;
+  color: #b7accb;
+  padding: 4px 0;
+  font-size: 12px;
+}
+.sign-in-help button:last-child {
+  color: #bc86ff;
+  margin-left: auto;
+}
+.sign-in-help button:hover:not(:disabled) {
+  text-decoration: underline;
+}
+
+.sign-in-action > .sign-in-account-switch {
+  color: #c0bdd8;
+  margin-top: 12px;
+  font-size: 14px;
+}
+.sign-in-create-link {
+  color: #bc86ff;
+  font-weight: 600;
+}
+.sign-in-action #orbit-email,
+.sign-in-action #orbit-password {
+  padding-left: 42px;
+  background-repeat: no-repeat;
+  background-position: 14px center;
+  background-size: 18px;
+}
+.sign-in-action #orbit-email {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23bfb9d4' stroke-width='1.7'%3E%3Crect x='2' y='4' width='20' height='16' rx='2'/%3E%3Cpath d='m3 6 9 7 9-7'/%3E%3C/svg%3E");
+}
+.sign-in-action #orbit-password {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23bfb9d4' stroke-width='1.7'%3E%3Crect x='4' y='10' width='16' height='12' rx='2'/%3E%3Cpath d='M8 10V6a4 4 0 0 1 8 0v4m-4 5v3'/%3E%3C/svg%3E");
+}
+
+.sign-in-help:empty {
+  display: none;
+}
+.sign-in-action:is([data-auth-mode="signup"], [data-auth-mode="reset"]) .sign-in-confirm-field {
+  margin-bottom: 38px;
 }
