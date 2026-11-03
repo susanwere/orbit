@@ -93,24 +93,36 @@ function validSummary(value: unknown, isProjectSummary = false): Summary {
     unknowns: (data.unknowns as string[]).slice(0, 20).map((s) => s.slice(0, 350)),
   };
 }
-async function summarize(
+export async function summarize(
   model: StructuredJsonClient,
   input: { kind: "document" | "repository" | "project" } & Record<string, unknown>,
 ): Promise<Summary> {
   const isProjectSummary = input.kind === "project";
-  return validSummary(
-    await model.complete({
+  const timeoutMs = isProjectSummary ? 120_000 : 90_000;
+  let response: unknown;
+  try {
+    response = await model.complete({
       model: "muse-spark-1.3",
       schemaName: "OrbitProjectKnowledgeSummary",
       schema: SUMMARY_SCHEMA,
       systemPrompt: isProjectSummary
         ? PROJECT_KNOWLEDGE_SUMMARY_PROMPT
         : SOURCE_KNOWLEDGE_SUMMARY_PROMPT,
-      ...(isProjectSummary ? { timeoutMs: 90_000 } : {}),
+      // Source summaries can be as expensive as the final project synthesis.
+      // Do not let them inherit the model client's 20-second default timeout.
+      timeoutMs,
       userPrompt: JSON.stringify(input).slice(0, 30_000),
-    }),
-    isProjectSummary,
-  );
+    });
+  } catch (error) {
+    if (error instanceof Error && (error.name === "TimeoutError" || error.name === "AbortError")) {
+      throw new DomainError(
+        "model_api_error",
+        `Muse Spark ${input.kind} summary timed out after ${timeoutMs / 1_000} seconds.`,
+      );
+    }
+    throw error;
+  }
+  return validSummary(response, isProjectSummary);
 }
 export async function generateProjectKnowledgeSnapshot(
   options: Pick<KnowledgeOptions, "db" | "storage" | "model" | "githubToken">,
