@@ -142,8 +142,8 @@ function ProjectPlanCanvas({
     revision,
   );
   const canEdit = status === "READY_FOR_REVIEW" && !busy;
-  const showComposer =
-    !isLoading && (canvasSection === "composer" || (!currentIntent && status === null));
+  const canCompose = !isLoading && !currentIntent && status === null;
+  const showComposer = canCompose && (canvasSection === "composer" || canvasSection === "workflow");
   const isContextOpen = canvasSection === "context";
   const isExecutionOpen = canvasSection === "execution";
   const projectSection =
@@ -434,6 +434,7 @@ function ProjectPlanCanvas({
         selectedItemKey={selectedItemKey}
         approved={approved}
         hasPlan={Boolean(currentIntent) || status !== null}
+        canCompose={canCompose}
         isComposerOpen={showComposer}
         activeSection={projectSection}
         hasGraph={Boolean(graph)}
@@ -452,6 +453,7 @@ function ProjectPlanCanvas({
           setSelectedItemKey(null);
         }}
         onOpenComposer={() => {
+          if (!canCompose) return;
           setCanvasSection("composer");
           setSelectedItemKey(null);
         }}
