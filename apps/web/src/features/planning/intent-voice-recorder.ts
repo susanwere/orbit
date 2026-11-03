@@ -4,7 +4,12 @@
  */
 export async function recordIntentVoice(
   onStarted: () => void,
-): Promise<{ stop: () => Promise<Blob>; cancel: () => void }> {
+  onAudioLevel?: (level: number, elapsedSeconds: number) => void,
+): Promise<{
+  stop: () => Promise<Blob>;
+  cancel: () => void;
+  setPaused: (paused: boolean) => void;
+}> {
   if (!navigator.mediaDevices?.getUserMedia)
     throw new Error("Microphone capture requires HTTPS or localhost.");
   const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -14,9 +19,17 @@ export async function recordIntentVoice(
     const processor = context.createScriptProcessor(4096, 1, 1);
     const chunks: Float32Array[] = [];
     let listening = true;
+    let paused = false;
+    let recordedFrames = 0;
     processor.onaudioprocess = (event) => {
-      if (!listening) return;
-      chunks.push(new Float32Array(event.inputBuffer.getChannelData(0)));
+      event.outputBuffer.getChannelData(0).fill(0);
+      if (!listening || paused) return;
+      const audioSamples = event.inputBuffer.getChannelData(0);
+      chunks.push(new Float32Array(audioSamples));
+      recordedFrames += audioSamples.length;
+      const meanSquare =
+        audioSamples.reduce((total, sample) => total + sample * sample, 0) / audioSamples.length;
+      onAudioLevel?.(Math.min(1, Math.sqrt(meanSquare) * 5), recordedFrames / context.sampleRate);
       event.outputBuffer.getChannelData(0).fill(0);
     };
     source.connect(processor);
@@ -31,6 +44,9 @@ export async function recordIntentVoice(
     onStarted();
     return {
       cancel: cleanup,
+      setPaused: (shouldPause) => {
+        paused = shouldPause;
+      },
       stop: async () => {
         cleanup();
         const frames = chunks.reduce((sum, chunk) => sum + chunk.length, 0);
