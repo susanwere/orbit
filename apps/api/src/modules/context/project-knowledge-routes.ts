@@ -106,7 +106,9 @@ async function summarize(
       systemPrompt: isProjectSummary
         ? PROJECT_KNOWLEDGE_SUMMARY_PROMPT
         : SOURCE_KNOWLEDGE_SUMMARY_PROMPT,
-      ...(isProjectSummary ? { timeoutMs: 90_000 } : {}),
+      // Source summaries can be as expensive as the final project synthesis.
+      // Do not let them inherit the model client's 20-second default timeout.
+      timeoutMs: isProjectSummary ? 120_000 : 90_000,
       userPrompt: JSON.stringify(input).slice(0, 30_000),
     }),
     isProjectSummary,
