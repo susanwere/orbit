@@ -5,7 +5,7 @@ services:
   - type: web
     name: orbit-demo-web
     runtime: static
-    buildCommand: npm ci --no-audit --no-fund && npm run build
+    buildCommand: npm ci --include=dev --no-audit --no-fund && npm run build -w @orbit/domain && npm run build -w @orbit/db && npm run build -w @orbit/web
     staticPublishPath: ./apps/web/dist
     routes:
       - type: rewrite
@@ -22,7 +22,7 @@ services:
     runtime: node
     region: frankfurt
     plan: free
-    buildCommand: npm ci --no-audit --no-fund && npm run build
+    buildCommand: npm ci --include=dev --no-audit --no-fund && npm run build -w @orbit/domain && npm run build -w @orbit/db && npm run build -w @orbit/api
     startCommand: npm run db:migrate && npm run start -w @orbit/api
     healthCheckPath: /health
     envVars:
