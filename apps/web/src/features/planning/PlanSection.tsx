@@ -1,3 +1,4 @@
+import "./plan-detail-items.css";
 import { SectionTabs } from "./SectionTabs.js";
 import { useState } from "react";
 import type { StoredIntent } from "../intent/intent-api.js";
@@ -74,9 +75,11 @@ export function PlanSection({
         id={`plan-details-panel-${section}`}
         aria-labelledby={`plan-details-tab-${section}`}
       >
-        <div className="canvas-plan-section-card">
+        <div
+          className={`canvas-plan-section-card${isEditing ? "" : " canvas-plan-section-card--items"}`}
+        >
           <div className="canvas-plan-card-toolbar">
-            <small>
+            <small className="plan-detail-state" data-approved={approved}>
               {section === "original-intent"
                 ? originalIntent
                   ? "Saved · immutable"
@@ -94,11 +97,12 @@ export function PlanSection({
             )}
           </div>
           {section === "original-intent" ? (
-            <>
-              <p className="canvas-plan-section-text">
-                {originalIntent?.statement ?? "No original intent is available."}
-              </p>
-            </>
+            <PlanDetailItems
+              entries={originalIntent ? [originalIntent.statement] : []}
+              section={section}
+              approved={approved}
+              emptyMessage="No original intent is available."
+            />
           ) : graph && editableSection ? (
             <>
               {isEditing && !approved ? (
@@ -119,18 +123,13 @@ export function PlanSection({
                       : onSummaryChange(event.target.value)
                   }
                 />
-              ) : listSection ? (
-                graph[listSection].length ? (
-                  <ul className="canvas-plan-section-text">
-                    {graph[listSection].map((entry, index) => (
-                      <li key={index}>{entry}</li>
-                    ))}
-                  </ul>
-                ) : (
-                  <p className="canvas-plan-section-text">None proposed.</p>
-                )
               ) : (
-                <p className="canvas-plan-section-text">{graph.summary}</p>
+                <PlanDetailItems
+                  entries={listSection ? graph[listSection] : [graph.summary]}
+                  section={section}
+                  approved={approved}
+                  emptyMessage="None proposed."
+                />
               )}
               <div className="canvas-plan-section-actions">
                 {isEditing && !approved && (
@@ -170,6 +169,62 @@ export function PlanSection({
         </div>
       </section>
     </div>
+  );
+}
+
+function PlanDetailItems({
+  entries,
+  section,
+  approved,
+  emptyMessage,
+}: {
+  readonly entries: readonly string[];
+  readonly section: PlanSectionKey;
+  readonly approved: boolean;
+  readonly emptyMessage: string;
+}) {
+  const labels: Record<PlanSectionKey, string> = {
+    "original-intent": "Original request",
+    outcome: "Proposed outcome",
+    guardrails: "Guardrail",
+    decisionsToReview: "Decision to review",
+    assumptions: "Assumption",
+  };
+  if (!entries.length) return <p className="canvas-plan-section-text">{emptyMessage}</p>;
+  return (
+    <ul
+      className="plan-detail-items"
+      aria-label={`${planSections.find((entry) => entry.key === section)?.title} items`}
+    >
+      {entries.map((entry, index) => {
+        const titledEntry = entry.match(/^([^:\n]{1,80}):\s+([\s\S]+)$/);
+        const itemTitle =
+          titledEntry?.[1]?.replace(/^\*\*|\*\*$/g, "") ??
+          `${labels[section]}${entries.length > 1 ? ` ${index + 1}` : ""}`;
+        const description = titledEntry?.[2] ?? entry;
+        return (
+          <li className="plan-detail-item" key={index}>
+            <span
+              className="plan-detail-marker"
+              data-approved={approved}
+              aria-hidden="true"
+              title={approved ? "Approved as part of the plan" : "Proposed item"}
+            >
+              {approved ? "✓" : index + 1}
+            </span>
+            <div className="plan-detail-item-card">
+              <span className="plan-detail-item-icon">
+                <PlanSectionIcon section={section} />
+              </span>
+              <div className="plan-detail-item-content">
+                <h3>{itemTitle}</h3>
+                <p>{description}</p>
+              </div>
+            </div>
+          </li>
+        );
+      })}
+    </ul>
   );
 }
 
