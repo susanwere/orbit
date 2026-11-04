@@ -182,32 +182,32 @@ export function ProjectDashboard({ api, onOpen, onCreate, onHome }: Props) {
         )}
         {loadedProjects.length > 0 && (
           <div className="project-dashboard-grid" aria-busy={isLoading || isLoadingNextPage}>
-          {visibleProjects.map((project, projectIndex) => (
-            <button
-              type="button"
-              className={`project-dashboard-card project-dashboard-card--${projectIndex % 3}`}
-              key={project.id}
-              onClick={() => onOpen(project)}
-            >
-              <span className="project-dashboard-card-mark" aria-hidden="true" />
-              <span className="project-dashboard-card-copy">
-                <strong>{project.name}</strong>
-                <small>
-                  Created{" "}
-                  <time dateTime={project.created_at}>
-                    {new Date(project.created_at).toLocaleDateString(undefined, {
-                      month: "short",
-                      day: "numeric",
-                      year: "numeric",
-                    })}
-                  </time>
-                </small>
-              </span>
-              <span className="project-dashboard-card-link" aria-hidden="true">
-                →
-              </span>
-            </button>
-          ))}
+            {visibleProjects.map((project, projectIndex) => (
+              <button
+                type="button"
+                className={`project-dashboard-card project-dashboard-card--${projectIndex % 3}`}
+                key={project.id}
+                onClick={() => onOpen(project)}
+              >
+                <span className="project-dashboard-card-mark" aria-hidden="true" />
+                <span className="project-dashboard-card-copy">
+                  <strong>{project.name}</strong>
+                  <small>
+                    Created{" "}
+                    <time dateTime={project.created_at}>
+                      {new Date(project.created_at).toLocaleDateString(undefined, {
+                        month: "short",
+                        day: "numeric",
+                        year: "numeric",
+                      })}
+                    </time>
+                  </small>
+                </span>
+                <span className="project-dashboard-card-link" aria-hidden="true">
+                  →
+                </span>
+              </button>
+            ))}
           </div>
         )}
         {!isLoading && loadedProjects.length > 0 && (
