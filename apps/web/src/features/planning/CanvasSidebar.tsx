@@ -10,6 +10,7 @@ interface CanvasSidebarProps {
   readonly isComposerOpen: boolean;
   readonly activeSection: PlanSectionKey | null;
   readonly isContextOpen: boolean;
+  readonly hasNewContextVersion?: boolean;
   readonly isExecutionOpen: boolean;
   readonly onOpenExecution: () => void;
   readonly onOpenContext: () => void;
@@ -29,6 +30,7 @@ export function CanvasSidebar({
   isComposerOpen,
   activeSection,
   isContextOpen,
+  hasNewContextVersion = false,
   isExecutionOpen,
   onOpenExecution,
   onOpenContext,
@@ -71,6 +73,14 @@ export function CanvasSidebar({
         >
           <SidebarIcon kind="plan" />
           Project Context
+          {hasNewContextVersion && (
+            <span
+              className="context-new-version-dot"
+              role="img"
+              aria-label="New project context version available"
+              title="New version available"
+            />
+          )}
         </button>
         <button
           type="button"

@@ -72,6 +72,25 @@ describe("generated project context", () => {
       if (review_status === "APPROVED") expect(markup).toContain("Current approved");
     },
   );
+  it("formats saved overview and feature evidence without regenerating the snapshot", () => {
+    const version = {
+      ...snapshot,
+      content: {
+        ...snapshot.content,
+        summary: {
+          ...snapshot.content.summary,
+          summary: "## Purpose\n\nA **jobs viewer** using `React`.\n\n- Browse jobs\n- Load more",
+          features: ["**Pagination** uses `PAGE_SIZE`."],
+        },
+      },
+    };
+    const markup = renderVersion(version);
+    expect(markup).toContain("<h4>Purpose</h4>");
+    expect(markup).toContain("<strong>jobs viewer</strong>");
+    expect(markup).toContain("<code>React</code>");
+    expect(markup).toContain("<strong>Pagination</strong>");
+    expect(version.content.summary.summary).toContain("## Purpose");
+  });
   it("separates technology inventory while keeping old architecture prose intact", () => {
     expect(splitKnowledgeArchitecture(snapshot.content.summary.architecture)).toEqual({
       architecture: "React frontend.",

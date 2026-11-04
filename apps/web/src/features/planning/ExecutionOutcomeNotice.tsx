@@ -4,9 +4,11 @@ import { isReadyForReview } from "./work-item-status.js";
 export function ExecutionOutcomeNotice({
   step,
   job,
+  onDismiss,
 }: {
   readonly step?: ExecutionStep;
   readonly job?: MuseJobStatus | null;
+  readonly onDismiss?: () => void;
 }) {
   const readyForReview = isReadyForReview(step, job);
   const completed = step?.state === "COMPLETED";
@@ -16,12 +18,25 @@ export function ExecutionOutcomeNotice({
       ? `https://github.com/${job.github_repository}/pull/${job.github_pull_number}`
       : null;
   return (
-    <aside className="step-review-notice" role="status">
+    <aside
+      className={`step-review-notice${onDismiss ? " step-review-notice--dismissible" : ""}`}
+      role="status"
+    >
+      {onDismiss && (
+        <button
+          type="button"
+          className="step-review-notice-dismiss"
+          aria-label="Dismiss execution notification"
+          onClick={onDismiss}
+        >
+          <span aria-hidden="true">×</span>
+        </button>
+      )}
       <strong>
         {completed
           ? pullRequestUrl
             ? "Pull request merged and verified. Work item completed."
-            : "Work item completed."
+            : "Work item completed. "
           : "CI passed. Your pull request is ready for review."}
       </strong>
       {readyForReview && (
@@ -29,7 +44,7 @@ export function ExecutionOutcomeNotice({
       )}
       {pullRequestUrl && (
         <a href={pullRequestUrl} target="_blank" rel="noreferrer">
-          {completed ? "View merged pull request" : "Review pull request"} #
+          {completed ? " View merged pull request" : " Review pull request"} #
           {job?.github_pull_number} ↗
         </a>
       )}

@@ -1,3 +1,4 @@
+import { MarkdownContent } from "./MarkdownContent.js";
 import type { KnowledgeArchitecture } from "@orbit/domain";
 import type { ProjectKnowledgeSnapshot } from "../intent/intent-api.js";
 import { ContextIcon } from "./ProjectContextEmptyState.js";
@@ -24,7 +25,9 @@ export function ProjectArchitectureEvidence({
             {architecture.facts.map((fact) => (
               <div key={fact.label}>
                 <dt>{fact.label}</dt>
-                <dd>{fact.description}</dd>
+                <dd>
+                  <MarkdownContent content={fact.description} />
+                </dd>
               </div>
             ))}
           </dl>
@@ -45,7 +48,7 @@ export function ProjectArchitectureEvidence({
             {architecture.dataFlow.map((step, index) => (
               <li key={index}>
                 <span>{index + 1}</span>
-                {step}
+                <MarkdownContent content={step} />
               </li>
             ))}
           </ol>

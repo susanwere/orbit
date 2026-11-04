@@ -1,82 +1,126 @@
-# Orbit
+# ORBIT
 
-Orbit is the context, governance, and execution layer for AI-native engineering organizations.
+ORBIT is a workspace for planning and executing software changes with AI agents.
+Describe what you want to build, review the proposed plan, authorize execution,
+and follow the resulting pull requests and CI evidence in one project canvas.
 
-> Intent moves outward into execution. Accepted decisions and evidence flow inward into organizational understanding.
+**Muse Spark** generates plans and evidence-based project understanding.
+**Muse Code** implements approved work through the separately operated coding
+worker. Humans review proposals, authorize execution and merge pull requests.
 
-## Product model
+## What you can do in the UI
 
-Orbit preserves the relationship between:
+| Screen                       | What it provides                                                                                                                                                                                                                                                                                                                                                 |
+| ---------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Sign in / Create account** | Email/password signup and sign-in, session restoration, and account sign-out. Google sign-in, verification emails and password reset depend on their configured providers.                                                                                                                                                                                       |
+| **Projects**                 | Searchable project cards, pagination with the active page indicated, and a New project action.                                                                                                                                                                                                                                                                   |
+| **New project**              | Name a project and optionally connect a GitHub repository. An empty project is valid; repository connection can happen later.                                                                                                                                                                                                                                    |
+| **Composer**                 | Describe the initial intent, attach supporting documents, or record voice input and edit its transcription before generating a plan. Recording/transcription states disable conflicting actions. The composer is available for a project that has no saved intent or generated plan.                                                                             |
+| **Project Context**          | Generate an understanding from original intent, connected repository evidence and documents. Follow generation activity, browse saved versions, request changes or approve a proposal. Tabs show Overview, Architecture, Technologies, Features, Constraints and Version History. A dot indicates a version not yet viewed during the current workspace session. |
+| **Plan details**             | Horizontal tabs for Original Intent, Proposed Outcome, Guardrails, Decisions to Review and Assumptions. Original Intent is immutable; editable proposal details become read-only after plan approval.                                                                                                                                                            |
+| **Workflow**                 | A canvas showing the original intent and main work items, their dependencies and execution states. Open a work item for its details or execute it when ready. Pan, zoom, fit controls and an accessible node list support navigation.                                                                                                                            |
+| **Work item details**        | View the task description, execution progress, activity, formatted execution summary, prompt/context, and available PR/CI evidence. Execution is offered only when the work item is eligible.                                                                                                                                                                    |
 
-```text
-Intent
-↓
-Current Context
-↓
-Decisions + Guardrails
-↓
-Work
-↓
-Humans + Approved Agents
-↓
-Evidence
-↓
-Outcome
-↓
-Learning
-```
+The project sidebar provides **Project Context**, **Plan details**, **Workflow**,
+and **Composer** when eligible, with Account at the bottom. The main canvas shows
+work items; it does not require users to navigate through separate workflow and
+step screens to reach execution details.
 
-The UI uses three semantic orbits around Intent:
+## A typical project flow
 
-1. **Governance & memory** — Decision, Guardrail, Context, Evidence
-2. **Execution & accountability** — Work Item, Agent, Human Gate, Human
-3. **Systems & consequences** — CI, Release, Pull Request, Outcome
+1. Create a project and optionally connect its repository.
+2. Describe the desired outcome in the composer, with supporting documents or
+   voice input if useful.
+3. Generate a plan with Muse Spark, inspect its details and approve it.
+4. Authorize the coding agent's displayed scope and execute a ready work item.
+   Dependent work waits until its prerequisites are satisfied.
+5. Follow activity and execution output. When delivery succeeds and independent
+   CI passes, ORBIT indicates that the PR is ready for human review.
+6. Merge the PR in GitHub. Verified merge/CI evidence completes the work item.
 
-External tools such as Linear, Figma, GitHub, and Meta Muse are providers behind these concepts. They are not Orbit's domain model.
+Project Context is a related, separately reviewed flow: generate a summary, inspect
+its sources and sections, and approve it when accurate. With the signed GitHub
+webhook and background processor configured, merging a PR queues a new **proposed**
+context version. Generating a version does not automatically approve it or replan
+existing work.
 
-## Core rules
+## Execution and evidence
 
-- AI interprets. Humans authorize. Orbit enforces.
-- Agents have capabilities, not authority.
-- No meaningful agent execution without an authorized Context Snapshot and Execution Contract.
-- Provider credentials are brokered and never handed directly to agents.
-- Proposed decisions do not mutate authoritative project context.
-- Original Intent is immutable historical input.
-- Context versions are immutable and versioned.
-- Existing agent sessions keep the Context Snapshot they started with.
+- Coding execution requires the configured local worker, a registered repository,
+  an approved plan and explicit agent authorization.
+- A finished agent turn is not the same as a passing build or a completed work
+  item. The UI distinguishes execution output from independent GitHub evidence.
+- CI repairs target the existing PR rather than creating a separate repair-only PR.
+  New execution PR descriptions identify the approved task and ORBIT worker origin.
+- The canvas distinguishes ready, waiting, running, failed and completed work.
+  Completion and PR-review notifications can be dismissed from the canvas header.
+- Generated summaries render readable paragraphs, lists, headings and code blocks.
+- Existing agent context snapshots remain immutable. New approved context is
+  supplied only within the agent's authorized scope and classification clearance.
+
+Full semantic reconciliation of planned/running/waiting work after every context
+change is a future milestone, not an existing automatic UI capability. See
+[bounded context-change review](docs/context-change-review.md).
+
+## Current demo boundaries
+
+The local execution pipeline is currently restricted to the disposable repository
+`susanwere/private-test`; another developer cannot switch it to their own fork
+using environment variables alone. The API's planning/context features and the
+coding worker have separate credentials and runtime requirements.
+
+The Render starter hosts the application and API-side processors, but does not
+deploy the isolated coding executor or provide durable document storage. Background
+processing requires an awake API process. Google login requires a pre-linked
+identity; email/password signup is the simplest local entry point.
 
 ## Repository
 
-This repository is intentionally at a clean implementation baseline.
-
 ```text
 apps/
-  api/       Fastify + TypeScript API
-  web/       Vite + React + TypeScript
+  api/       Fastify + TypeScript API and worker entrypoints
+  web/       Vite + React + TypeScript UI
 packages/
-  domain/    Reusable governance and policy primitives
-  db/        PostgreSQL migration runner
+  domain/    Shared domain contracts and policy primitives
+  db/        PostgreSQL access and migrations
+setup/
+  README.md  Installation, configuration and integration setup
+  RUNNING.md Startup, shutdown and verification commands
 ```
 
-Legacy CareerGlyph, HN Jobs demo state, simulated agent execution, hard-coded planner output, and prototype persistence have been removed. New backend behavior is implemented from the approved backend design and Linear backlog.
+## Setup and running
 
-## Local development
+Start with the [installation and configuration guide](setup/README.md). It covers
+Node/Docker prerequisites, private environment files, PostgreSQL migrations,
+Meta/GitHub credentials and the merge-driven context-versioning webhook.
+
+Once configured, run these from the repository root:
 
 ```bash
-npm install
-cp .env.example .env
-
 npm run db:up
-npm run dev:api
-npm run dev:web
+npm run db:migrate
 ```
 
-Validate:
+Start the API and frontend in separate terminals:
 
 ```bash
-npm run typecheck
-npm test
-npm run build
+# Terminal 1: API
+npm run dev:api
 ```
 
-The API currently exposes only a health endpoint. Database migrations will be introduced with the backend persistence work.
+```bash
+# Terminal 2: frontend
+npm run dev -w @orbit/web -- --host 127.0.0.1
+```
+
+Open **http://localhost:5173**. The API health endpoint is
+**http://localhost:4000/health**. The frontend requires its own
+`apps/web/.env.local` with `VITE_API_BASE_URL=http://localhost:4000`.
+
+See [running and stopping ORBIT](setup/RUNNING.md) for daily commands, the optional
+coding worker and verification. Live execution currently targets the configured
+local demo repository; read the setup guide's repository restriction before
+attempting execution against a different repository.
+
+For hosted configuration, see [Render deployment notes](docs/deployment-render.md).
+The hosted starter does not deploy the isolated Muse Code execution pipeline.

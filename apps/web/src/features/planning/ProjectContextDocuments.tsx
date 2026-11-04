@@ -21,11 +21,15 @@ export function ProjectContextDocuments({
   projectId,
   projectName,
   onOpenIntent,
+  onVersionViewed,
+  availableRevision,
 }: {
   readonly api: ProjectIntentApi;
   readonly projectId: string;
   readonly projectName: string;
   readonly onOpenIntent: () => void;
+  readonly availableRevision?: number;
+  readonly onVersionViewed?: (revision: number) => void;
 }) {
   const [repositories, setRepositories] = useState<readonly ConnectedRepository[]>([]);
   const [hasIntent, setHasIntent] = useState(false);
@@ -68,7 +72,7 @@ export function ProjectContextDocuments({
     return () => {
       active = false;
     };
-  }, [api, projectId, refreshCount]);
+  }, [api, projectId, refreshCount, availableRevision]);
 
   async function generateSummary() {
     setActivity([]);
@@ -87,6 +91,9 @@ export function ProjectContextDocuments({
     }
   }
   const latest = snapshots.find((item) => item.id === selectedId) ?? snapshots[0];
+  useEffect(() => {
+    if (latest && !generating) onVersionViewed?.(latest.revision);
+  }, [latest?.id, latest?.revision, generating, onVersionViewed]);
   async function review(decision: "approve" | "request_changes", note: string): Promise<boolean> {
     if (!latest) return false;
     setReviewing(true);

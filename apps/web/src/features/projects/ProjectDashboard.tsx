@@ -167,9 +167,6 @@ export function ProjectDashboard({ api, onOpen, onCreate, onHome }: Props) {
           <div className="project-dashboard-empty">
             <h2>No projects yet</h2>
             <p>Create your first project and turn your intent into a reviewable plan.</p>
-            <button type="button" onClick={onCreate}>
-              Create project
-            </button>
           </div>
         )}
         {!isLoading && loadedProjects.length > 0 && matchingProjects.length === 0 && (

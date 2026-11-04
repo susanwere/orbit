@@ -1,3 +1,4 @@
+import { MarkdownContent } from "./MarkdownContent.js";
 import { SectionTabs } from "./SectionTabs.js";
 import { ProjectArchitectureEvidence } from "./ProjectArchitecture.js";
 import { useState } from "react";
@@ -255,7 +256,10 @@ export function ProjectContextReview({
             </h3>
             {activeTab === "overview" && (
               <>
-                <p className="context-prose">{snapshot.content.summary.summary}</p>
+                <MarkdownContent
+                  className="context-prose"
+                  content={snapshot.content.summary.summary}
+                />
                 <div className="context-content-divider" />
                 <h4>Working with this context</h4>
                 <ol className="context-lifecycle">
@@ -296,16 +300,20 @@ export function ProjectContextReview({
               </>
             )}
             {activeTab === "architecture" && (
-              <p className="context-prose">
-                {architecture.architecture || "No architecture description was provided."}
-              </p>
+              <MarkdownContent
+                className="context-prose"
+                content={architecture.architecture || "No architecture description was provided."}
+              />
             )}
             {activeTab === "technologies" && (
               <>
-                <p className="context-prose">
-                  {architecture.technologies ||
-                    "This version does not contain a separate technology inventory. Check Architecture and the source evidence, or generate a new version with the updated architect prompt."}
-                </p>
+                <MarkdownContent
+                  className="context-prose"
+                  content={
+                    architecture.technologies ||
+                    "This version does not contain a separate technology inventory. Check Architecture and the source evidence, or generate a new version with the updated architect prompt."
+                  }
+                />
                 <p className="context-review-muted">
                   Configured or declared technologies do not establish production deployment.
                 </p>
@@ -430,7 +438,9 @@ export function ProjectContextReview({
                           <li key={path}>{path}</li>
                         ))}
                       </ul>
-                      {repository.summary && <p>{repository.summary.summary}</p>}
+                      {repository.summary && (
+                        <MarkdownContent content={repository.summary.summary} />
+                      )}
                     </details>
                   ))
                 ) : (
@@ -457,7 +467,7 @@ export function ProjectContextReview({
                           <summary>
                             {document.filename} · v{document.version}
                           </summary>
-                          <p>{document.summary.summary}</p>
+                          <MarkdownContent content={document.summary.summary} />
                         </details>
                       ))
                     ) : (
@@ -528,7 +538,9 @@ function ContextList({
   return entries.length ? (
     <ul className="context-detail-list">
       {entries.map((entry, index) => (
-        <li key={index}>{entry}</li>
+        <li key={index}>
+          <MarkdownContent content={entry} />
+        </li>
       ))}
     </ul>
   ) : (

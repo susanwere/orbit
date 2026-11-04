@@ -1529,3 +1529,14 @@
 .canvas-execution-outcome {
   margin: 0 clamp(1.25rem, 4vw, 3rem);
 }
+
+.canvas-sidebar .context-new-version-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  flex: 0 0 8px;
+  margin-left: auto;
+  border-radius: 50%;
+  background: #cf9bff;
+  box-shadow: 0 0 8px #a955e966;
+}

@@ -1,5 +1,4 @@
-import Markdown from "react-markdown";
-import "./execution-summary.css";
+import { MarkdownContent } from "./MarkdownContent.js";
 
 /** Preserve stored output and fenced code; only promote known standalone prose labels to headings. */
 export function formatExecutionSummary(markdown: string): string {
@@ -90,37 +89,9 @@ export function ExecutionSummary({
   readonly headSha?: string | null;
 }) {
   return (
-    <div className="execution-summary-markdown">
-      <Markdown
-        skipHtml
-        disallowedElements={["img"]}
-        urlTransform={(address) => executionSummaryLink(address, repository, headSha)}
-        components={{
-          h1: ({ children }) => <h4>{children}</h4>,
-          h2: ({ children }) => <h4>{children}</h4>,
-          h3: ({ children }) => <h4>{children}</h4>,
-          h4: ({ children }) => <h5>{children}</h5>,
-          a: ({ href, children }) =>
-            href ? (
-              <a
-                href={href}
-                target={href.startsWith("#") ? undefined : "_blank"}
-                rel={href.startsWith("#") ? undefined : "noopener noreferrer"}
-              >
-                {children}
-              </a>
-            ) : (
-              <span className="execution-summary-reference">{children}</span>
-            ),
-          pre: ({ children }) => (
-            <pre tabIndex={0} aria-label="Code block">
-              {children}
-            </pre>
-          ),
-        }}
-      >
-        {formatExecutionSummary(content)}
-      </Markdown>
-    </div>
+    <MarkdownContent
+      content={formatExecutionSummary(content)}
+      resolveLink={(address) => executionSummaryLink(address, repository, headSha)}
+    />
   );
 }

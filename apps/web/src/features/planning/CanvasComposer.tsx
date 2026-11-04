@@ -136,7 +136,7 @@ export function CanvasComposer({
       <h2 id="canvas-empty-heading">What do you want to build?</h2>
       <p>
         Describe your idea and let Muse Spark turn it into a plan with
-        <br className="canvas-empty-desktop-break" /> work items, workflows, and approvals.
+        <br className="canvas-empty-desktop-break" /> workflows, approvals and verifications.
       </p>
       <label className="canvas-empty-label" htmlFor="canvas-project-idea">
         Canvas project idea
