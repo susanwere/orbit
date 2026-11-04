@@ -69,10 +69,8 @@ The local execution pipeline is currently restricted to the disposable repositor
 using environment variables alone. The API's planning/context features and the
 coding worker have separate credentials and runtime requirements.
 
-The Render starter hosts the application and API-side processors, but does not
-deploy the isolated coding executor or provide durable document storage. Background
-processing requires an awake API process. Google login requires a pre-linked
-identity; email/password signup is the simplest local entry point.
+Background processing requires a running API process. Google login requires a
+pre-linked identity; email/password signup is the simplest local entry point.
 
 ## Repository
 
@@ -121,6 +119,3 @@ See [running and stopping ORBIT](setup/RUNNING.md) for daily commands, the optio
 coding worker and verification. Live execution currently targets the configured
 local demo repository; read the setup guide's repository restriction before
 attempting execution against a different repository.
-
-For hosted configuration, see [Render deployment notes](docs/deployment-render.md).
-The hosted starter does not deploy the isolated Muse Code execution pipeline.
