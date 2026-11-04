@@ -5,14 +5,14 @@
   font-size: 0.84rem;
   line-height: 1.7;
 }
-.step-execution-panel .execution-summary-markdown :is(h4, h5, h6) {
+:is(.step-execution-panel, .context-review-page) .execution-summary-markdown :is(h4, h5, h6) {
   margin: 1.3rem 0 0.5rem;
   font-size: 0.88rem;
   font-weight: 650;
   line-height: 1.4;
   color: #f4eaff;
 }
-.step-execution-panel .execution-summary-markdown p {
+:is(.step-execution-panel, .context-review-page) .execution-summary-markdown p {
   margin: 0.65rem 0;
   font-size: inherit;
   line-height: inherit;
@@ -21,7 +21,7 @@
   margin: 0.65rem 0;
   padding-left: 1.4rem;
 }
-.step-execution-panel .execution-summary-markdown li {
+:is(.step-execution-panel, .context-review-page) .execution-summary-markdown li {
   margin: 0.4rem 0;
   font-size: inherit;
   line-height: 1.7;
@@ -84,4 +84,9 @@
 }
 .execution-summary-reference {
   color: #dac4ef;
+}
+
+.markdown-content,
+.context-prose.markdown-content {
+  white-space: normal;
 }

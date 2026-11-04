@@ -1,3 +1,4 @@
+import { useContextVersionNotice } from "./use-context-version-notice.js";
 import { useEffect, useRef, useState } from "react";
 import { canExecuteCanvasTask } from "./canvas-task-execution.js";
 import { useCanvasExecution } from "./use-canvas-execution.js";
@@ -170,6 +171,9 @@ function ProjectPlanCanvas({
     plan?.id ?? null,
     revision,
   );
+  const [dismissedExecutionNotices, setDismissedExecutionNotices] = useState<ReadonlySet<string>>(
+    () => new Set(),
+  );
   const [authorizationItemKey, setAuthorizationItemKey] = useState<string | null>(null);
   const latestExecutionOutcome = executionSteps
     .flatMap((step) => {
@@ -184,6 +188,14 @@ function ProjectPlanCanvas({
       ),
     )[0];
   const executionPending = useRef(false);
+  const executionNoticeKey = latestExecutionOutcome
+    ? JSON.stringify([
+        project.id,
+        latestExecutionOutcome.job.id,
+        latestExecutionOutcome.job.github_head_sha,
+        latestExecutionOutcome.step.state,
+      ])
+    : null;
   const [executingItemKey, setExecutingItemKey] = useState<string | null>(null);
   const [taskExecutionError, setTaskExecutionError] = useState<string | null>(null);
   async function executeWorkItem(workItemKey: string) {
@@ -220,6 +232,7 @@ function ProjectPlanCanvas({
   const canCompose = !isLoading && !currentIntent && status === null;
   const showComposer = canCompose && (canvasSection === "composer" || canvasSection === "workflow");
   const isContextOpen = canvasSection === "context";
+  const contextNotice = useContextVersionNotice(api, project.id);
   const isExecutionOpen = canvasSection === "execution";
   const projectSection =
     canvasSection !== "workflow" &&
@@ -525,6 +538,7 @@ function ProjectPlanCanvas({
         isComposerOpen={showComposer}
         activeSection={projectSection}
         isContextOpen={isContextOpen}
+        hasNewContextVersion={contextNotice.hasNewVersion}
         isExecutionOpen={isExecutionOpen}
         onOpenExecution={() => {
           setCanvasSection("execution");
@@ -589,6 +603,8 @@ function ProjectPlanCanvas({
           />
         ) : isContextOpen ? (
           <ProjectContextDocuments
+            onVersionViewed={contextNotice.markViewed}
+            availableRevision={contextNotice.latestRevision}
             api={api}
             projectId={project.id}
             projectName={project.name}
@@ -787,14 +803,21 @@ function ProjectPlanCanvas({
               </div>
             )}
             {taskExecutionError && <p role="alert">{taskExecutionError}</p>}
-            {latestExecutionOutcome && (
-              <div className="canvas-execution-outcome">
-                <ExecutionOutcomeNotice
-                  step={latestExecutionOutcome.step}
-                  job={latestExecutionOutcome.job}
-                />
-              </div>
-            )}
+            {latestExecutionOutcome &&
+              executionNoticeKey &&
+              !dismissedExecutionNotices.has(executionNoticeKey) && (
+                <div className="canvas-execution-outcome">
+                  <ExecutionOutcomeNotice
+                    onDismiss={() =>
+                      setDismissedExecutionNotices(
+                        (current) => new Set([...current, executionNoticeKey]),
+                      )
+                    }
+                    step={latestExecutionOutcome.step}
+                    job={latestExecutionOutcome.job}
+                  />
+                </div>
+              )}
             {currentIntent || graph ? (
               <WorkGraphCanvas
                 tasks={tasks}

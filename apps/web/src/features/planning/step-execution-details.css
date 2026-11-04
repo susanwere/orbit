@@ -258,6 +258,7 @@
   background: #124a343d;
 }
 .step-review-notice {
+  text-align: left;
   margin: 0 0 1.2rem;
   padding: 1rem 1.2rem;
   border: 1px solid #40d99288;
@@ -277,4 +278,32 @@
 
 .work-item-edit-panel {
   margin-inline: clamp(1.25rem, 4vw, 3rem);
+}
+
+.step-review-notice--dismissible {
+  position: relative;
+  padding-right: 3.5rem;
+}
+.step-review-notice-dismiss {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: inherit;
+  font-size: 1.4rem;
+  cursor: pointer;
+}
+.step-review-notice-dismiss:hover {
+  background: #40d99222;
+}
+.step-review-notice-dismiss:focus-visible {
+  outline: 2px solid #adffd8;
+  outline-offset: 2px;
 }

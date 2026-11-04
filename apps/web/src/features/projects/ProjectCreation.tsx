@@ -143,9 +143,7 @@ export function ProjectCreation({ api, onCreated, onCancel }: ProjectCreationPro
             />
           </div>
           <div className="project-setup-field">
-            <label htmlFor="orbit-project-repo">
-              GitHub repository <span>(optional)</span>
-            </label>
+            <label htmlFor="orbit-project-repo">GitHub repository</label>
             <div className="project-setup-repository">
               <span className="project-setup-repository-icon">
                 <GitHubMark />
@@ -156,16 +154,11 @@ export function ProjectCreation({ api, onCreated, onCancel }: ProjectCreationPro
                 onChange={(event) => setRepositoryUrl(event.target.value)}
                 placeholder="owner/repository or https://github.com/owner/repository"
                 disabled={isSubmitting}
-                aria-describedby="project-repository-help"
                 spellCheck={false}
                 autoCapitalize="none"
               />
             </div>
           </div>
-          <p id="project-repository-help" className="project-setup-help">
-            <span aria-hidden="true">ⓘ</span> An empty project is valid. Repositories can be
-            connected later.
-          </p>
           {createdProject && (
             <p role="status" className="project-setup-status">
               Project saved. You can finish or retry connecting its repository.

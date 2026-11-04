@@ -150,7 +150,7 @@ export function GoogleSignIn({ clientId, apiBaseUrl, sessionStore }: GoogleSignI
           </div>
           <h2>Plan, build, and ship software with AI agents</h2>
           <p className="sign-in-subtitle">
-            Turn ideas into plans, execute work, and keep your projects moving — with a human in the
+            Turn ideas into plans, execute work, and keep your projects moving - with a human in the
             loop.
           </p>
           <ul className="sign-in-benefits" aria-label="What you can do with Orbit">
