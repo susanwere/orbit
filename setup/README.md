@@ -332,29 +332,12 @@ save intent, generate/review plan, generate/review context, then optionally exec
 one bounded task and confirm its PR/CI evidence. A successful build is not evidence
 that a real Meta call or GitHub delivery was exercised.
 
-## 10. Hosted demo and restart behavior
+## 10. Restart behavior
 
-[Render deployment notes](../docs/deployment-render.md) and `render.yaml` describe the
-hosted starter. The current API can serve built frontend assets with
-`ORBIT_SERVE_WEB=true`, keeping browser requests and auth cookies on one origin.
-Use that API origin for the same-origin demo. For a separate static frontend, set
-its build-time `VITE_API_BASE_URL` explicitly and verify cookie/site behavior.
-
-Production needs HTTPS and `NODE_ENV=production` for secure refresh cookies. Set
-`ORBIT_WEB_ORIGINS` to the exact HTTPS frontend origin. Do not expose the Vite dev
-server or PostgreSQL to the internet. Uploaded documents need persistent storage;
-production uploads are disabled unless `ORBIT_DOCUMENT_STORAGE_DIR` is set.
-Setting that variable to an ephemeral disk does not make uploads durable.
-
-The Render starter does not deploy the Docker coding executor or its trusted
-GitHub delivery pipeline. Do not start the local consumer as an unrestricted
-public service. Configuring hosted env values alone does not make live execution
-available. Webhook variables are additional configuration beyond the blueprint.
-
-After backend env changes, restart/redeploy the API and local consumer. After
-frontend env changes, restart Vite or rebuild/redeploy the frontend. After worker
-source changes, rebuild the worker image before starting the next execution.
-Avoid stopping an active execution merely to refresh its image.
+After backend environment changes, restart the API and local consumer. After
+frontend environment changes, restart Vite. After worker source changes, rebuild
+the worker image before starting the next execution. Avoid stopping an active
+execution merely to refresh its image.
 
 ## 11. Troubleshooting
 

@@ -96,14 +96,6 @@ The database volume remains intact. Do not remove Docker volumes unless you inte
 to erase the database. Retain the private document-storage directory as well.
 
 After changing API/consumer env files, restart those processes. After changing
-frontend env values, restart Vite; hosted frontend values require a rebuild.
+frontend env values, restart Vite.
 Rebuild the worker image for changes packaged into it. Avoid interrupting an active
 job to refresh its image.
-
-## Hosted run
-
-The built API can serve the frontend with `ORBIT_SERVE_WEB=true`. See the
-[Render deployment notes](../docs/deployment-render.md) and current `render.yaml`.
-Use the API's HTTPS origin for that same-origin demo and configure exact allowed
-origins and production cookies. The hosted starter includes neither a deployed
-coding executor nor durable upload storage.
