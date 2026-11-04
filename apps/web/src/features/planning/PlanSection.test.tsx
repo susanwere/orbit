@@ -47,7 +47,7 @@ describe("focused plan sections", () => {
       <PlanSection {...sectionProps} section="original-intent" />,
     );
     expect(markup).toContain(sectionProps.originalIntent.statement);
-    expect(markup.match(/Original Intent/g)).toHaveLength(1);
+    expect(markup.match(/Original Intent<\/button>/g)).toHaveLength(1);
     expect(markup.match(/Saved · immutable/g)).toHaveLength(1);
     expect(markup).not.toContain("<textarea");
     expect(markup).not.toContain("Save changes");
@@ -61,5 +61,53 @@ describe("focused plan sections", () => {
     expect(markup).toContain("Read-only · plan approved");
     expect(markup).not.toContain("Save changes");
     expect(markup).not.toContain("Cancel");
+  });
+});
+
+describe("plan detail item cards", () => {
+  it.each(["guardrails", "decisionsToReview", "assumptions"] as const)(
+    "renders each %s item as a separate connected card",
+    (section) => {
+      const markup = renderToStaticMarkup(
+        <PlanSection
+          {...sectionProps}
+          section={section}
+          graph={{
+            ...graph,
+            [section]: [
+              "API Integration: Keep the public API boundary.",
+              "Preserve keyboard accessibility.",
+            ],
+          }}
+        />,
+      );
+      expect(markup.match(/class="plan-detail-item-card"/g)).toHaveLength(2);
+      expect(markup).toContain("<h3>API Integration</h3>");
+      expect(markup).toContain("Keep the public API boundary.");
+      expect(markup).toContain("Preserve keyboard accessibility.");
+      expect(markup).not.toContain('data-approved="true"');
+    },
+  );
+  it("uses approval markers only after the plan is approved", () => {
+    const markup = renderToStaticMarkup(
+      <PlanSection {...sectionProps} section="guardrails" approved canEdit={false} />,
+    );
+    expect(markup).toContain('title="Approved as part of the plan"');
+    expect(markup).toContain("✓");
+    expect(markup).not.toContain(">Edit</button>");
+  });
+  it("preserves empty sections and does not split URLs into headings", () => {
+    const empty = renderToStaticMarkup(<PlanSection {...sectionProps} section="assumptions" />);
+    expect(empty).toContain("None proposed.");
+    expect(empty).not.toContain('class="plan-detail-item-card"');
+    const url = renderToStaticMarkup(
+      <PlanSection
+        {...sectionProps}
+        section="outcome"
+        graph={{ ...graph, summary: "https://example.com/jobs" }}
+      />,
+    );
+    expect(url).toContain("https://example.com/jobs");
+    expect(url).not.toContain("<h3>https</h3>");
   });
 });
