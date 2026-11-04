@@ -7,7 +7,9 @@ import { registerHostedWeb } from "./hosted-web.js";
 
 const directories: string[] = [];
 afterEach(async () => {
-  await Promise.all(directories.splice(0).map((path) => rm(path, { recursive: true, force: true })));
+  await Promise.all(
+    directories.splice(0).map((path) => rm(path, { recursive: true, force: true })),
+  );
 });
 
 it("serves the frontend on the API origin while preserving API paths", async () => {
@@ -31,10 +33,19 @@ it("serves the frontend on the API origin while preserving API paths", async () 
     expect((await app.inject({ method: "GET", url: "/health" })).json()).toEqual({
       status: "ok",
     });
-    expect((await app.inject({ method: "GET", url: "/projects/unknown", headers: { accept: "text/html" } })).statusCode).toBe(404);
-    expect((await app.inject({ method: "GET", url: "/dashboard", headers: { accept: "text/html" } })).body).toBe("<html>Orbit</html>");
+    expect(
+      (await app.inject({ method: "GET", url: "/projects/unknown", headers: { accept: "text/html" } }))
+        .statusCode,
+    ).toBe(404);
+    expect(
+      (await app.inject({ method: "GET", url: "/dashboard", headers: { accept: "text/html" } }))
+        .body,
+    ).toBe("<html>Orbit</html>");
     expect((await app.inject({ method: "GET", url: "/assets/nope.js" })).statusCode).toBe(404);
-    expect((await app.inject({ method: "POST", url: "/dashboard", headers: { accept: "text/html" } })).statusCode).toBe(404);
+    expect(
+      (await app.inject({ method: "POST", url: "/dashboard", headers: { accept: "text/html" } }))
+        .statusCode,
+    ).toBe(404);
   } finally {
     await app.close();
   }
