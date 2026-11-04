@@ -22,12 +22,16 @@ services:
     runtime: node
     region: frankfurt
     plan: free
-    buildCommand: npm ci --include=dev --no-audit --no-fund && npm run build -w @orbit/domain && npm run build -w @orbit/db && npm run build -w @orbit/api
+    buildCommand: npm ci --include=dev --no-audit --no-fund && npm run build -w @orbit/domain && npm run build -w @orbit/db && npm run build -w @orbit/api && npm run build -w @orbit/web
     startCommand: npm run db:migrate && npm run start -w @orbit/api
     healthCheckPath: /health
     envVars:
       - key: NODE_VERSION
         value: "22"
+      - key: ORBIT_SERVE_WEB
+        value: "true"
+      - key: VITE_GOOGLE_CLIENT_ID
+        sync: false
       - key: NODE_ENV
         value: production
       - key: HOST

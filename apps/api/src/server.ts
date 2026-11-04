@@ -1,4 +1,5 @@
 import { LocalDocumentStorage } from "./modules/documents/document-storage.js";
+import { registerHostedWeb } from "./hosted-web.js";
 import { ResendVerificationEmailService } from "./modules/auth/email-token-service.js";
 import { PgDatabase } from "@orbit/db";
 import { MuseWorkGraphPlanner } from "./modules/planning/muse-work-graph-planner.js";
@@ -340,6 +341,8 @@ app.addHook("onClose", async () => {
   clearInterval(workerTimer);
   await database.close();
 });
+
+if (process.env.ORBIT_SERVE_WEB === "true") await registerHostedWeb(app);
 
 await app.listen({ port, host });
 console.log(`Orbit API listening on http://${host}:${port}`);
