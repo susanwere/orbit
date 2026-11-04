@@ -17,6 +17,7 @@ interface JobRow extends Record<string, unknown> {
   status: string;
   attempts: number;
   mission: string;
+  is_code_task?: boolean;
   allowed_repositories: unknown;
   allowed_paths: unknown;
   network_policy: string;
@@ -173,7 +174,10 @@ export class MuseExecutionWorker {
       const claim = await tx.query<JobRow>(
         `SELECT job.id,job.organization_id,job.project_id,job.agent_session_id,job.attempts,
             job.workflow_step_id,job.status,s.mission,c.allowed_repositories,
-            c.allowed_paths,c.network_policy,c.network_allowlist
+            c.allowed_paths,c.network_policy,c.network_allowlist,
+            EXISTS(SELECT 1 FROM project_tasks task WHERE task.project_id=job.project_id
+              AND task.organization_id=job.organization_id AND task.session_id=job.agent_session_id
+              AND task.step_id=job.workflow_step_id) AS is_code_task
          FROM muse_execution_jobs job
          JOIN agent_sessions s ON s.id=job.agent_session_id AND s.project_id=job.project_id
            AND s.organization_id=job.organization_id
@@ -261,14 +265,23 @@ export class MuseExecutionWorker {
         },
         mission: job.mission,
         workspace,
-        modelSteps: 20,
+        modelSteps: 40,
         timeoutMs: 600000,
       });
       if (result.exitCode !== 0) failure = "Muse Code exited without a completed turn.";
       if (result.outputTruncated) failure = "Muse Code output exceeded capture limits.";
-    } catch {
-      // Never persist provider stderr or secrets into user-visible error fields.
-      failure ||= "Muse Code process failed or timed out.";
+      if (!failure && (!result.reviewOutput?.trim() || !result.changedPaths))
+        failure =
+          "Muse finished without a retainable execution summary or file-change inventory. No PR was requested. Review the preserved checkout before retrying.";
+      if (!failure && job.is_code_task && result.changedPaths?.length === 0)
+        failure =
+          "Muse made no file changes for this coding task. No PR was created. Review its retained summary and resolve the blocker before retrying.";
+    } catch (error) {
+      // Only our fixed timeout label is exposed; provider diagnostics remain private.
+      failure ||=
+        error instanceof Error && error.message === "Muse Code timed out."
+          ? "Muse reached the 10-minute execution limit. Partial edits are preserved in its checkout; no PR was requested."
+          : "Muse Code process failed before output could be retained. Partial edits are preserved; no PR was requested.";
     }
     await recordActivity({
       stage: "execution",
@@ -297,7 +310,7 @@ export class MuseExecutionWorker {
       // Recovery or another owner may have won the lease. A stale worker has
       // no authority to finalize a session or step after its lease expired.
       if (!finalized.rows[0]) return false;
-      if (!failure && result?.reviewOutput && result.changedPaths) {
+      if (result?.reviewOutput && result.changedPaths) {
         await tx.query(
           `INSERT INTO muse_job_outputs(job_id,organization_id,project_id,content,content_hash,changed_paths,source)
           VALUES($1,$2,$3,$4,$5,$6::jsonb,'execution') ON CONFLICT (job_id) DO NOTHING`,
@@ -312,6 +325,12 @@ export class MuseExecutionWorker {
         );
       }
       if (failure) {
+        await tx.query(
+          `UPDATE project_tasks SET state='FAILED',last_error=$4,updated_at=now()
+           WHERE project_id=$1 AND organization_id=$2 AND session_id=$3
+             AND state IN ('STARTING','ACTIVE')`,
+          [job.project_id, job.organization_id, job.agent_session_id, failure],
+        );
         await tx.query(
           `UPDATE agent_sessions SET state='FAILED',ended_at=now()
            WHERE id=$1 AND project_id=$2 AND state='RUNNING'`,

@@ -141,6 +141,14 @@ export class TaskAutomationService {
 
   private async advanceTask(projectId: string, task: AutomatedTaskRow): Promise<string | null> {
     const principalId = task.approved_by_principal_id;
+    if (task.delivery_state === "ERROR") {
+      await this.database.query(
+        `UPDATE project_tasks SET state='NEEDS_INPUT',last_error='PR delivery failed. Review the preserved output and existing PR before retrying; no execution is still running.',updated_at=now()
+         WHERE id=$1 AND project_id=$2 AND organization_id=$3 AND session_id=$4 AND state IN ('ACTIVE','IN_REVIEW')`,
+        [task.id, projectId, task.organization_id, task.session_id],
+      );
+      return `delivery-failed:${task.id}`;
+    }
     if (task.job_status === "TURN_FINISHED" && !task.github_pull_number) {
       // No PR and (per the delivery guard) no changed paths: Muse finished
       // without edits, e.g. it diagnosed a problem it is not permitted to
@@ -236,7 +244,7 @@ export class TaskAutomationService {
       humanOwner: principalId,
       agentDefinitionId: museAgent.id,
       workItemId: `work:${task.plan_id}:${task.task_key}`,
-      mission: task.prompt.slice(0, 2000),
+      mission: task.prompt,
       repairSourceJobId: prepared.repairSourceJobId,
     });
     const repairSessionId = (created.session as { id: string }).id;

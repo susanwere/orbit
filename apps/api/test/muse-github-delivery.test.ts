@@ -2,7 +2,10 @@ import { mkdtemp, mkdir, writeFile, rm, realpath } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { MuseGithubDeliveryService } from "../src/modules/execution/muse-github-delivery.js";
+import {
+  assertRepairPreservesDependencies,
+  MuseGithubDeliveryService,
+} from "../src/modules/execution/muse-github-delivery.js";
 
 afterEach(() => {
   delete process.env.ORBIT_MUSE_ISOLATED_WORKER;
@@ -91,6 +94,7 @@ describe("trusted Muse GitHub delivery", () => {
 async function deliverFixture(
   options: {
     repair?: boolean;
+    staleRepairHead?: boolean;
     reportedPaths?: string[];
     headMismatch?: boolean;
     checkoutOrigin?: string;
@@ -163,7 +167,8 @@ async function deliverFixture(
             draft: true,
             merged_at: null,
             head: {
-              sha: committed ? headSha : baseSha,
+              sha:
+                committed && (!options.staleRepairHead || githubRequests > 2) ? headSha : baseSha,
               ref: "orbit/muse-prior-job",
               repo: { full_name: "owner/repo" },
             },
@@ -264,5 +269,39 @@ describe("generated change delivery with stub GitHub", () => {
     } finally {
       await fixture.cleanup();
     }
+  });
+});
+
+it("rechecks a temporarily stale repaired PR head without pushing twice", async () => {
+  const fixture = await deliverFixture({ repair: true, staleRepairHead: true });
+  try {
+    await expect(fixture.run()).resolves.toMatchObject({ headSha: fixture.headSha });
+    expect(fixture.githubRequests()).toBe(3);
+    expect(fixture.commands.filter((command) => command[0] === "push")).toHaveLength(1);
+    expect(fixture.bindings).toHaveLength(1);
+  } finally {
+    await fixture.cleanup();
+  }
+});
+
+describe("CI repairs preserve declared dependencies", () => {
+  it.each(["dependencies", "devDependencies", "optionalDependencies", "peerDependencies"])(
+    "rejects removal from %s",
+    (category) => {
+      expect(() =>
+        assertRepairPreservesDependencies(
+          JSON.stringify({ [category]: { vitest: "^4.0.0" } }),
+          "{}",
+        ),
+      ).toThrow("CI repair removed a declared dependency");
+    },
+  );
+  it("allows compatible version repairs and additional dependencies", () => {
+    expect(() =>
+      assertRepairPreservesDependencies(
+        JSON.stringify({ devDependencies: { vitest: "^4.0.0" } }),
+        JSON.stringify({ devDependencies: { vitest: "^4.0.1", typescript: "^5.0.0" } }),
+      ),
+    ).not.toThrow();
   });
 });

@@ -969,6 +969,10 @@ describe.skipIf(!databaseUrl)("proposal and human workflow review (PostgreSQL)",
     expect(repair.snapshot.mission).toContain("npm run build");
     expect(repair.snapshot.mission).toContain("UNTRUSTED CI DIAGNOSTIC DATA");
     expect(repair.snapshot.mission).toContain("CI REPAIR EXECUTION IS AUTHORIZED");
+    expect(repair.snapshot.mission).toContain(
+      "Repair the reported build failure without changing approved greeting choices",
+    );
+    expect(repair.snapshot.mission).toContain("Do not revert feature code");
     expect(repair.snapshot.mission).toContain("Human-authorized CI repair:");
     expect(repair.snapshot.id).not.toBe(created.snapshot.id);
     expect(

@@ -1,3 +1,4 @@
+import { excludeUnusedPreparedFiles } from "./prepare-task-directories.js";
 import { spawn, execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { extractMuseReviewOutput } from "./muse-review-output.js";
@@ -132,7 +133,10 @@ export class MuseCodeCliExecutor implements EngineeringExecutor {
 
 /** Only usable from an isolated host with an OS sandbox and scoped workspace. */
 export class LocalMuseProcessRunner implements MuseProcessRunner {
-  constructor(private readonly collectRepositoryChanges = false) {}
+  constructor(
+    private readonly collectRepositoryChanges = false,
+    private readonly preparedFiles: readonly string[] = [],
+  ) {}
   async run(
     args: readonly string[],
     options: {
@@ -229,12 +233,13 @@ export class LocalMuseProcessRunner implements MuseProcessRunner {
               },
             },
           );
+          const changedPaths = await excludeUnusedPreparedFiles(
+            options.cwd,
+            [...new Set(changed.stdout.split("\0").filter(Boolean))],
+            this.preparedFiles,
+          );
           settled = true;
-          accept({
-            exitCode: code,
-            stdout,
-            changedPaths: [...new Set(changed.stdout.split("\0").filter(Boolean))],
-          });
+          accept({ exitCode: code, stdout, changedPaths });
         } catch {
           fail(new Error("Could not verify changed repository paths."));
         }

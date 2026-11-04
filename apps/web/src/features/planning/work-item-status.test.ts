@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { ExecutionStep } from "../intent/intent-api.js";
+import type { ExecutionStep, MuseJobStatus } from "../intent/intent-api.js";
 import {
   isReadyForReview,
   executionDisplayState,
@@ -86,4 +86,49 @@ describe("review handoff", () => {
     ).toBeNull();
     expect(canvasExecutionPollDelay([waitingStep], [], {}, true)).toBe(2000);
   });
+});
+
+it("stops showing active execution and polling after delivery fails", () => {
+  const job: MuseJobStatus = {
+    id: "job",
+    status: "TURN_FINISHED",
+    workflow_step_id: "current-step",
+    delivery_state: "ERROR",
+    attempts: 1,
+    started_at: null,
+    finished_at: null,
+    failure_reason: null,
+    github_repository: null,
+    github_pull_number: null,
+  };
+  expect(executionDisplayState(currentStep, job)).toBe("FAILED");
+  expect(canvasExecutionPollDelay([currentStep], [], { "current-session": job }, false)).toBeNull();
+  expect(executionDisplayState({ ...currentStep, state: "COMPLETED" }, job)).toBe("COMPLETED");
+});
+
+it("stops polling a stale running step when its agent finished without changes or delivery", () => {
+  const job: MuseJobStatus = {
+    id: "job",
+    status: "TURN_FINISHED",
+    workflow_step_id: currentStep.id,
+    attempts: 1,
+    started_at: null,
+    finished_at: null,
+    failure_reason: null,
+    changed_paths: [],
+    github_repository: null,
+    github_pull_number: null,
+  };
+  expect(executionDisplayState(currentStep, job)).toBe("NEEDS_INPUT");
+  expect(overallWorkflowStatus([currentStep], { "current-session": job })).toBe("NEEDS_INPUT");
+  expect(canvasExecutionPollDelay([currentStep], [], { "current-session": job }, false)).toBeNull();
+  expect(
+    canvasExecutionPollDelay(
+      [currentStep],
+      [],
+      { "current-session": { ...job, delivery_state: "RUNNING" } },
+      false,
+    ),
+  ).toBe(2000);
+  expect(executionDisplayState({ ...currentStep, state: "COMPLETED" }, job)).toBe("COMPLETED");
 });

@@ -1,6 +1,7 @@
 import { execFile as execFileCallback } from "node:child_process";
 import { promisify } from "node:util";
-import { lstat, realpath } from "node:fs/promises";
+import { setTimeout as delay } from "node:timers/promises";
+import { lstat, readFile, realpath } from "node:fs/promises";
 import { resolve, join, relative, isAbsolute } from "node:path";
 import { DomainError } from "@orbit/domain";
 import type { SqlDatabase } from "@orbit/db";
@@ -50,6 +51,45 @@ interface DeliveryJob extends Record<string, unknown> {
   repair_pull_number: number | null;
   repair_head_sha: string | null;
   repair_repository: string | null;
+}
+
+/** A CI repair may update versions, but removing dependencies needs separate human review. */
+export function assertRepairPreservesDependencies(
+  originalManifest: string,
+  repairedManifest: string,
+): void {
+  const originalPackage: unknown = JSON.parse(originalManifest);
+  const repairedPackage: unknown = JSON.parse(repairedManifest);
+  if (
+    !originalPackage ||
+    typeof originalPackage !== "object" ||
+    Array.isArray(originalPackage) ||
+    !repairedPackage ||
+    typeof repairedPackage !== "object" ||
+    Array.isArray(repairedPackage)
+  )
+    throw new DomainError("validation", "CI repair requires valid package manifests.");
+  for (const category of [
+    "dependencies",
+    "devDependencies",
+    "optionalDependencies",
+    "peerDependencies",
+  ]) {
+    const originalDependencies: unknown = Reflect.get(originalPackage, category);
+    const repairedDependencies: unknown = Reflect.get(repairedPackage, category);
+    if (!originalDependencies || typeof originalDependencies !== "object") continue;
+    for (const dependency of Object.keys(originalDependencies)) {
+      if (
+        !repairedDependencies ||
+        typeof repairedDependencies !== "object" ||
+        !Object.hasOwn(repairedDependencies, dependency)
+      )
+        throw new DomainError(
+          "forbidden",
+          "CI repair removed a declared dependency. Preserve the implementation and repair its dependency setup, or request separate human review.",
+        );
+    }
+  }
 }
 
 /**
@@ -200,6 +240,16 @@ export class MuseGithubDeliveryService {
         throw new DomainError("forbidden", "Only bounded regular files may be delivered.");
     }
 
+    if (job.repair_source_job_id) {
+      for (const path of changed.filter(
+        (path) => path === "package.json" || path.endsWith("/package.json"),
+      )) {
+        const originalManifest = await this.git(["show", `${base}:${path}`], input.workspace);
+        const repairedManifest = await readFile(resolve(input.workspace, path), "utf8");
+        assertRepairPreservesDependencies(originalManifest, repairedManifest);
+      }
+    }
+
     let branch = `orbit/muse-${job.id.replace(/[^a-zA-Z0-9_-]/g, "").slice(0, 80)}`;
     if (job.repair_source_job_id) {
       if (
@@ -289,11 +339,31 @@ export class MuseGithubDeliveryService {
           }),
         });
     if (!response.ok) throw new DomainError("invalid_state", "GitHub PR delivery failed.");
-    const pull = (await response.json()) as {
+    let pull = (await response.json()) as {
       number?: number;
       draft?: boolean;
       head?: { sha?: string };
     };
+    // A push can finish before GitHub's PR endpoint reflects the repaired head.
+    // Re-read only the same repair PR; never push again or accept a different commit.
+    for (
+      let attempt = 0;
+      job.repair_source_job_id && pull.head?.sha !== head && attempt < 3;
+      attempt++
+    ) {
+      await delay(250 * (attempt + 1));
+      const confirmation = await this.request(
+        `https://api.github.com/repos/${repository}/pulls/${job.repair_pull_number}`,
+        {
+          redirect: "error",
+          headers: { Authorization: "Bearer " + this.token, Accept: "application/vnd.github+json" },
+          signal: AbortSignal.timeout(15000),
+        },
+      );
+      if (!confirmation.ok)
+        throw new DomainError("invalid_state", "Could not confirm the repaired PR head.");
+      pull = (await confirmation.json()) as typeof pull;
+    }
     if (
       !Number.isSafeInteger(pull.number) ||
       !pull.number ||

@@ -15,45 +15,74 @@ const agent = {
   networkAllowlist: [],
 };
 describe("scoped agent session creation", () => {
-  it("creates snapshot, contract, and authorized session in one transaction", async () => {
-    const statements: string[] = [];
-    const tx = {
-      query: async (sql: string) => {
-        statements.push(sql);
-        if (sql.includes("FROM orbit_work_items")) return { rows: [{ id: "work" }] };
-        if (sql.includes("FROM principals")) return { rows: [{ id: "owner" }] };
-        if (sql.includes("FROM orbit_agent_definition_versions"))
-          return { rows: [{ definition: agent, status: "approved", version: 1 }] };
-        if (sql.includes("INSERT INTO agent_sessions"))
-          return { rows: [{ id: "session_3", state: "AUTHORIZED" }] };
-        return { rows: [] };
-      },
-    };
-    const db = { transaction: async (fn: (x: typeof tx) => Promise<unknown>) => fn(tx) };
-    const auth = { authorize: async () => ({ organizationId: "org", role: "member" }) };
-    const snapshots = {
-      createWithinTransaction: async () => ({ id: "snapshot", sourceContextVersionId: "v4" }),
-    };
-    const svc = new AgentSessionService(
-      db as never,
-      auth as never,
-      snapshots as never,
-      (() => {
-        let i = 0;
-        return () => String(++i);
-      })(),
+  it.each(["Implement job pagination", "x".repeat(12000)])(
+    "creates snapshot, contract, and authorized session for a valid mission (%#. case)",
+    async (mission) => {
+      const statements: string[] = [];
+      const tx = {
+        query: async (sql: string) => {
+          statements.push(sql);
+          if (sql.includes("FROM orbit_work_items")) return { rows: [{ id: "work" }] };
+          if (sql.includes("FROM principals")) return { rows: [{ id: "owner" }] };
+          if (sql.includes("FROM orbit_agent_definition_versions"))
+            return { rows: [{ definition: agent, status: "approved", version: 1 }] };
+          if (sql.includes("INSERT INTO agent_sessions"))
+            return { rows: [{ id: "session_3", state: "AUTHORIZED" }] };
+          return { rows: [] };
+        },
+      };
+      const db = { transaction: async (fn: (x: typeof tx) => Promise<unknown>) => fn(tx) };
+      const auth = { authorize: async () => ({ organizationId: "org", role: "member" }) };
+      const snapshots = {
+        createWithinTransaction: async () => ({ id: "snapshot", sourceContextVersionId: "v4" }),
+      };
+      const svc = new AgentSessionService(
+        db as never,
+        auth as never,
+        snapshots as never,
+        (() => {
+          let i = 0;
+          return () => String(++i);
+        })(),
+      );
+      const result = await svc.create({
+        projectId: "project",
+        requestedBy: "requester",
+        humanOwner: "owner",
+        agentDefinitionId: "agent",
+        workItemId: "work",
+        mission,
+      });
+      expect(result.executionContractId).toBe("contract_1");
+      expect(statements.some((s) => s.includes("INSERT INTO execution_contracts"))).toBe(true);
+      expect(statements.some((s) => s.includes("INSERT INTO agent_sessions"))).toBe(true);
+    },
+  );
+  it.each([
+    ["   ", "An agent mission is required."],
+    ["x".repeat(12001), "Agent mission must be 12,000 characters or fewer."],
+  ])("rejects invalid missions before creating a session (%#. case)", async (mission, message) => {
+    let transactionStarted = false;
+    const service = new AgentSessionService(
+      {
+        transaction: async () => {
+          transactionStarted = true;
+        },
+      } as never,
+      { authorize: async () => ({ organizationId: "org", role: "member" }) } as never,
+      {} as never,
     );
-    const result = await svc.create({
-      projectId: "project",
-      requestedBy: "requester",
-      humanOwner: "owner",
-      agentDefinitionId: "agent",
-      workItemId: "work",
-      mission: "Implement job pagination",
-    });
-    expect(result.executionContractId).toBe("contract_1");
-    expect(statements.some((s) => s.includes("INSERT INTO execution_contracts"))).toBe(true);
-    expect(statements.some((s) => s.includes("INSERT INTO agent_sessions"))).toBe(true);
+    await expect(
+      service.create({
+        projectId: "project",
+        requestedBy: "requester",
+        humanOwner: "owner",
+        agentDefinitionId: "agent",
+        workItemId: "work",
+        mission,
+      }),
+    ).rejects.toMatchObject({ code: "validation", message });
+    expect(transactionStarted).toBe(false);
   });
   it("denies unapproved agent definitions", async () => {
     const tx = {

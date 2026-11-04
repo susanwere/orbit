@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { TaskAutomationService } from "../src/modules/tasks/task-automation-service.js";
 
-function fixture(ciState: "FAILED" | "PENDING") {
+function fixture(ciState: "FAILED" | "PENDING", deliveryFailed = false) {
   const statements: string[] = [];
   const evidence = { verify: vi.fn() };
   const jobs = { enqueue: vi.fn().mockResolvedValue({ id: "repair-job" }) };
@@ -25,7 +25,8 @@ function fixture(ciState: "FAILED" | "PENDING") {
                   automatic_repairs: 0,
                   job_id: "job",
                   job_status: "TURN_FINISHED",
-                  github_pull_number: 123,
+                  github_pull_number: deliveryFailed ? null : 123,
+                  delivery_state: deliveryFailed ? "ERROR" : "FINISHED",
                 },
               ]
             : [],
@@ -51,6 +52,16 @@ describe("task review lifecycle", () => {
   it("continues observing pending CI without execution, repair, or completion", async () => {
     const test = fixture("PENDING");
     expect(await test.service.advanceNext("project")).toBeNull();
+    expect(test.jobs.enqueue).not.toHaveBeenCalled();
+    expect(test.repair.prepare).not.toHaveBeenCalled();
+    expect(test.evidence.verify).not.toHaveBeenCalled();
+  });
+  it("stops an interrupted delivery without queuing another model run or CI repair", async () => {
+    const test = fixture("PENDING", true);
+    expect(await test.service.advanceNext("project")).toBe("delivery-failed:task");
+    expect(test.statements.some((statement) => statement.includes("SET state='NEEDS_INPUT'"))).toBe(
+      true,
+    );
     expect(test.jobs.enqueue).not.toHaveBeenCalled();
     expect(test.repair.prepare).not.toHaveBeenCalled();
     expect(test.evidence.verify).not.toHaveBeenCalled();

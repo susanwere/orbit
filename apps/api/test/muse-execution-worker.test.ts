@@ -102,7 +102,12 @@ describe("isolated Muse execution worker", () => {
     network_policy: "none",
     network_allowlist: [],
   };
-  const harness = (exitCode: number, overrides: Record<string, unknown> = {}, leaseWon = true) => {
+  const harness = (
+    exitCode: number,
+    overrides: Record<string, unknown> = {},
+    leaseWon = true,
+    retainOutput = true,
+  ) => {
     const statements: string[] = [];
     let invoked = 0;
     const worker = new MuseExecutionWorker(
@@ -128,6 +133,9 @@ describe("isolated Muse execution worker", () => {
           return {
             provider: "meta-muse-code",
             exitCode,
+            ...(retainOutput
+              ? { reviewOutput: "Implemented the component.", changedPaths: ["src/Component.tsx"] }
+              : {}),
             events: [{ type: "finished" }],
             outputTruncated: false,
           };
@@ -180,6 +188,19 @@ describe("isolated Muse execution worker", () => {
     expect(h.statements.some((sql) => sql.includes("SET status=$3"))).toBe(true);
   });
 
+  it("fails explicitly and makes the task retryable when a turn returns no retained output", async () => {
+    process.env.ORBIT_MUSE_ISOLATED_WORKER = "true";
+    const test = harness(0, {}, true, false);
+    expect(await test.worker.runNext("/tmp/checkout")).toEqual({ jobId: "job", status: "FAILED" });
+    expect(
+      test.statements.some((statement) =>
+        statement.includes("UPDATE project_tasks SET state='FAILED'"),
+      ),
+    ).toBe(true);
+    expect(
+      test.statements.some((statement) => statement.includes("INSERT INTO muse_job_outputs")),
+    ).toBe(false);
+  });
   it("does not alter session or step after lease ownership expires", async () => {
     process.env.ORBIT_MUSE_ISOLATED_WORKER = "true";
     const h = harness(1, {}, false);

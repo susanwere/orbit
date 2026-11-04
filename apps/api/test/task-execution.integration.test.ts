@@ -4,7 +4,7 @@ import { GithubCiEvidenceService } from "../src/modules/execution/github-ci-evid
 import { MuseCiRepairService } from "../src/modules/execution/muse-ci-repair-service.js";
 import { createExecutionActivityRecorder } from "../src/modules/execution/muse-execution-activity.js";
 import { randomUUID } from "node:crypto";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { PgDatabase } from "@orbit/db";
 import { ProjectAuthorizationService } from "../src/modules/projects/project-authorization.js";
 import { AgentContextSnapshotService } from "../src/modules/context/agent-context-snapshot-service.js";
@@ -12,7 +12,10 @@ import { AgentSessionService } from "../src/modules/agents/agent-session-service
 import { ApprovedStepMaterializer } from "../src/modules/execution/approved-step-materializer.js";
 import { StepSessionBindingService } from "../src/modules/execution/step-session-binding-service.js";
 import { WorkflowStepExecutionService } from "../src/modules/execution/workflow-step-execution-service.js";
-import { MuseExecutionJobService } from "../src/modules/execution/muse-execution-worker.js";
+import {
+  MuseExecutionJobService,
+  MuseExecutionWorker,
+} from "../src/modules/execution/muse-execution-worker.js";
 import { MuseDeliveryRequestService } from "../src/modules/execution/muse-delivery-request-service.js";
 import { TaskService } from "../src/modules/tasks/task-service.js";
 import { TaskExecutionService } from "../src/modules/tasks/task-execution-service.js";
@@ -146,13 +149,14 @@ describe.skipIf(!databaseUrl)("prompt-first task execution (PostgreSQL)", () => 
     const taskService = new TaskService(database, authorization);
     const tasks = await taskService.initialize(projectId, principalId);
     const jobsTask = tasks.find((task) => task.task_key === "jobs-list")!;
+    const approvedPrompt = `Render exactly 20 job postings with a Load More button.\n${"Preserve existing filters and accessibility.\n".repeat(60)}`;
     const edited = await taskService.update({
       projectId,
       principalId,
       taskId: jobsTask.id,
       revision: jobsTask.revision,
       title: jobsTask.title,
-      prompt: "Render exactly 20 job postings with a Load More button.",
+      prompt: approvedPrompt,
     });
     const started = await execution.execute({
       projectId,
@@ -176,7 +180,8 @@ describe.skipIf(!databaseUrl)("prompt-first task execution (PostgreSQL)", () => 
       "SELECT mission FROM context_snapshots WHERE project_id=$1 ORDER BY created_at DESC LIMIT 1",
       [projectId],
     );
-    expect(snapshot.rows[0]?.mission).toContain("Render exactly 20 job postings");
+    expect(snapshot.rows[0]?.mission).toContain(approvedPrompt);
+    expect(snapshot.rows[0]?.mission.length).toBeGreaterThan(2000);
     expect(snapshot.rows[0]?.mission).toContain("fenced code blocks with a language label");
     expect(snapshot.rows[0]?.mission).toContain(
       "commands that were actually run versus suggested commands",
@@ -457,5 +462,73 @@ describe.skipIf(!databaseUrl)("prompt-first task execution (PostgreSQL)", () => 
     const callsAfterCompletion = networkCalls;
     expect(await automation.advanceNext(projectId)).toBeNull();
     expect(networkCalls).toBe(callsAfterCompletion);
+  });
+  it("recovers from failed startup and a missing-output run without leaving the task stuck", async () => {
+    const remainingTasks = await new TaskService(database, authorization).list(
+      projectId,
+      principalId,
+    );
+    const taskId = remainingTasks.find((task) => task.task_key === "filters")!.id;
+    await expect(
+      execution.execute({ projectId, principalId, taskId, agentDefinitionId: "missing-agent" }),
+    ).rejects.toMatchObject({ code: "forbidden" });
+    expect(
+      (await database.query("SELECT state FROM project_tasks WHERE id=$1", [taskId])).rows[0]
+        ?.state,
+    ).toBe("FAILED");
+    const startFailure = vi
+      .spyOn(sessions, "start")
+      .mockRejectedValueOnce(new Error("Temporary startup failure"));
+    await expect(
+      execution.execute({ projectId, principalId, taskId, agentDefinitionId }),
+    ).rejects.toThrow("Temporary startup failure");
+    startFailure.mockRestore();
+    expect(
+      (await database.query("SELECT state FROM project_tasks WHERE id=$1", [taskId])).rows[0]
+        ?.state,
+    ).toBe("FAILED");
+    const started = await execution.execute({ projectId, principalId, taskId, agentDefinitionId });
+    const previousIsolation = process.env.ORBIT_MUSE_ISOLATED_WORKER;
+    process.env.ORBIT_MUSE_ISOLATED_WORKER = "true";
+    try {
+      const worker = new MuseExecutionWorker(database, {
+        execute: async () => ({
+          provider: "meta-muse-code",
+          exitCode: 0,
+          events: [],
+          outputTruncated: false,
+          changedPaths: ["src/Component.tsx"],
+        }),
+      });
+      const sessionContract = await database.query<
+        { allowed_paths: string[] } & Record<string, unknown>
+      >(
+        "SELECT contract.allowed_paths FROM agent_sessions session JOIN execution_contracts contract ON contract.id=session.execution_contract_id WHERE session.id=$1",
+        [started.sessionId],
+      );
+      expect(
+        await worker.runNext("/workspace", {
+          jobId: started.jobId,
+          projectId,
+          repository: "susanwere/private-test",
+          allowedPaths: sessionContract.rows[0]!.allowed_paths,
+        }),
+      ).toMatchObject({ status: "FAILED" });
+      expect(
+        (await database.query("SELECT state,last_error FROM project_tasks WHERE id=$1", [taskId]))
+          .rows[0],
+      ).toMatchObject({ state: "FAILED", last_error: expect.stringContaining("summary") });
+      const retried = await execution.execute({
+        projectId,
+        principalId,
+        taskId,
+        agentDefinitionId,
+      });
+      expect(retried.jobId).not.toBe(started.jobId);
+      expect(retried.state).toBe("ACTIVE");
+    } finally {
+      if (previousIsolation === undefined) delete process.env.ORBIT_MUSE_ISOLATED_WORKER;
+      else process.env.ORBIT_MUSE_ISOLATED_WORKER = previousIsolation;
+    }
   });
 });

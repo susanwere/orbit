@@ -170,7 +170,8 @@ export class GithubCiMonitor {
         !previous ||
         run.run_number > previous.run_number ||
         (run.run_number === previous.run_number &&
-          (run.run_attempt ?? 1) > (previous.run_attempt ?? 1))
+          ((run.run_attempt ?? 1) > (previous.run_attempt ?? 1) ||
+            ((run.run_attempt ?? 1) === (previous.run_attempt ?? 1) && run.id > previous.id)))
       )
         latest.set(run.workflow_id, run);
     }

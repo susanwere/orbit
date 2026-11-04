@@ -379,6 +379,7 @@
 .context-initial-state--generating .context-understanding-art {
   width: 240px;
   height: 160px;
+  margin-bottom: 40px;
   transform: scale(0.7);
   transform-origin: center bottom;
 }

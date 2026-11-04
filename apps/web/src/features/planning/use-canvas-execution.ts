@@ -70,6 +70,10 @@ export function useCanvasExecution(
           setExecutionError(
             "Could not refresh execution status. The saved plan is still available.",
           );
+        if (active)
+          timer = setTimeout(() => {
+            void refresh();
+          }, 2000);
       }
     };
     void refresh();

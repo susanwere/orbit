@@ -4,9 +4,9 @@ import type { StructuredJsonClient } from "../decisions/meta-model-client.js";
 
 describe("project knowledge summary timeouts", () => {
   it.each([
-    ["document", 90_000],
-    ["repository", 90_000],
-    ["project", 120_000],
+    ["document", 120_000],
+    ["repository", 120_000],
+    ["project", 180_000],
   ] as const)("uses a stage-specific timeout for %s", async (kind, timeoutMs) => {
     const timeout = Object.assign(new Error("The operation was aborted due to timeout"), {
       name: "TimeoutError",
@@ -15,7 +15,7 @@ describe("project knowledge summary timeouts", () => {
     const model: StructuredJsonClient = { complete };
 
     await expect(summarize(model, { kind })).rejects.toThrow(
-      `Muse Spark ${kind} summary timed out after ${timeoutMs / 1_000} seconds.`,
+      `Muse timed out after ${timeoutMs / 1_000} seconds while summarizing ${kind} context.`,
     );
     expect(complete).toHaveBeenCalledWith(
       expect.objectContaining({ timeoutMs, model: "muse-spark-1.3" }),

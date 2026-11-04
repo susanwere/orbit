@@ -1,7 +1,8 @@
 import { Canvas } from "@react-three/fiber";
 import { Html, Line } from "@react-three/drei";
 import { useCallback, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import type { ExecutionStep, MuseJobStatus } from "../intent/intent-api.js";
+import type { ExecutionStep, MuseJobStatus, ProjectTask } from "../intent/intent-api.js";
+import { selectWorkItemExecution, workItemExecutionStatus } from "./work-item-execution.js";
 import { executionDisplayState, overallWorkflowStatus } from "./work-item-status.js";
 import { GraphViewport, type GraphViewportControls } from "./GraphViewport.js";
 import { layoutGraph, routeEdge, type NodeSize } from "./graph-layout.js";
@@ -49,6 +50,7 @@ export function projectPlanGraph(
       title: item.title,
       subtitle: item.key,
       kind: "work",
+      executionStatus: "Proposed",
       target: item.key,
     });
     if (!item.dependsOn.length) edges.push({ from: "intent", to: workId });
@@ -90,6 +92,7 @@ export function projectExecutionGraph(
   statement: string,
   executionSteps: readonly ExecutionStep[],
   jobs: Readonly<Record<string, MuseJobStatus | null>>,
+  tasks: readonly ProjectTask[] = [],
 ) {
   const projection = projectPlanGraph(items, statement);
   for (const node of projection.nodes) {
@@ -99,6 +102,39 @@ export function projectExecutionGraph(
         (node.workflowIndex === undefined || step.workflow_index === node.workflowIndex),
     );
     node.executionStatus = overallWorkflowStatus(matchingSteps, jobs);
+    const task = tasks.find((candidate) => candidate.task_key === node.target);
+    if (node.kind === "work" && task) {
+      const executionStep = selectWorkItemExecution(task.task_key, matchingSteps, task);
+      const job = executionStep?.agent_session_id ? jobs[executionStep.agent_session_id] : null;
+      node.executionStatus = workItemExecutionStatus(true, task, executionStep, job);
+      if (
+        task.state === "STARTING" &&
+        ["BLOCKED", "Awaiting execution"].includes(node.executionStatus)
+      )
+        node.executionStatus = "RUNNING";
+      if (
+        task.state === "NEEDS_INPUT" &&
+        job?.status === "TURN_FINISHED" &&
+        job.changed_paths?.length === 0
+      )
+        node.executionStatus = "NEEDS_INPUT";
+      const deliveryState = job?.delivery_state ?? task.delivery_state;
+      const ciState = job?.github_ci_state ?? task.github_ci_state;
+      const isProcessing =
+        deliveryState === "REQUESTED" ||
+        deliveryState === "RUNNING" ||
+        ciState === "WAITING" ||
+        ciState === "PENDING";
+      if (
+        task.state === "ACTIVE" &&
+        isProcessing &&
+        deliveryState !== "ERROR" &&
+        job?.status !== "FAILED" &&
+        job?.local_execution_state !== "ERROR" &&
+        ["WAITING", "BLOCKED", "Awaiting execution"].includes(node.executionStatus)
+      )
+        node.executionStatus = "RUNNING";
+    }
     if (node.kind === "gate") {
       const approvalSteps = matchingSteps.filter((step) => step.approval_required);
       node.subtitle = approvalSteps.length
@@ -164,6 +200,7 @@ export function projectExecutionGraph(
 }
 
 interface Props {
+  readonly tasks?: readonly ProjectTask[];
   readonly executableItemKeys?: readonly string[];
   readonly executingItemKey?: string | null;
   readonly onExecute?: (workItemKey: string) => void;
@@ -184,6 +221,7 @@ interface Props {
 }
 
 export function WorkGraphCanvas({
+  tasks,
   executableItemKeys = [],
   executingItemKey = null,
   onExecute,
@@ -219,9 +257,9 @@ export function WorkGraphCanvas({
   const graph = useMemo(
     () =>
       approved
-        ? projectExecutionGraph(items, intent, executionSteps, museJobs)
+        ? projectExecutionGraph(items, intent, executionSteps, museJobs, tasks)
         : projectPlanGraph(items, intent),
-    [items, intent, approved, executionSteps, museJobs],
+    [items, intent, approved, executionSteps, museJobs, tasks],
   );
 
   const visibleNodes = useMemo(
@@ -408,7 +446,13 @@ export function WorkGraphCanvas({
                 (point) =>
                   [point.x / BASE_ZOOM, -point.y / BASE_ZOOM, -1] as [number, number, number],
               );
-              const color = edge.dependency ? "#b28adc" : "#8d6bb0";
+              const destination = visibleNodes.find((node) => node.id === edge.to);
+              const color =
+                destination?.executionStatus === "COMPLETED"
+                  ? "#f0a65a"
+                  : edge.dependency
+                    ? "#b28adc"
+                    : "#8d6bb0";
               return (
                 <group key={`${edge.from}:${edge.to}`}>
                   <Line points={points} color={color} lineWidth={edge.dependency ? 2 : 1.5} />
@@ -450,7 +494,8 @@ export function WorkGraphCanvas({
                         ? () => onExecute(node.target!)
                         : undefined
                     }
-                    executionPending={executingItemKey !== null}
+                    executionPending={executingItemKey === node.target}
+                    executionDisabled={executingItemKey !== null}
                     node={node}
                     selected={
                       node.target ? selectedItemKey === node.target : selectedItemKey === null
@@ -476,7 +521,7 @@ export function WorkGraphCanvas({
   );
 }
 
-function GraphNodeCard({
+export function GraphNodeCard({
   node,
   selected,
   onChoose,
@@ -484,15 +529,30 @@ function GraphNodeCard({
   onFocus,
   onExecute,
   executionPending,
+  executionDisabled,
 }: {
   readonly onExecute?: () => void;
   readonly executionPending?: boolean;
+  readonly executionDisabled?: boolean;
   readonly node: GraphNode;
   readonly selected: boolean;
   readonly onChoose: () => void;
   readonly onMeasure: (id: string, size: NodeSize) => void;
   readonly onFocus: () => void;
 }) {
+  const executeAction =
+    !node.executionStatus ||
+    ["READY", "Proposed", "Awaiting execution", "FAILED", "NEEDS_INPUT"].includes(
+      node.executionStatus,
+    )
+      ? onExecute
+      : undefined;
+  const visibleStatus = executionPending
+    ? "STARTING"
+    : (node.executionStatus ?? (executeAction ? "READY" : undefined));
+  const isExecuting = visibleStatus === "RUNNING" || visibleStatus === "STARTING";
+  const hasStaticGreenBorder =
+    node.kind === "intent" || visibleStatus === "COMPLETED" || visibleStatus === "READY_FOR_REVIEW";
   const buttonRef = useRef<HTMLButtonElement>(null);
   useLayoutEffect(() => {
     const button = buttonRef.current;
@@ -505,13 +565,16 @@ function GraphNodeCard({
     return () => observer.disconnect();
   }, [node.id, onMeasure]);
   return (
-    <div className={`workgraph-node-shell ${onExecute ? "is-ready" : ""}`}>
+    <div
+      className={`workgraph-node-shell ${executeAction ? "is-ready" : ""} ${isExecuting ? "is-executing" : ""} ${hasStaticGreenBorder ? "is-settled" : ""}`}
+      aria-busy={isExecuting}
+    >
       <button
         ref={buttonRef}
         type="button"
         className={`workgraph-node workgraph-node--${node.kind} ${selected ? "is-selected" : ""}`}
         data-node-id={node.id}
-        data-execution-state={node.executionStatus ?? (onExecute ? "READY" : undefined)}
+        data-execution-state={visibleStatus}
         aria-pressed={selected}
         onClick={onChoose}
         onFocus={(event) => {
@@ -519,38 +582,38 @@ function GraphNodeCard({
         }}
         title={node.target ? "Show this work item's configuration" : "Original project intent"}
       >
-        <span>
-          {node.kind === "intent"
-            ? "ORIGINAL INTENT"
-            : node.kind === "work"
-              ? "WORK ITEM"
-              : node.kind.toUpperCase()}
-        </span>
+        <div className="workgraph-node-heading">
+          <span>
+            {node.kind === "intent"
+              ? "ORIGINAL INTENT"
+              : node.kind === "work"
+                ? "WORK ITEM"
+                : node.kind.toUpperCase()}
+          </span>
+          {visibleStatus && (
+            <span
+              className="workgraph-status"
+              data-state={visibleStatus}
+              aria-label={`Status: ${visibleStatus.replaceAll("_", " ")}`}
+            >
+              {visibleStatus.replaceAll("_", " ")}
+            </span>
+          )}
+        </div>
         <strong>{node.title}</strong>
-        <span
-          className="workgraph-status"
-          title={
-            node.kind === "work" && node.executionStatus
-              ? `Overall workflow status: ${node.executionStatus}`
-              : node.executionStatus
-          }
-        >
-          {onExecute
-            ? executionPending
-              ? "STARTING"
-              : "READY"
-            : (node.executionStatus?.replaceAll("_", " ") ?? "")}
-        </span>
         <small title={node.subtitle}>{node.subtitle}</small>
       </button>
-      {onExecute && (
+      {executeAction && (
         <button
           type="button"
           className="workgraph-execute"
           aria-label={`Execute ${node.title}`}
           title={`Execute ${node.title}`}
-          disabled={executionPending}
-          onClick={onExecute}
+          disabled={executionDisabled || executionPending}
+          onClick={(event) => {
+            event.stopPropagation();
+            executeAction();
+          }}
         >
           <span aria-hidden="true">▶</span> {executionPending ? "Starting…" : "Execute"}
         </button>

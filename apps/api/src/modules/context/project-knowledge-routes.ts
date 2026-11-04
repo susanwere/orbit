@@ -98,10 +98,10 @@ export async function summarize(
   input: { kind: "document" | "repository" | "project" } & Record<string, unknown>,
 ): Promise<Summary> {
   const isProjectSummary = input.kind === "project";
-  const timeoutMs = isProjectSummary ? 120_000 : 90_000;
-  let response: unknown;
+  const timeoutMs = isProjectSummary ? 180_000 : 120_000;
+  let generatedSummary: unknown;
   try {
-    response = await model.complete({
+    generatedSummary = await model.complete({
       model: "muse-spark-1.3",
       schemaName: "OrbitProjectKnowledgeSummary",
       schema: SUMMARY_SCHEMA,
@@ -114,15 +114,14 @@ export async function summarize(
       userPrompt: JSON.stringify(input).slice(0, 30_000),
     });
   } catch (error) {
-    if (error instanceof Error && (error.name === "TimeoutError" || error.name === "AbortError")) {
+    if (error instanceof Error && ["TimeoutError", "AbortError"].includes(error.name))
       throw new DomainError(
         "model_api_error",
-        `Muse Spark ${input.kind} summary timed out after ${timeoutMs / 1_000} seconds.`,
+        `Muse timed out after ${timeoutMs / 1000} seconds while summarizing ${input.kind} context. The existing context version is unchanged.`,
       );
-    }
     throw error;
   }
-  return validSummary(response, isProjectSummary);
+  return validSummary(generatedSummary, isProjectSummary);
 }
 export async function generateProjectKnowledgeSnapshot(
   options: Pick<KnowledgeOptions, "db" | "storage" | "model" | "githubToken">,

@@ -40,6 +40,13 @@ describe("local Docker worker contract", () => {
       ).toThrow();
     }
   });
+  it("bounds prepared files to the contract", () => {
+    expect(
+      parseLocalWorkerPolicy({ ...policy, preparedFiles: ["src/New.tsx"] }).preparedFiles,
+    ).toEqual(["src/New.tsx"]);
+    for (const preparedFiles of [["../outside"], ["src/.env"], ["other/File.ts"], ["src/**"]])
+      expect(() => parseLocalWorkerPolicy({ ...policy, preparedFiles })).toThrow("Prepared files");
+  });
   it("uses the same path semantics for mounting and delivery, including config globs", () => {
     expect(permittedRepositoryPath("src/nested/App.tsx", policy.allowedPaths)).toBe(true);
     expect(permittedRepositoryPath("tsconfig.app.json", policy.allowedPaths)).toBe(true);
