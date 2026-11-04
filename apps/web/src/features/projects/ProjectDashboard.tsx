@@ -109,40 +109,46 @@ export function ProjectDashboard({ api, onOpen, onCreate, onHome }: Props) {
       </nav>
       <section className="project-dashboard-main">
         <header className="project-dashboard-header">
-          <h1 id="project-dashboard-heading">Projects</h1>
-          <p>Plan, review, and execute software projects with AI agents and your team.</p>
+          <div className="project-dashboard-heading-row">
+            <div>
+              <h1 id="project-dashboard-heading">Projects</h1>
+              <p>Plan, review, and execute software projects with AI agents and your team.</p>
+            </div>
+            <button className="project-dashboard-create" type="button" onClick={onCreate}>
+              <span aria-hidden="true">＋</span> New project
+            </button>
+          </div>
         </header>
-        <div className="project-dashboard-toolbar">
-          <label className="project-dashboard-search-wrap">
-            <span className="project-dashboard-sr-only">Search projects</span>
-            <svg
-              width="22"
-              height="22"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.6"
-              aria-hidden="true"
-            >
-              <circle cx="10.5" cy="10.5" r="7.5" />
-              <path d="m16 16 5 5" />
-            </svg>
-            <input
-              type="search"
-              disabled={isLoadingNextPage}
-              className="project-dashboard-search"
-              placeholder="Search projects…"
-              value={query}
-              onChange={(event) => {
-                setQuery(event.target.value);
-                setPageIndex(0);
-              }}
-            />
-          </label>
-          <button className="project-dashboard-create" type="button" onClick={onCreate}>
-            <span aria-hidden="true">＋</span> New project
-          </button>
-        </div>
+        {!isLoading && loadedProjects.length > 0 && (
+          <div className="project-dashboard-toolbar">
+            <label className="project-dashboard-search-wrap">
+              <span className="project-dashboard-sr-only">Search projects</span>
+              <svg
+                width="22"
+                height="22"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.6"
+                aria-hidden="true"
+              >
+                <circle cx="10.5" cy="10.5" r="7.5" />
+                <path d="m16 16 5 5" />
+              </svg>
+              <input
+                type="search"
+                disabled={isLoadingNextPage}
+                className="project-dashboard-search"
+                placeholder="Search projects…"
+                value={query}
+                onChange={(event) => {
+                  setQuery(event.target.value);
+                  setPageIndex(0);
+                }}
+              />
+            </label>
+          </div>
+        )}
         {isLoading && (
           <p className="project-dashboard-status" role="status">
             Loading projects…
@@ -167,9 +173,6 @@ export function ProjectDashboard({ api, onOpen, onCreate, onHome }: Props) {
           <div className="project-dashboard-empty">
             <h2>No projects yet</h2>
             <p>Create your first project and turn your intent into a reviewable plan.</p>
-            <button type="button" onClick={onCreate}>
-              Create project
-            </button>
           </div>
         )}
         {!isLoading && loadedProjects.length > 0 && matchingProjects.length === 0 && (
@@ -177,7 +180,8 @@ export function ProjectDashboard({ api, onOpen, onCreate, onHome }: Props) {
             No matching projects in the loaded results.
           </p>
         )}
-        <div className="project-dashboard-grid" aria-busy={isLoading || isLoadingNextPage}>
+        {loadedProjects.length > 0 && (
+          <div className="project-dashboard-grid" aria-busy={isLoading || isLoadingNextPage}>
           {visibleProjects.map((project, projectIndex) => (
             <button
               type="button"
@@ -204,7 +208,8 @@ export function ProjectDashboard({ api, onOpen, onCreate, onHome }: Props) {
               </span>
             </button>
           ))}
-        </div>
+          </div>
+        )}
         {!isLoading && loadedProjects.length > 0 && (
           <>
             <nav className="project-dashboard-pagination" aria-label="Project pages">
