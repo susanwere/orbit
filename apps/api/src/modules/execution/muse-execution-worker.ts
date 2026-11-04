@@ -1,6 +1,6 @@
 import { createExecutionActivityRecorder, summarizeMuseEvent } from "./muse-execution-activity.js";
 import { randomUUID } from "node:crypto";
-import { DomainError } from "@orbit/domain";
+import { DomainError, type ContextSnapshotItem } from "@orbit/domain";
 import type { SqlDatabase } from "@orbit/db";
 import type { ProjectAuthorizationService } from "../projects/project-authorization.js";
 import type { EngineeringExecutor, EngineeringExecutionResult } from "./muse-code-executor.js";
@@ -17,6 +17,7 @@ interface JobRow extends Record<string, unknown> {
   status: string;
   attempts: number;
   mission: string;
+  context_items?: ContextSnapshotItem[];
   is_code_task?: boolean;
   allowed_repositories: unknown;
   allowed_paths: unknown;
@@ -173,7 +174,7 @@ export class MuseExecutionWorker {
     const job = await this.db.transaction(async (tx) => {
       const claim = await tx.query<JobRow>(
         `SELECT job.id,job.organization_id,job.project_id,job.agent_session_id,job.attempts,
-            job.workflow_step_id,job.status,s.mission,c.allowed_repositories,
+            job.workflow_step_id,job.status,s.mission,snapshot.items AS context_items,c.allowed_repositories,
             c.allowed_paths,c.network_policy,c.network_allowlist,
             EXISTS(SELECT 1 FROM project_tasks task WHERE task.project_id=job.project_id
               AND task.organization_id=job.organization_id AND task.session_id=job.agent_session_id
@@ -181,6 +182,8 @@ export class MuseExecutionWorker {
          FROM muse_execution_jobs job
          JOIN agent_sessions s ON s.id=job.agent_session_id AND s.project_id=job.project_id
            AND s.organization_id=job.organization_id
+         JOIN context_snapshots snapshot ON snapshot.id=s.context_snapshot_id
+           AND snapshot.organization_id=s.organization_id AND snapshot.project_id=s.project_id
          JOIN workflow_step_executions step ON step.id=job.workflow_step_id
            AND step.project_id=job.project_id AND step.agent_session_id=s.id
          JOIN execution_contracts c ON c.id=s.execution_contract_id AND c.project_id=s.project_id
@@ -264,6 +267,7 @@ export class MuseExecutionWorker {
           if (activity) await recordActivity(activity);
         },
         mission: job.mission,
+        contextItems: job.context_items,
         workspace,
         modelSteps: 40,
         timeoutMs: 600000,
@@ -356,6 +360,8 @@ export class MuseExecutionWorker {
         `SELECT job.*,session.mission FROM muse_execution_jobs job
          JOIN agent_sessions session ON session.id=job.agent_session_id AND session.project_id=job.project_id AND session.organization_id=job.organization_id
          JOIN execution_contracts contract ON contract.id=session.execution_contract_id AND contract.project_id=job.project_id AND contract.organization_id=job.organization_id
+         JOIN context_snapshots snapshot ON snapshot.id=s.context_snapshot_id
+           AND snapshot.organization_id=s.organization_id AND snapshot.project_id=s.project_id
          JOIN workflow_step_executions step ON step.id=job.workflow_step_id AND step.project_id=job.project_id AND step.organization_id=job.organization_id
          JOIN plan_proposals plan ON plan.id=step.plan_id AND plan.project_id=step.project_id AND plan.organization_id=step.organization_id
          WHERE job.id=$1 AND job.project_id=$2 AND job.status='TURN_FINISHED' AND job.github_repository IS NULL

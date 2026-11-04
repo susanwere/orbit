@@ -110,6 +110,7 @@ describe("isolated Muse execution worker", () => {
   ) => {
     const statements: string[] = [];
     let invoked = 0;
+    let executionContext: unknown;
     const worker = new MuseExecutionWorker(
       {
         query: async (sql: string) => {
@@ -128,7 +129,8 @@ describe("isolated Muse execution worker", () => {
           }),
       } as never,
       {
-        execute: async () => {
+        execute: async (request) => {
+          executionContext = request.contextItems;
           invoked++;
           return {
             provider: "meta-muse-code",
@@ -145,6 +147,9 @@ describe("isolated Muse execution worker", () => {
     return {
       worker,
       statements,
+      get executionContext() {
+        return executionContext;
+      },
       get invoked() {
         return invoked;
       },
@@ -164,6 +169,29 @@ describe("isolated Muse execution worker", () => {
       });
       expect(h.invoked).toBe(0);
     }
+  });
+
+  it("passes only the session-bound immutable snapshot to execution", async () => {
+    process.env.ORBIT_MUSE_ISOLATED_WORKER = "true";
+    const contextItems = [
+      {
+        contextItemId: "knowledge:v1",
+        title: "Approved knowledge",
+        classification: "INTERNAL",
+        excerpt: '{"revision":1}',
+      },
+    ];
+    const execution = harness(0, { context_items: contextItems });
+    await execution.worker.runNext("/tmp/checkout");
+    expect(execution.executionContext).toEqual(contextItems);
+    expect(
+      execution.statements.some(
+        (sql) =>
+          sql.includes("snapshot.id=s.context_snapshot_id") &&
+          sql.includes("snapshot.organization_id=s.organization_id") &&
+          sql.includes("snapshot.project_id=s.project_id"),
+      ),
+    ).toBe(true);
   });
 
   it("refuses to execute outside an isolated worker", async () => {

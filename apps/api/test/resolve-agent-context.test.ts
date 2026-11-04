@@ -122,3 +122,72 @@ describe("agent context snapshot resolution", () => {
     expect(() => resolve({ ...agent, status: "draft" })).toThrow();
   });
 });
+
+const knowledgePath = "/attributes/approvedProjectKnowledge";
+describe("approved structured knowledge", () => {
+  const knowledge = {
+    snapshotId: "knowledge_2",
+    revision: 2,
+    content: { summary: { overview: "A jobs viewer", architecture: "React frontend" } },
+  };
+  const knowledgeVersion: ContextVersion = {
+    ...version,
+    content: {
+      ...version.content,
+      attributes: { approvedProjectKnowledge: knowledge, arbitrary: { secret: "excluded" } },
+    },
+  };
+  const resolveKnowledge = (definition: AgentDefinition) =>
+    resolveContextSnapshot({
+      id: "knowledge_snapshot",
+      version: knowledgeVersion,
+      activeDecisions: [],
+      agent: definition,
+      mission: "Implement jobs",
+      requestedByPrincipalId: "admin",
+      createdAt: at,
+    });
+  it("preserves structured content and provenance only with explicit scope and clearance", () => {
+    const snapshot = resolveKnowledge({
+      ...agent,
+      allowedContextScopes: [knowledgePath, "/attributes/arbitrary"],
+    });
+    expect(snapshot.includedPaths).toEqual([knowledgePath]);
+    expect(JSON.parse(snapshot.items[0]!.excerpt)).toEqual(knowledge);
+    expect(snapshot.items[0]!.sourceRef).toBe("knowledge:knowledge_2:revision:2");
+    expect(JSON.stringify(snapshot)).not.toContain('"secret"');
+    expect(snapshot.sourceContextVersionId).toBe(version.id);
+  });
+  it("does not broaden project scopes or public classification", () => {
+    expect(resolveKnowledge(agent).includedPaths).not.toContain(knowledgePath);
+    expect(
+      resolveKnowledge({
+        ...agent,
+        allowedContextScopes: [knowledgePath],
+        maxContextClassification: "PUBLIC",
+      }).items,
+    ).toEqual([]);
+  });
+  it("rejects oversized approved context instead of silently dropping it", () => {
+    const oversized: ContextVersion = {
+      ...knowledgeVersion,
+      content: {
+        ...knowledgeVersion.content,
+        attributes: {
+          approvedProjectKnowledge: { ...knowledge, content: { overview: "a".repeat(48000) } },
+        },
+      },
+    };
+    expect(() =>
+      resolveContextSnapshot({
+        id: "large",
+        version: oversized,
+        activeDecisions: [],
+        agent: { ...agent, allowedContextScopes: [knowledgePath] },
+        mission: "Implement",
+        requestedByPrincipalId: "admin",
+        createdAt: at,
+      }),
+    ).toThrow("budget");
+  });
+});

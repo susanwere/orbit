@@ -91,3 +91,28 @@ describe("running-session context impact", () => {
     ]);
   });
 });
+
+it("requires review for knowledge consumed by a snapshot, without granting new scopes", () => {
+  const current: ProjectContext = {
+    ...previous,
+    attributes: {
+      ...previous.attributes,
+      approvedProjectKnowledge: {
+        snapshotId: "knowledge2",
+        revision: 2,
+        content: { overview: "Updated" },
+      },
+    },
+  };
+  const evaluate = (includedPaths: readonly string[]) =>
+    evaluateExecutionImpact({
+      previous,
+      current,
+      snapshot: { ...snapshot, includedPaths },
+      mission: snapshot.mission,
+      allowedPaths: [],
+    });
+  expect(evaluate(["/attributes/approvedProjectKnowledge"]).result).toBe("REVIEW_REQUIRED");
+  expect(evaluate([]).result).toBe("ALLOW_CONTINUE");
+  expect(snapshot.sourceContextVersionId).toBe("v3");
+});
