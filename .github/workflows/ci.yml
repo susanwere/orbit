@@ -50,3 +50,5 @@ jobs:
           TEST_DATABASE_URL: postgres://orbit:orbit@localhost:5432/orbit
       - name: Build
         run: npm run build
+      - name: Verify production API entry point
+        run: test -f apps/api/dist/server.js
