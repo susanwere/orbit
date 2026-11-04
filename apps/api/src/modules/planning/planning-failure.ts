@@ -13,9 +13,20 @@ export function planningFailureMessage(error: unknown): string {
       const status = /^Meta Model API returned HTTP (\d{3})\.$/.exec(error.message)?.[1];
       if (status === "429") return "Muse is rate limited. Please wait a moment and retry.";
       if (status === "401" || status === "403") {
-        return "Muse rejected the API credentials. Check the local model API configuration.";
+        return "Muse rejected the API credentials. Check the model API configuration.";
       }
-      return "Muse is temporarily unavailable. Please retry.";
+      if (status === "400" || status === "422") {
+        return `Muse rejected the planning request (HTTP ${status}). Check model parameters and the structured output schema.`;
+      }
+      if (status === "404") {
+        return "Muse returned HTTP 404. Check the model API base URL and model availability.";
+      }
+      if (status === "408" || status === "502" || status === "503" || status === "504") {
+        return `Muse service returned HTTP ${status}. Retry after checking provider status.`;
+      }
+      return status
+        ? `Muse model API returned HTTP ${status}. Check provider status and configuration.`
+        : "Muse is temporarily unavailable. Please retry.";
     }
   }
   return "Planning failed while preparing or saving the proposal. Please retry.";
