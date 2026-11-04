@@ -101,6 +101,46 @@ export function resolveContextSnapshot(input: ResolveSnapshotInput): ContextSnap
   for (const key of Object.keys(version.content.attributes).sort()) {
     const path = `/attributes/${key.replace(/~/g, "~0").replace(/\//g, "~1")}`;
     const item = version.content.attributes[key];
+    // Only this published namespace can carry structured context. A broad project
+    // scope never grants access; approval of the agent's exact scope is required.
+    if (key === "approvedProjectKnowledge") {
+      const explicit = agent.allowedContextScopes.includes(path);
+      if (authorized && explicit) {
+        if (
+          !item ||
+          typeof item !== "object" ||
+          Array.isArray(item) ||
+          !("snapshotId" in item) ||
+          !("revision" in item) ||
+          !("content" in item) ||
+          typeof item.snapshotId !== "string" ||
+          !Number.isInteger(item.revision) ||
+          typeof item.content !== "object" ||
+          item.content === null ||
+          Array.isArray(item.content)
+        ) {
+          throw new DomainError("validation", "Invalid approved project knowledge.");
+        }
+        const excerpt = JSON.stringify(item);
+        if (Buffer.byteLength(excerpt, "utf8") > 48000)
+          throw new DomainError(
+            "validation",
+            "Approved project knowledge exceeds snapshot budget.",
+          );
+        add(
+          path,
+          {
+            contextItemId: `knowledge:${item.snapshotId}:${item.revision}`,
+            title: "Approved project knowledge",
+            classification,
+            excerpt,
+            sourceRef: `knowledge:${item.snapshotId}:revision:${item.revision}`,
+          },
+          true,
+        );
+      } else excludedPaths.push(path);
+      continue;
+    }
     const safePrimitive =
       typeof item === "string" || typeof item === "number" || typeof item === "boolean";
     const explicit = agent.allowedContextScopes.includes(path);

@@ -21,22 +21,35 @@ export async function promoteApprovedKnowledge(
   projectId: string,
   snapshotId: string,
   revision: number,
+  approvedByPrincipalId: string,
 ): Promise<string> {
   await initializeProjectContext(tx, projectId, organizationId);
   const rows = await tx.query<ContextRow>(
     `SELECT version.id,version.version_number,version.content
      FROM project_context_heads head
      JOIN context_versions version ON version.id=head.current_context_version_id
+       AND version.organization_id=head.organization_id AND version.project_id=head.project_id
      WHERE head.organization_id=$1 AND head.project_id=$2 FOR UPDATE OF head`,
     [organizationId, projectId],
   );
   const current = rows.rows[0];
   if (!current) throw new DomainError("not_found", "Project context head missing.");
   const source = await tx.query<{ content: unknown } & Record<string, unknown>>(
-    "SELECT content FROM project_knowledge_snapshots WHERE organization_id=$1 AND project_id=$2 AND id=$3 AND revision=$4",
-    [organizationId, projectId, snapshotId, revision],
+    "SELECT content FROM project_knowledge_snapshots WHERE organization_id=$1 AND project_id=$2 AND id=$3 AND revision=$4 AND review_status='APPROVED' AND reviewed_by_principal_id=$5",
+    [organizationId, projectId, snapshotId, revision, approvedByPrincipalId],
   );
   if (!source.rows[0]) throw new DomainError("not_found", "Knowledge snapshot missing.");
+  const published = current.content.attributes.approvedProjectKnowledge;
+  if (
+    published &&
+    typeof published === "object" &&
+    !Array.isArray(published) &&
+    "snapshotId" in published &&
+    "revision" in published &&
+    published.snapshotId === snapshotId &&
+    published.revision === revision
+  )
+    return current.id;
   const knowledge = { snapshotId, revision, content: source.rows[0].content as JsonValue };
   const next = buildNextContextVersion(
     {
@@ -81,5 +94,34 @@ export async function promoteApprovedKnowledge(
   );
   if (updated.rowCount !== 1)
     throw new DomainError("stale_context_version", "Project context changed during approval.");
+  const eventId = `knowledge-context-updated:${next.id}`;
+  await tx.query(
+    `INSERT INTO events
+     (id,organization_id,project_id,type,occurred_at,correlation_id,causation_id,
+      actor_type,actor_id,entity_type,entity_id,payload)
+     VALUES($1,$2,$3,'context.updated',$4,$5,$6,'human',$7,'ProjectContext',$8,$9::jsonb)`,
+    [
+      eventId,
+      organizationId,
+      projectId,
+      next.createdAt,
+      `knowledge-approval:${snapshotId}`,
+      snapshotId,
+      approvedByPrincipalId,
+      next.id,
+      JSON.stringify({
+        previousContextVersionId: current.id,
+        currentContextVersionId: next.id,
+        versionNumber: next.versionNumber,
+        knowledgeSnapshotId: snapshotId,
+        knowledgeRevision: revision,
+        source: "project_knowledge",
+      }),
+    ],
+  );
+  await tx.query(
+    "INSERT INTO domain_effect_jobs(event_id,project_id) VALUES($1,$2) ON CONFLICT(event_id) DO NOTHING",
+    [eventId, projectId],
+  );
   return next.id;
 }
