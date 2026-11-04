@@ -41,10 +41,16 @@
   padding-bottom: 80px;
 }
 .project-dashboard-header {
-  text-align: center;
+  text-align: left;
+}
+.project-dashboard-heading-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
 }
 .project-dashboard-header h1 {
-  margin: 0 0 14px;
+  margin: 0 0 10px;
   font-size: clamp(27px, 3vw, 45px);
   line-height: 1.15;
   letter-spacing: -1.5px;
@@ -56,13 +62,13 @@
   line-height: 1.6;
 }
 .project-dashboard-toolbar {
-  width: min(100%, 600px);
+  width: min(100%, 460px);
   display: flex;
   align-items: stretch;
-  gap: 24px;
-  margin: 54px auto 70px;
+  margin: 32px 0 48px;
 }
 .project-dashboard-search-wrap {
+  width: 100%;
   flex: 1;
   min-width: 0;
   position: relative;
@@ -267,11 +273,10 @@
 }
 .project-dashboard-empty {
   text-align: center;
-  padding: 40px 24px;
-  border: 1px dashed #4e416a;
-  border-radius: 18px;
+  padding: 90px 24px 40px;
 }
 .project-dashboard-empty h2 {
+  margin: 0 0 10px;
   font-size: 16.5px;
 }
 .project-dashboard-empty p {
@@ -420,10 +425,16 @@
   .project-dashboard-header p {
     font-size: 12px;
   }
-  .project-dashboard-toolbar {
+  .project-dashboard-heading-row {
+    align-items: flex-start;
     flex-direction: column;
-    gap: 16px;
-    margin: 32px auto 36px;
+    gap: 22px;
+  }
+  .project-dashboard-toolbar {
+    margin: 24px 0 36px;
+  }
+  .project-dashboard-empty {
+    padding-top: 64px;
   }
   .project-dashboard-grid {
     min-height: 776px;
